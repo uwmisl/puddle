@@ -1,5 +1,6 @@
-import puddle.arch
+from puddle.arch import Architecture
 import glob
+
 
 def test_arch():
     tests = glob.glob('tests/arches/*')
@@ -8,6 +9,5 @@ def test_arch():
         with open(test) as f:
             gstr = f.read()
 
-        graph = puddle.arch.parse(gstr)
-        assert puddle.arch.pretty_print(graph) == gstr
-
+        arch = Architecture.from_file(test)
+        assert arch.spec_string() == gstr

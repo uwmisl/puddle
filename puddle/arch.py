@@ -1,61 +1,108 @@
 import networkx as nx
 
-def parse_file(filename):
-    with open(filename) as f:
-        string = f.read()
 
-    return parse(string)
+class Cell:
 
-def parse(string):
-    """ Parse an arch specification string and return its graph representation.
-    Arch specification strings are newline-separated and contain periods (`.`)
-    for electrodes, `I` for input electrodes, and `H` for heaters. Spots where
-    there are no electrodes are given by a space (` `).
-    Example:
-     .....
-    I......H
-     .....
-    """
+    symbol = '.'
 
-    lines = string.split('\n')
+    def __init__(self, location):
 
-    h = len(lines)
-    w = max(len(line) for line in lines)
-    lines = [ line + ' ' * (w - len(line)) for line in lines ]
+        # locations are tuples (y,x)
+        assert len(location) == 2
 
-    graph = nx.grid_graph([h,w])
-    for r in range(h):
-        for c in range(w):
-            spec = lines[r][c]
-            if spec == ' ':
-                graph.remove_node((r,c))
-            elif spec == 'I':
-                graph.node[r,c] = 'input'
-            elif spec == '.':
-                graph.node[r,c] = 'normal'
-            elif spec == 'H':
-                graph.node[r,c] = 'heater'
-            else:
-                raise ValueError("invalid arch spec character: %s" % spec)
+        self.location = location
 
-    return graph
 
-def pretty_print(graph):
-    """ Do the inverse of `parse`, i.e. take a graph representation
-    of an architecture specification and return its string representation.
-    """
+class Heater(Cell):
+    symbol = 'H'
 
-    h, w = map(max, zip(*graph.nodes()))
-    lines = [ [' '] * (w+1) for _ in range(h+1) ]
 
-    for (r,c), label in graph.nodes(data = True):
-        if label == 'input':
-            lines[r][c] = 'I'
-        elif label == 'normal':
-            lines[r][c] = '.'
-        elif label == 'heater':
-            lines[r][c] = 'H'
-        else:
-            raise ValueError("invalid arch spec attribute %s" % label)
+class Input(Cell):
+    symbol = 'I'
 
-    return "\n".join(["".join(line).rstrip() for line in lines]) + "\n"
+
+cell_types = (
+    Cell,
+    Heater,
+    Input
+)
+
+
+class Architecture:
+
+    def __init__(self, graph):
+
+        # only bidirectional, single-edge graphs supported
+        assert type(graph) is nx.Graph
+
+        # only works for graphs with nodes (y, x)
+        assert all(len(n) == 2 for n in graph)
+
+        ys, xs = zip(*graph)
+
+        self.y_min, self.y_max = min(ys), max(ys)
+        self.x_min, self.x_max = min(xs), max(xs)
+
+        self.height = self.y_max - self.y_min + 1
+        self.width  = self.x_max - self.x_min + 1
+
+        self.graph = graph
+
+    @classmethod
+    def from_string(cls, string):
+        """ Parse an arch specification string to create an Architecture.
+
+        Arch specification strings are newline-separated and contain periods (`.`)
+        for electrodes, `I` for input electrodes, and `H` for heaters. Spots where
+        there are no electrodes are given by a space (` `).
+
+        Example:
+        .....
+        I......H
+        .....
+        """
+
+        lines = string.split('\n')
+
+        h = len(lines)
+        w = max(len(line) for line in lines)
+
+        # pad out each line to make a rectangle
+        lines = [ line + ' ' * (w - len(line)) for line in lines ]
+
+        graph = nx.grid_graph([h,w])
+        for r in range(h):
+            for c in range(w):
+                sym = lines[r][c]
+                loc = (r,c)
+
+                if sym == ' ':
+                    graph.remove_node(loc)
+                    continue
+
+                try:
+                    graph.node[loc] = next(
+                        cls(loc)
+                        for cls in cell_types
+                        if cls.symbol == sym)
+                except StopIteration:
+                    raise ValueError(f'invalid arch spec character: {sym}')
+
+        return cls(graph)
+
+    @classmethod
+    def from_file(cls, filename):
+        with open(filename) as f:
+            string = f.read()
+
+        return cls.from_string(string)
+
+    def spec_string(self):
+        """ Return the specification string of this Architecture. """
+
+        lines = [ [' '] * self.width for _ in range(self.height) ]
+
+        for (r,c), cell in self.graph.nodes(data = True):
+            lines[r][c] = cell.symbol
+
+        return "\n".join("".join(line).rstrip() for line in lines) + "\n"
