@@ -8,6 +8,6 @@ def test_arch():
         with open(test) as f:
             gstr = f.read()
 
-        graph = puddle.arch.parse_arch(gstr)
-        assert puddle.arch.pp_arch(graph) == gstr
+        graph = puddle.arch.parse(gstr)
+        assert puddle.arch.pretty_print(graph) == gstr
 

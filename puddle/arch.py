@@ -1,13 +1,22 @@
 import networkx as nx
-import numpy as np
 
-def parse_arch_file(filename):
+def parse_file(filename):
     with open(filename) as f:
         string = f.read()
 
-    return parse_arch(string)
+    return parse(string)
 
-def parse_arch(string):
+def parse(string):
+    """ Parse an arch specification string and return its graph representation.
+    Arch specification strings are newline-separated and contain periods (`.`)
+    for electrodes, `I` for input electrodes, and `H` for heaters. Spots where
+    there are no electrodes are given by a space (` `).
+    Example:
+     .....
+    I......H
+     .....
+    """
+
     lines = string.split('\n')
 
     h = len(lines)
@@ -31,10 +40,12 @@ def parse_arch(string):
 
     return graph
 
-def pp_arch(graph):
-    nodelist = np.array(graph.nodes())
-    h = nodelist[:,0].max()
-    w = nodelist[:,1].max()
+def pretty_print(graph):
+    """ Do the inverse of `parse`, i.e. take a graph representation
+    of an architecture specification and return its string representation.
+    """
+
+    h, w = map(max, zip(*graph.nodes()))
     lines = [ [' '] * (w+1) for _ in range(h+1) ]
 
     for (r,c), label in graph.nodes(data = True):
