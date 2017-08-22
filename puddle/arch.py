@@ -1,6 +1,17 @@
 import networkx as nx
 
 
+class Droplet:
+
+    def __init__(self, info='a'):
+        self.info = info
+
+    def split(self, ratio=0.5):
+        a = self.copy()
+        b = self.copy()
+        return a, b
+
+
 class Cell:
 
     symbol = '.'
@@ -11,7 +22,25 @@ class Cell:
         assert len(location) == 2
 
         self.location = location
+        self.droplet = None
 
+    def copy(self):
+        # networkx will sometimes call copy on the data objects
+
+        return self.__class__(self.location)
+
+    def send(self, other):
+        assert isinstance(other, Cell)
+
+        # put all my stuff in the other Cell's stuff
+
+        if other.droplet:
+            raise NotImplementedError('whoops')
+            other.droplet = other.droplet.mix(self.droplet)
+        else:
+            other.droplet = self.droplet
+
+        self.droplet = None
 
 class Heater(Cell):
     symbol = 'H'
@@ -29,11 +58,14 @@ cell_types = (
 
 
 class Architecture:
+    """ An interface to a (maybe) physical board. """
 
     def __init__(self, graph):
 
-        # only bidirectional, single-edge graphs supported
-        assert type(graph) is nx.Graph
+        # only directed, single-edge graphs supported
+        if type(graph) is nx.Graph:
+            graph = nx.DiGraph(graph)
+        assert type(graph) is nx.DiGraph
 
         # only works for graphs with nodes (y, x)
         assert all(len(n) == 2 for n in graph)
@@ -95,7 +127,9 @@ class Architecture:
         with open(filename) as f:
             string = f.read()
 
-        return cls.from_string(string)
+        arch = cls.from_string(string)
+        arch.source_file = filename
+        return arch
 
     def spec_string(self):
         """ Return the specification string of this Architecture. """
