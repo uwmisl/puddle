@@ -9,12 +9,13 @@ def test_place():
     arch = Architecture.from_file('tests/arches/01.arch')
     placer = Placer(arch)
 
-    placed_nodes = placer.place(width = 3, height = 4)
-    module = nx.grid_graph([3, 4])
+    module = nx.DiGraph(nx.grid_graph([3, 4]))
+    placement = placer.place(module)
 
-    assert placed_nodes
+    assert placement
 
-    placement = arch.graph.subgraph(placed_nodes)
+    # placement maps module to architecture
+    placement_target = arch.graph.subgraph(placement.keys())
 
     # need to make both placement and module are undirected graphs
-    assert nx.is_isomorphic(nx.Graph(placement), module)
+    assert nx.is_isomorphic(placement_target, module)
