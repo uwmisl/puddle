@@ -23,6 +23,9 @@ class Droplet:
     def __repr__(self):
         return f'{self} at 0x{id(self):x}'
 
+    def copy(self):
+        return self.__class__(self.info, self.cell)
+
     def split(self, ratio=0.5):
         assert self.valid
         a = self.copy()
