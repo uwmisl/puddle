@@ -1,11 +1,20 @@
 import numpy as np
+
+# we need to use a virtualenv-friendly backend
+import matplotlib
+matplotlib.use('TkAgg')
+
 import matplotlib.pyplot as plt
+
 
 class Visualizer:
 
-    def __init__(self):
+    def __init__(self, interactive=True):
         '''Set up a matplotlib figure for future calls to the visualizer.'''
-        plt.ion()
+        if interactive:
+            plt.ion()
+        else:
+            plt.ioff()
         self.fig = plt.figure()
 
     def __call__(self, graph):
@@ -36,4 +45,3 @@ class Visualizer:
             drop_id = data.get('drop_id', '')
             offset = 0.1 * len(drop_id)
             ax.text(c-offset, r+0.1, drop_id, fontsize=16)
-
