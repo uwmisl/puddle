@@ -1,49 +1,74 @@
 import networkx as nx
 
+from typing import Optional, Tuple, Any
+
+Node = Any
+
 
 class Droplet:
 
-    def __init__(self, info='a'):
+    def __init__(self, info='a', cell=None):
         self.info = info
+        self.cell = cell
+        self.valid = True
+
+    # def __eq__(self, other):
+    #     return (self.info == other.info and
+    #             self.valid == other.valid)
+
+    def __str__(self):
+        invalid_str = '' if self.valid else 'INVALID, '
+        return f'Droplet({invalid_str}{self.info!r})'
+
+    def __repr__(self):
+        return f'{self} at 0x{id(self):x}'
 
     def split(self, ratio=0.5):
+        assert self.valid
         a = self.copy()
         b = self.copy()
+        self.valid = False
         return a, b
 
     def mix(self, other: 'Droplet'):
-        # FIXME this does nothing
-        return self
+        assert self.valid
+        assert other.valid
+        self.valid  = False
+        other.valid = False
+        info = f'({self.info}, {other.info})'
+        return Droplet(info = info, cell = self.cell)
 
 
 class Cell:
 
     symbol = '.'
 
-    def __init__(self, location):
-
-        # locations are tuples (y,x)
-        assert len(location) == 2
+    def __init__(self, location: Tuple[Node, Node]) -> None:
 
         self.location = location
-        self.droplet = None
+        self.droplet: Optional[Droplet] = None
 
     def copy(self):
         # networkx will sometimes call copy on the data objects
 
         return self.__class__(self.location)
 
-    def send(self, other):
-        assert isinstance(other, Cell)
-
-        # put all my stuff in the other Cell's stuff
-
-        if other.droplet:
-            other.droplet = other.droplet.mix(self.droplet)
+    def add_droplet(self, droplet: Droplet):
+        if self.droplet:
+            self.droplet = self.droplet.mix(droplet)
         else:
-            other.droplet = self.droplet
+            self.droplet = droplet
+            droplet.cell = self
 
+    def send(self, other: 'Cell'):
+        """ Send contents of self to the other cell. """
+
+        droplet = self.droplet
         self.droplet = None
+
+        # only works if we had a droplet to begin with
+        assert droplet
+        other.add_droplet(droplet)
 
 
 class Heater(Cell):
@@ -156,6 +181,15 @@ class Architecture:
             lines[r][c] = cell.symbol
 
         return "\n".join("".join(line).rstrip() for line in lines) + "\n"
+
+    def add_droplet(self, droplet, location):
+
+        # make sure this a space in the graph that's valid but empty
+        assert location in self.graph
+        cell = self.graph.node[location]
+        assert not cell.droplet
+
+        cell.add_droplet(droplet)
 
     def move(self, edge):
 
