@@ -1,0 +1,40 @@
+[flake8]
+
+ignore =
+  # line length 79
+  E501,
+  # too many # for comment
+  E266,
+  # imports at top of file
+  E402,
+  # no from module import *
+  F403,
+  # unused, or from import *
+  F405,
+  # unxpected whitespace around operator, keyword/param =
+  E221,
+  E222,
+  E251,
+  # whitespace after keyword
+  E272,
+  # continuation line over-indented
+  E127,
+  # whitespace after/before paren
+  E201,
+  E202,
+  # whitespace before text,
+  E211,
+  # single line colon statements
+  E701,
+  E704,
+  # missing/multiple whitespace before/after ','
+  E203,
+  E231,
+  E241,
+  # missing white space around arith op
+  E226,
+  # at least two spaces before comment
+  E261,
+  # linebreak before binary operator
+  W503,
+
