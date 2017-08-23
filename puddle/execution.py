@@ -1,17 +1,59 @@
-from itertools import product
+import itertools
+from typing import Dict, List
 
 import networkx as nx
+
+from puddle.arch import Architecture, Droplet, ClassVar, Any
+from puddle.routing.astar import Router
+
+# simple type aliases
+Node = Any
+
+
+class Command:
+    shape: ClassVar[ nx.DiGraph ]
+    input_locations: ClassVar[ List[Node] ]
+
+    def __init__(self, input_droplets: List[Droplet]) -> None:
+        self.input_droplets = input_droplets
+
+
+class Mix(Command):
+
+    shape = nx.DiGraph(nx.grid_graph([2,3]))
+
+    @property
+    def input_locations(self):
+        return itertools.repeat((0,0), times=len(self.input_droplets))
 
 
 class Execution:
 
-    def __init__(self, arch):
+    def __init__(self, arch: Architecture) -> None:
         self.arch = arch
         self.placer = Placer(arch)
+        self.router = Router(arch.graph)
 
-    def go(self, command):
+    def go(self, command: Command) -> None:
 
-        placed_nodes = self.placer.place(command.shape)
+        # mapping of command nodes onto architecture nodes
+        placement = self.placer.place(command)
+
+        paths = self.router.route({
+            droplet: (droplet.location, placement[input_loc])
+            for droplet, input_loc in zip(command.input_droplets,
+                                          command.input_locations)
+        })
+
+        # actually route the droplets by controlling the architecture
+        for droplet, path in paths.items():
+            edges = zip(path, path[1:])
+            for edge in edges:
+                self.arch.move(edge)
+
+
+class PlaceError(Exception):
+    pass
 
 
 class Placer:
@@ -19,7 +61,7 @@ class Placer:
     def __init__(self, arch):
         self.arch = arch
 
-    def place(self, module):
+    def place(self, command: Command) -> Dict:
         """ Returns a mapping of module nodes onto architecture nodes.
 
         Also makes sure the "neighborhood" surrounding the module is empty.
@@ -39,11 +81,11 @@ class Placer:
             or any(graph.node[nbr].droplet for nbr in nbrs)
         ])
 
-        matcher = nx.isomorphism.DiGraphMatcher(graph, module)
+        matcher = nx.isomorphism.DiGraphMatcher(graph, command.shape)
 
         # for now, just return the first match because we don't care
         for match in matcher.subgraph_isomorphisms_iter():
             return match
 
-        # couldn't place the rectangle
-        return None
+        # couldn't place the command
+        raise PlaceError(f'Failed to place {command}')

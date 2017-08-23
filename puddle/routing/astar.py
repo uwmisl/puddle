@@ -2,16 +2,29 @@
 import itertools
 import heapq
 
+from typing import Dict, Set, Tuple, List, Any
+
+import networkx as nx
+
 import logging
 log = logging.getLogger(__name__)
 
 
+Node  = Any
+Agent = Any
+Path  = List[Node]
+
+
 class Router:
 
-    def __init__(self, graph):
+    def __init__(self, graph: nx.DiGraph) -> None:
         self.graph = graph
+        self.avoid: Set = set()
 
-    def route(self, agents):
+    def route(
+            self,
+            agents: Dict[Agent, Tuple[Node, Node]]
+    ) -> Dict[Agent, Path]:
 
         self.avoid = set()
         paths = {}
@@ -32,7 +45,7 @@ class Router:
         return paths
 
     @staticmethod
-    def build_path(predecessors, last):
+    def build_path(predecessors: Dict[Node, Node], last) -> Path:
         """Reconstruct a path from the destination and a predecessor map."""
         path = []
         node = last
@@ -44,7 +57,7 @@ class Router:
         path.reverse()
         return path
 
-    def a_star(self, src, dst):
+    def a_star(self, src: Node, dst: Node) -> Path:
         # mostly taken from the networkx implementation for now
 
         pop  = heapq.heappop
@@ -57,10 +70,10 @@ class Router:
 
         # Maps enqueued nodes to distance of discovered paths and the
         # computed heuristics to target. Saves recomputing heuristics.
-        enqueued = {}
+        enqueued: Dict[Node, Tuple[int, int]] = {}
 
         # Maps explored nodes to its predecessor on the shortest path.
-        explored = {}
+        explored: Dict[Node, Node] = {}
 
         while todo:
             _, _, current, distance, time, parent = pop(todo)

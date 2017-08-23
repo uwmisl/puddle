@@ -11,6 +11,10 @@ class Droplet:
         b = self.copy()
         return a, b
 
+    def mix(self, other: 'Droplet'):
+        # FIXME this does nothing
+        return self
+
 
 class Cell:
 
@@ -35,12 +39,12 @@ class Cell:
         # put all my stuff in the other Cell's stuff
 
         if other.droplet:
-            raise NotImplementedError('whoops')
             other.droplet = other.droplet.mix(self.droplet)
         else:
             other.droplet = self.droplet
 
         self.droplet = None
+
 
 class Heater(Cell):
     symbol = 'H'
@@ -55,6 +59,18 @@ cell_types = (
     Heater,
     Input
 )
+
+
+class Architecture2:
+
+    def __init__(self, topology: nx.DiGraph) -> None:
+        pass
+
+    def move(self, edge) -> bool:
+        pass
+
+    def split(self, node, edge1, edge2) -> None:
+        pass
 
 
 class Architecture:
@@ -140,3 +156,46 @@ class Architecture:
             lines[r][c] = cell.symbol
 
         return "\n".join("".join(line).rstrip() for line in lines) + "\n"
+
+    def move(self, edge):
+
+        # make sure this is actually an edge in the graph
+        (src, dst) = edge
+        assert dst in self.graph[src]
+
+        src_cell = self.graph.node[src]
+        dst_cell = self.graph.node[dst]
+
+        # make sure that the source cell actually has something
+        assert src_cell.droplet
+
+        src_cell.send(dst_cell)
+
+    def split(self, location):
+        """ Split a droplet into two droplets.
+
+        Requires two spaces on either side of location.
+
+        FIXME Right now this only works horizontally.
+        """
+
+        src_cell = self.graph.node[location]
+        droplet = src_cell.droplet
+        y, x = location
+
+        cell_l1 = self.graph.node[y, x - 1]
+        cell_l2 = self.graph.node[y, x - 2]
+        cell_r1 = self.graph.node[y, x + 1]
+        cell_r2 = self.graph.node[y, x + 2]
+
+        # make sure there's something in the original cell
+        # and nothing in the rest of them
+        assert droplet
+        assert not any((
+            cell_l1.droplet,
+            cell_l2.droplet,
+            cell_r1.droplet,
+            cell_r2.droplet
+        ))
+
+        cell_l2.drop, cell_r2.drop = droplet.split()
