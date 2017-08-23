@@ -24,7 +24,7 @@ class Command:
 
 class Mix(Command):
 
-    shape = nx.DiGraph(nx.grid_graph([2,3]))
+    shape: ClassVar[ nx.DiGraph ] = nx.DiGraph(nx.grid_graph([2,3]))
 
     @property
     def input_locations(self):
