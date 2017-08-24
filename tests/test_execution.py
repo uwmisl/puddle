@@ -1,10 +1,17 @@
 from puddle.arch import Architecture, Droplet
 from puddle.execution import Execution, Mix
+from puddle.visualizer import Visualizer
 
 
-def test_simple_execution():
+def test_simple_execution(interactive=False):
     arch = Architecture.from_file('tests/arches/01.arch')
+    if interactive:
+        arch.pause = 0.8
+
     execution = Execution(arch)
+    visualizer = Visualizer(arch)
+    if interactive:
+        visualizer.start()
 
     a = Droplet('a')
     b = Droplet('b')
@@ -31,3 +38,10 @@ def test_simple_execution():
     d = resulting_droplets[0]
 
     assert d.info == '(a, b)'
+
+    if interactive:
+        visualizer.stop()
+
+
+if __name__ == '__main__':
+    test_simple_execution(interactive=True)

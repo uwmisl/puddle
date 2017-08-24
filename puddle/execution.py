@@ -17,6 +17,9 @@ class Command:
     def __init__(self, input_droplets: List[Droplet]) -> None:
         self.input_droplets = input_droplets
 
+    def add_placement(self, placement):
+        self.placement = placement
+
     def run(self):
         # FIXM
         print(f'running {self}')
@@ -42,6 +45,8 @@ class Execution:
 
         # mapping of command nodes onto architecture nodes
         placement = self.placer.place(command)
+        command.add_placement(placement)
+        self.arch.push_command(command)
 
         paths = self.router.route({
             droplet: (droplet.cell.location, placement[input_loc])
@@ -57,6 +62,7 @@ class Execution:
 
         # execute the command
         command.run()
+        self.arch.pop_command()
 
 
 class PlaceError(Exception):

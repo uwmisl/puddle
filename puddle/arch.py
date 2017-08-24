@@ -2,6 +2,8 @@ import networkx as nx
 
 from typing import Optional, Tuple, Any
 
+import time
+
 Node = Any
 
 
@@ -124,6 +126,16 @@ class Architecture:
 
         self.graph = graph
 
+        self.active_commands = []
+
+        self.pause = 0
+
+    def push_command(self, command):
+        self.active_commands.append(command)
+
+    def pop_command(self):
+        self.active_commands.pop()
+
     @classmethod
     def from_string(cls, string):
         """ Parse an arch specification string to create an Architecture.
@@ -194,6 +206,7 @@ class Architecture:
         assert not cell.droplet
 
         cell.add_droplet(droplet)
+        time.sleep(self.pause)
 
     def move(self, edge):
 
@@ -208,6 +221,7 @@ class Architecture:
         assert src_cell.droplet
 
         src_cell.send(dst_cell)
+        time.sleep(self.pause)
 
     def split(self, location):
         """ Split a droplet into two droplets.
