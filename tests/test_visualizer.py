@@ -1,17 +1,14 @@
+from puddle.arch import Architecture, Droplet
 from puddle.visualizer import Visualizer
-import networkx as nx
 
 
-def test_visualizer():
-    visualize = Visualizer(interactive=False)
+def test_visualizer(interactive=False):
+    visualize = Visualizer(interactive)
+    arch = Architecture.from_file('tests/arches/01.arch')
+    arch.add_droplet(Droplet('0'), (1,1))
+    visualize(arch.graph)
 
-    g = nx.grid_graph(dim = [4,8])
-    g.node[2,3]['drop_id'] = '1'
-    g.node[2,3]['color'] = (0.1, 0.4, 0.3)
 
-    visualize(g)
-
-    g.node[1,3] = g.node[2,3]
-    g.node[2,3] = {}
-
-    visualize(g)
+if __name__ == '__main__':
+    test_visualizer(interactive=True)
+    input()

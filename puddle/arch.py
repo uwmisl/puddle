@@ -188,7 +188,8 @@ class Architecture:
     def add_droplet(self, droplet, location):
 
         # make sure this a space in the graph that's valid but empty
-        assert location in self.graph
+        assert type(location) is tuple and len(location) == 2
+        assert location in self.graph.node
         cell = self.graph.node[location]
         assert not cell.droplet
 

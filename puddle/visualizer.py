@@ -5,6 +5,11 @@ import matplotlib
 matplotlib.use('TkAgg')
 
 import matplotlib.pyplot as plt
+from . import arch
+
+cell_color    = [1.0, 1.0, 1.0]
+heater_color  = [0.8, 0.5, 0.2]
+droplet_color = [0.6, 0.6, 0.6]
 
 
 class Visualizer:
@@ -34,14 +39,24 @@ class Visualizer:
 
         # turn graph into color grid
         grid = np.zeros((h, w, 3))
-        for (r, c), data in graph.nodes(data=True):
-            grid[r,c,:] = data.get('color', [1,1,1])
+        for (r, c), cell in graph.nodes(data=True):
+            assert isinstance(cell, arch.Cell)
+            if isinstance(cell, arch.Heater):
+                colors = heater_color
+            else:
+                colors = cell_color
+
+            if cell.droplet:
+                colors = np.mean([colors, droplet_color], 0)
+
+            grid[r,c,:] = colors
 
         # plot color grid on axes
         ax.imshow(grid)
 
         # annotate grid with droplet ids
-        for (r, c), data in graph.nodes(data=True):
-            drop_id = data.get('drop_id', '')
-            offset = 0.1 * len(drop_id)
-            ax.text(c-offset, r+0.1, drop_id, fontsize=16)
+        for (r, c), cell in graph.nodes(data=True):
+            if cell.droplet:
+                info = cell.droplet.info
+                offset = 0.1 * len(info)
+                ax.text(c-offset, r+0.1, info, fontsize=16)
