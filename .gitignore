@@ -100,4 +100,8 @@ ENV/
 # mypy
 .mypy_cache/
 
+# OS stuff
 .DS_Store
+
+# editor stuff
+.idea
