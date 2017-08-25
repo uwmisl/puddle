@@ -22,15 +22,16 @@ class Visualizer:
 
     def __init__(self, arch):
         self.arch = arch
+        self.stopped = Event()
+
+    def start(self):
         ctxt = zmq.Context()
         self.sock = ctxt.socket(zmq.REP)
         port = self.sock.bind_to_random_port("tcp://*")
 
-        self.stopped = Event()
         self.thr = Thread(target = self.send_arch)
         self.proc = Process(target=Visualizer.grapher, args=(port,))
 
-    def start(self):
         self.thr.start()
         self.proc.start()
 
