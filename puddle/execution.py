@@ -1,37 +1,13 @@
-import itertools
-from typing import Dict, List, ClassVar, Any
+from typing import Dict, Any
 
 import networkx as nx
 
-from puddle.arch import Architecture, Droplet
+from puddle.arch import Architecture, Command
 from puddle.routing.astar import Router
+from puddle.util import pairs
 
 # simple type aliases
 Node = Any
-
-
-class Command:
-    shape: ClassVar[ nx.DiGraph ]
-    input_locations: ClassVar[ List[Node] ]
-
-    def __init__(self, input_droplets: List[Droplet]) -> None:
-        self.input_droplets = input_droplets
-
-    def add_placement(self, placement):
-        self.placement = placement
-
-    def run(self):
-        # FIXM
-        print(f'running {self}')
-
-
-class Mix(Command):
-
-    shape: ClassVar[ nx.DiGraph ] = nx.DiGraph(nx.grid_graph([2,3]))
-
-    @property
-    def input_locations(self):
-        return itertools.repeat((0,0), times=len(self.input_droplets))
 
 
 class Execution:
@@ -41,11 +17,11 @@ class Execution:
         self.placer = Placer(arch)
         self.router = Router(arch.graph)
 
-    def go(self, command: Command) -> None:
+    def go(self, command: Command) -> Any:
 
         # mapping of command nodes onto architecture nodes
         placement = self.placer.place(command)
-        command.add_placement(placement)
+        # command.add_placement(placement)
         self.arch.push_command(command)
 
         paths = self.router.route({
@@ -56,13 +32,14 @@ class Execution:
 
         # actually route the droplets by controlling the architecture
         for droplet, path in paths.items():
-            edges = zip(path, path[1:])
-            for edge in edges:
+            for edge in pairs(path):
                 self.arch.move(edge)
 
         # execute the command
-        command.run()
+        result = command.run(placement)
         self.arch.pop_command()
+
+        return result
 
 
 class PlaceError(Exception):

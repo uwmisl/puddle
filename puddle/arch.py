@@ -1,8 +1,13 @@
+import time
 import networkx as nx
 
-from typing import Optional, Tuple, Any
+from typing import Optional, Tuple, Any, ClassVar, List
 
-import time
+from puddle.util import pairs
+
+import logging
+log = logging.getLogger(__name__)
+
 
 Node = Any
 
@@ -36,12 +41,22 @@ class Droplet:
         return a, b
 
     def mix(self, other: 'Droplet'):
+        log.debug(f'mixing {self} with {other}')
         assert self.valid
         assert other.valid
+
+        # for now, they much be in the same place
+        assert self.cell is other.cell
+        # FIXME right now we assume cells only have one droplet
+
         self.valid  = False
         other.valid = False
         info = f'({self.info}, {other.info})'
-        return Droplet(info = info, cell = self.cell)
+
+        result =  Droplet(info = info, cell = self.cell)
+        self.cell.droplet = result
+
+        return result
 
 
 class Cell:
@@ -60,13 +75,16 @@ class Cell:
 
     def add_droplet(self, droplet: Droplet):
         if self.droplet:
-            self.droplet = self.droplet.mix(droplet)
-        else:
-            self.droplet = droplet
-            droplet.cell = self
+            # self.droplet = self.droplet.mix(droplet)
+            log.warning(f'overlapping but not mixing '
+                        f'{self.droplet} with {droplet} at {self.location}')
+
+        self.droplet = droplet
+        droplet.cell = self
 
     def send(self, other: 'Cell'):
         """ Send contents of self to the other cell. """
+        log.debug(f'sending {self.droplet} from {self.location} to {other.location}')
 
         droplet = self.droplet
         self.droplet = None
@@ -91,16 +109,73 @@ cell_types = (
 )
 
 
-class Architecture2:
+class Command:
+    shape: ClassVar[nx.DiGraph]
+    input_locations: ClassVar[List[Node]]
+    result: Any
 
-    def __init__(self, topology: nx.DiGraph) -> None:
-        pass
 
-    def move(self, edge) -> bool:
-        pass
+class Mix(Command):
 
-    def split(self, node, edge1, edge2) -> None:
-        pass
+    shape: ClassVar[nx.DiGraph] = nx.DiGraph(nx.grid_graph([2, 3]))
+    input_locations: ClassVar[List[Node]] = [(0,0), (0,0)]
+
+    n_mix_loops = 1
+    loop = [(0,0), (1,0), (1,1), (1,2), (0,2), (0,1), (0,0)]
+
+    def __init__(self, arch, droplet1, droplet2):
+        self.arch = arch
+        self.droplet1 = droplet1
+        self.droplet2 = droplet2
+        self.input_droplets = [droplet1, droplet2]
+
+    def run(self, mapping):
+
+        # use the mapping to get the edges in the architecture we have to take
+        arch_loop_edges = list(pairs(mapping[node] for node in self.loop))
+
+        for _ in range(self.n_mix_loops):
+            for edge in arch_loop_edges:
+                self.arch.move(edge)
+
+        # location of resulting droplet is set by that of droplet1
+        return Droplet.mix(self.droplet1, self.droplet2)
+
+
+class Split(Command):
+
+    shape: ClassVar[nx.DiGraph] = nx.DiGraph(nx.path_graph(6))
+    input_locations: ClassVar[List[Node]] = [2]
+
+    def __init__(self, arch, droplet):
+        self.arch = arch
+        self.droplet = droplet
+        self.input_droplets = [droplet]
+
+    def run(self, mapping):
+
+        # use the mapping to get the edges in the architecture we have to take
+        edges1 = list(pairs(mapping[node] for node in range(2, -1, -1)))
+        edges2 = list(pairs(mapping[node] for node in range(3,  6,  1)))
+
+        assert len(edges1) == len(edges2)
+
+        # "split" the droplet, and just magically move one to the adjacent cell
+        droplet1, droplet2 = self.droplet.split()
+
+        self.arch.graph.node[mapping[2]].add_droplet(droplet1)
+        self.arch.graph.node[mapping[3]].add_droplet(droplet2)
+
+        for e1, e2 in zip(edges1, edges2):
+            # TODO this should be in parallel
+            self.arch.move(e1)
+            self.arch.move(e2)
+
+        # make sure the results are where they should be
+        assert droplet1.cell == self.arch.graph.node[mapping[0]]
+        assert droplet2.cell == self.arch.graph.node[mapping[5]]
+
+        return droplet1, droplet2
 
 
 class Architecture:
@@ -126,6 +201,7 @@ class Architecture:
 
         self.graph = graph
 
+        # for visualization
         self.active_commands = []
 
         self.pause = 0
@@ -222,32 +298,3 @@ class Architecture:
 
         src_cell.send(dst_cell)
         time.sleep(self.pause)
-
-    def split(self, location):
-        """ Split a droplet into two droplets.
-
-        Requires two spaces on either side of location.
-
-        FIXME Right now this only works horizontally.
-        """
-
-        src_cell = self.graph.node[location]
-        droplet = src_cell.droplet
-        y, x = location
-
-        cell_l1 = self.graph.node[y, x - 1]
-        cell_l2 = self.graph.node[y, x - 2]
-        cell_r1 = self.graph.node[y, x + 1]
-        cell_r2 = self.graph.node[y, x + 2]
-
-        # make sure there's something in the original cell
-        # and nothing in the rest of them
-        assert droplet
-        assert not any((
-            cell_l1.droplet,
-            cell_l2.droplet,
-            cell_r1.droplet,
-            cell_r2.droplet
-        ))
-
-        cell_l2.drop, cell_r2.drop = droplet.split()

@@ -1,7 +1,7 @@
 import networkx as nx
 
-from puddle.arch import Architecture
-from puddle.execution import Placer, Command
+from puddle.arch import Architecture, Mix, Droplet
+from puddle.execution import Placer
 
 
 def test_place():
@@ -9,10 +9,10 @@ def test_place():
     arch = Architecture.from_file('tests/arches/01.arch')
     placer = Placer(arch)
 
-    class TestCommand(Command):
-        shape = nx.DiGraph(nx.grid_graph([3, 4]))
+    a = Droplet('a')
+    b = Droplet('b')
 
-    command = TestCommand(input_droplets = [])
+    command = Mix(arch, a, b)
 
     placement = placer.place(command)
 
