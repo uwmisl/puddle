@@ -4,7 +4,7 @@ from puddle.arch import Architecture
 
 def test_api():
     arch = Architecture.from_file('tests/arches/01.arch')
-    sess = puddle.Session(arch, visualize=False)
+    sess = puddle.Session(arch)
 
     d1 = sess.input_droplet((1,1))
     d2 = sess.input_droplet((3,1))

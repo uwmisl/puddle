@@ -1,4 +1,3 @@
-import time
 import networkx as nx
 
 from typing import Optional, Tuple, Any, ClassVar, List
@@ -29,6 +28,16 @@ class Droplet:
 
     def __repr__(self):
         return f'{self} at 0x{id(self):x}'
+
+    def to_dict(self):
+        """ Used to JSONify this for rendering in the client """
+        y, x = self.cell.location
+        return {
+            'id': id(self),
+            'y': y,
+            'x': x,
+            'info': self.info,
+        }
 
     def copy(self):
         return self.__class__(self.info, self.cell)
@@ -67,6 +76,9 @@ class Cell:
 
         self.location = location
         self.droplet: Optional[Droplet] = None
+
+    def __str__(self):
+        return f'{self.__class__.__name__}({self.location}, {self.droplet})'
 
     def copy(self):
         # networkx will sometimes call copy on the data objects
@@ -181,7 +193,7 @@ class Split(Command):
 class Architecture:
     """ An interface to a (maybe) physical board. """
 
-    def __init__(self, graph):
+    def __init__(self, graph, rendered=None):
 
         # only directed, single-edge graphs supported
         if type(graph) is nx.Graph:
@@ -203,8 +215,20 @@ class Architecture:
 
         # for visualization
         self.active_commands = []
+        self.rendered = rendered
 
-        self.pause = 0
+    def __str__(self):
+        return '\n'.join(
+            str(cell) for loc, cell in self.graph.nodes(data=True)
+            if cell.droplet
+        )
+
+    def wait(self):
+        if self.rendered:
+            print('waiting....')
+            self.rendered.wait()
+            self.rendered.clear()
+            print('Waking up!')
 
     def push_command(self, command):
         self.active_commands.append(command)
@@ -213,7 +237,7 @@ class Architecture:
         self.active_commands.pop()
 
     @classmethod
-    def from_string(cls, string):
+    def from_string(cls, string, **kwargs):
         """ Parse an arch specification string to create an Architecture.
 
         Arch specification strings are newline-separated and contain periods (`.`)
@@ -252,14 +276,14 @@ class Architecture:
                 except StopIteration:
                     raise ValueError(f'invalid arch spec character: {sym}')
 
-        return cls(graph)
+        return cls(graph, **kwargs)
 
     @classmethod
-    def from_file(cls, filename):
+    def from_file(cls, filename, **kwargs):
         with open(filename) as f:
             string = f.read()
 
-        arch = cls.from_string(string)
+        arch = cls.from_string(string, **kwargs)
         arch.source_file = filename
         return arch
 
@@ -282,7 +306,7 @@ class Architecture:
         assert not cell.droplet
 
         cell.add_droplet(droplet)
-        time.sleep(self.pause)
+        self.wait()
 
     def move(self, edge):
 
@@ -297,4 +321,4 @@ class Architecture:
         assert src_cell.droplet
 
         src_cell.send(dst_cell)
-        time.sleep(self.pause)
+        self.wait()

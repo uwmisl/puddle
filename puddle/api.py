@@ -3,19 +3,17 @@ from typing import Tuple
 
 from puddle.arch import Architecture, Droplet, Mix, Split
 from puddle.execution import Execution
-from puddle.visualizer import Visualizer
 
 
 class Session:
 
     droplet_id_counter = itertools.count()
 
-    def __init__(self, arch: Architecture, visualize=False)  -> None:
+    def __init__(self, arch: Architecture)  -> None:
         # create graph, connect to hw
         self.arch = arch
         # self.queue = cmd.CommandQueue()
         self.execution = Execution(arch)
-        self.visualizer = Visualizer() if visualize else None
 
     def input_droplet(self, location, info=None) -> Droplet:
         """bind location to new droplet"""
@@ -28,8 +26,6 @@ class Session:
         droplet = Droplet(info)
         self.arch.add_droplet(droplet, location)
 
-        if self.visualizer:
-            self.visualizer(self.arch.graph)
         return droplet
 
     def mix(self, droplet1: Droplet, droplet2: Droplet) -> Droplet:

@@ -105,3 +105,5 @@ ENV/
 
 # editor stuff
 .idea
+node_modules/
+*.js
