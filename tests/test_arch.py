@@ -10,4 +10,4 @@ def test_arch():
             gstr = f.read()
 
         arch = Architecture.from_file(test)
-        assert arch.spec_string() == gstr
+        assert arch.spec_string().rstrip() == gstr.rstrip()
