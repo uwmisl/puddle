@@ -3,12 +3,8 @@ PurpleDrop Language (PDL)
 
 ## Developing
 
-To run the server, do the following the project root:
+To run an example program, you must point python to the `puddle`
+package, and enable the visualization if you want.
 ```shell
-FLASK_APP=puddle/server.py FLASK_DEBUG=1 flask run
+PYTHONPATH=. PUDDLE_VIZ=1 python tests/programs/simple.py
 ```
-
-The `FLASK_DEBUG` will put Flask in the [debug mode], making it give nice
-backtraces and automatically restart when files are changed.
-
-[debug mode]: http://flask.pocoo.org/docs/0.12/api/#flask.send_from_directory

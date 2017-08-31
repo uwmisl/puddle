@@ -193,7 +193,7 @@ class Split(Command):
 class Architecture:
     """ An interface to a (maybe) physical board. """
 
-    def __init__(self, graph, rendered=None):
+    def __init__(self, graph):
 
         # only directed, single-edge graphs supported
         if type(graph) is nx.Graph:
@@ -215,7 +215,7 @@ class Architecture:
 
         # for visualization
         self.active_commands = []
-        self.rendered = rendered
+        self.session = None
 
     def __str__(self):
         return '\n'.join(
@@ -224,11 +224,13 @@ class Architecture:
         )
 
     def wait(self):
-        if self.rendered:
-            print('waiting....')
-            self.rendered.wait()
-            self.rendered.clear()
-            print('Waking up!')
+        if self.session and self.session.rendered:
+            event = self.session.rendered
+            if event:
+                print('waiting....')
+                event.wait()
+                event.clear()
+                print('Waking up!')
 
     def push_command(self, command):
         self.active_commands.append(command)
