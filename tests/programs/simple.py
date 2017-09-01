@@ -12,5 +12,3 @@ ab = session.mix(a, b)
 ab1, ab2 = session.split(ab)
 abc = session.mix(ab1, c)
 ababc = session.mix(abc, ab2)
-
-print(ababc)
