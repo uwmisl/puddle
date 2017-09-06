@@ -1,5 +1,6 @@
 import itertools
 from os import environ
+from contextlib import AbstractContextManager
 from ast import literal_eval
 from typing import Tuple
 
@@ -11,7 +12,7 @@ import logging
 log = logging.getLogger(__name__)
 
 
-class Session:
+class Session(AbstractContextManager):
 
     droplet_id_counter = itertools.count()
 
@@ -43,6 +44,19 @@ class Session:
             self.server_thread.start()
 
             log.info('started server!')
+
+    def close(self):
+        log.info('Closing session.')
+        if self.server_thread:
+            from puddle.server.server import app
+            from urllib.request import urlopen
+            url = app.config['SERVER_NAME'] or'http://127.0.0.1:5000'
+            urlopen(url+'/shutdown')
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        # do not suppress exceptions
+        self.close()
+        return False
 
     def input_droplet(self, location, info=None) -> Droplet:
         """bind location to new droplet"""

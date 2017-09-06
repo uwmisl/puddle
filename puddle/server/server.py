@@ -25,14 +25,6 @@ def static_stuff(url):
     return send_from_directory('static', url)
 
 
-def shutdown_server():
-    # from http://flask.pocoo.org/snippets/67/
-    func = request.environ.get('werkzeug.server.shutdown')
-    if func is None:
-        raise RuntimeError('Not running with the Werkzeug Server')
-    func()
-
-
 @app.route('/state')
 def state():
 
@@ -50,3 +42,14 @@ def state():
     session.rendered.set()
 
     return jsonify(droplets)
+
+
+@app.route('/shutdown')
+def shutdown():
+    # from http://flask.pocoo.org/snippets/67/
+    func = request.environ.get('werkzeug.server.shutdown')
+    if func is None:
+        raise RuntimeError('Not running with the Werkzeug Server')
+    func()
+
+    return 'Shutdown...'
