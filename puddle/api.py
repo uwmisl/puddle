@@ -7,6 +7,9 @@ from typing import Tuple
 from puddle.arch import Architecture, Droplet, Mix, Split
 from puddle.execution import Execution
 
+import logging
+log = logging.getLogger(__name__)
+
 
 class Session:
 
@@ -26,7 +29,7 @@ class Session:
             visualize = bool(literal_eval(environ.get('PUDDLE_VIZ', '0')))
 
         if visualize:
-            print('starting server...')
+            log.info('starting server...')
             from threading import Thread, Event
             import puddle.server.server as server
 
@@ -39,7 +42,7 @@ class Session:
             self.server_thread = Thread(target=go)
             self.server_thread.start()
 
-            print('started server!')
+            log.info('started server!')
 
     def input_droplet(self, location, info=None) -> Droplet:
         """bind location to new droplet"""

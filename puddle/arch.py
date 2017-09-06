@@ -227,10 +227,8 @@ class Architecture:
         if self.session and self.session.rendered:
             event = self.session.rendered
             if event:
-                print('waiting....')
                 event.wait()
                 event.clear()
-                print('Waking up!')
 
     def push_command(self, command):
         self.active_commands.append(command)
