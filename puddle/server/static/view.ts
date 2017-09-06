@@ -94,6 +94,10 @@ function get_data() {
     }
 }
 
+$("#step").click(() => {
+    $.getJSON('/state', parse_data)
+});
+
 $("#ready").change(
     function() {
         if ($(this).is(':checked')) {
