@@ -43,7 +43,7 @@ def state():
 
     droplets = [
         cell.droplet.to_dict()
-        for _, cell in session.arch.graph.nodes(data=True)
+        for cell in session.arch.cells()
         if cell.droplet
     ]
 

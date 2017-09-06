@@ -50,7 +50,7 @@ class Session:
         info = info or next(self.droplet_id_counter)
 
         # make sure no droplet at this location already
-        assert self.arch.graph.node[location].droplet is None
+        assert self.arch.graph.node[location]['cell'].droplet is None
 
         droplet = Droplet(info)
         self.arch.add_droplet(droplet, location)

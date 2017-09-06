@@ -15,6 +15,10 @@ Agent = Any
 Path  = List[Node]
 
 
+class RouteFailure(Exception):
+    pass
+
+
 class Router:
 
     def __init__(self, graph: nx.DiGraph) -> None:
@@ -103,7 +107,7 @@ class Router:
                 item = nbr_cost + h, next(count), nbr, nbr_cost, time + 1, current
                 push(todo, item)
 
-        raise RuntimeError(f'No path between {src} and {dst}')
+        raise RouteFailure(f'No path between {src} and {dst}')
 
     # def dest_nbrs_empty(self, src, dst):
     #     """Default move legality check.

@@ -3,11 +3,15 @@ from typing import Dict, Any
 import networkx as nx
 
 from puddle.arch import Architecture, Command
-from puddle.routing.astar import Router
+from puddle.routing.astar import Router, RouteFailure
 from puddle.util import pairs
 
 # simple type aliases
 Node = Any
+
+
+class ExcecutionFailure(Exception):
+    pass
 
 
 class Execution:
@@ -24,11 +28,14 @@ class Execution:
         # command.add_placement(placement)
         self.arch.push_command(command)
 
-        paths = self.router.route({
-            droplet: (droplet.cell.location, placement[input_loc])
-            for droplet, input_loc in zip(command.input_droplets,
-                                          command.input_locations)
-        })
+        try:
+            paths = self.router.route({
+                droplet: (droplet.cell.location, placement[input_loc])
+                for droplet, input_loc in zip(command.input_droplets,
+                                              command.input_locations)
+            })
+        except RouteFailure:
+            raise ExcecutionFailure(f'Could not execute {command}')
 
         # actually route the droplets by controlling the architecture
         for droplet, path in paths.items():
@@ -64,11 +71,19 @@ class Placer:
 
         # remove all cells that don't have empty neighborhoods
         # must use a list here because the graph is being modified
+
+        def ok_nbrhood(loc, nbrs):
+            locs = [loc] + nbrs
+            droplets = (graph.node[l]['cell'].droplet for l in locs)
+            return all(
+                not droplet or droplet in command.input_droplets
+                for droplet in droplets
+            )
+
         graph.remove_nodes_from([
             loc
             for loc, nbrs in graph.adjacency_iter()
-            if graph.node[loc].droplet
-            or any(graph.node[nbr].droplet for nbr in nbrs)
+            if not ok_nbrhood(loc, list(nbrs.keys()))
         ])
 
         matcher = nx.isomorphism.DiGraphMatcher(graph, command.shape)

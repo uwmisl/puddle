@@ -25,7 +25,7 @@ def test_simple_execution(interactive=False):
 
     resulting_droplets = [
         cell.droplet
-        for loc, cell in arch.graph.nodes(data=True)
+        for cell in arch.cells()
         if cell.droplet
     ]
 

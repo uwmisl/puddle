@@ -175,8 +175,9 @@ class Split(Command):
         # "split" the droplet, and just magically move one to the adjacent cell
         droplet1, droplet2 = self.droplet.split()
 
-        self.arch.graph.node[mapping[2]].add_droplet(droplet1)
-        self.arch.graph.node[mapping[3]].add_droplet(droplet2)
+        graph = self.arch.graph
+        graph.node[mapping[2]]['cell'].add_droplet(droplet1)
+        graph.node[mapping[3]]['cell'].add_droplet(droplet2)
 
         for e1, e2 in zip(edges1, edges2):
             # TODO this should be in parallel
@@ -184,8 +185,8 @@ class Split(Command):
             self.arch.move(e2)
 
         # make sure the results are where they should be
-        assert droplet1.cell == self.arch.graph.node[mapping[0]]
-        assert droplet2.cell == self.arch.graph.node[mapping[5]]
+        assert droplet1.cell == graph.node[mapping[0]]['cell']
+        assert droplet2.cell == graph.node[mapping[5]]['cell']
 
         return droplet1, droplet2
 
@@ -219,7 +220,8 @@ class Architecture:
 
     def __str__(self):
         return '\n'.join(
-            str(cell) for loc, cell in self.graph.nodes(data=True)
+            str(cell)
+            for cell in self.cells()
             if cell.droplet
         )
 
@@ -269,7 +271,7 @@ class Architecture:
                     continue
 
                 try:
-                    graph.node[loc] = next(
+                    graph.node[loc]['cell'] = next(
                         cls(loc)
                         for cls in cell_types
                         if cls.symbol == sym)
@@ -287,12 +289,16 @@ class Architecture:
         arch.source_file = filename
         return arch
 
+    def cells(self):
+        return (data['cell'] for _, data in self.graph.nodes(data=True))
+
     def spec_string(self):
         """ Return the specification string of this Architecture. """
 
         lines = [ [' '] * self.width for _ in range(self.height) ]
 
-        for (r,c), cell in self.graph.nodes(data = True):
+        for cell in self.cells():
+            r,c = cell.location
             lines[r][c] = cell.symbol
 
         return "\n".join("".join(line).rstrip() for line in lines) + "\n"
@@ -302,7 +308,7 @@ class Architecture:
         # make sure this a space in the graph that's valid but empty
         assert type(location) is tuple and len(location) == 2
         assert location in self.graph.node
-        cell = self.graph.node[location]
+        cell = self.graph.node[location]['cell']
         assert not cell.droplet
 
         cell.add_droplet(droplet)
@@ -314,8 +320,8 @@ class Architecture:
         (src, dst) = edge
         assert dst in self.graph[src]
 
-        src_cell = self.graph.node[src]
-        dst_cell = self.graph.node[dst]
+        src_cell = self.graph.node[src]['cell']
+        dst_cell = self.graph.node[dst]['cell']
 
         # make sure that the source cell actually has something
         assert src_cell.droplet
