@@ -1,0 +1,19 @@
+{
+    "name": "puddle",
+    "version": "0.0.1",
+    "description": "PurpleDrop Language (PDL)",
+    "dependencies": {},
+    "devDependencies": {
+        "@types/jquery": ">=3.2.10 <3.3.0"
+    },
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/mwillsey/puddle.git"
+    },
+    "author": "Max Willsey",
+    "license": "GPL-3.0",
+    "bugs": {
+        "url": "https://github.com/mwillsey/puddle/issues"
+    },
+    "homepage": "https://github.com/mwillsey/puddle"
+}
