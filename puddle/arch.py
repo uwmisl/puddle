@@ -1,6 +1,6 @@
 import networkx as nx
 
-from typing import Optional, Tuple, Any, ClassVar, List
+from typing import Tuple, Any, ClassVar, List, Set
 
 from puddle.util import pairs
 
@@ -13,14 +13,10 @@ Node = Any
 
 class Droplet:
 
-    def __init__(self, info='a', cell=None):
+    def __init__(self, info='a', cells=None):
         self.info = info
-        self.cell = cell
+        self.locations: Set[Tuple] = cells or set()
         self.valid = True
-
-    # def __eq__(self, other):
-    #     return (self.info == other.info and
-    #             self.valid == other.valid)
 
     def __str__(self):
         invalid_str = '' if self.valid else 'INVALID, '
@@ -31,7 +27,8 @@ class Droplet:
 
     def to_dict(self):
         """ Used to JSONify this for rendering in the client """
-        y, x = self.cell.location
+        (loc,) = self.locations
+        y,x = loc
         return {
             'id': id(self),
             'y': y,
@@ -40,7 +37,7 @@ class Droplet:
         }
 
     def copy(self):
-        return self.__class__(self.info, self.cell)
+        return self.__class__(self.info, self.locations)
 
     def split(self, ratio=0.5):
         assert self.valid
@@ -55,17 +52,14 @@ class Droplet:
         assert other.valid
 
         # for now, they much be in the same place
-        assert self.cell is other.cell
+        # assert self.cell is other.cell
         # FIXME right now we assume cells only have one droplet
 
         self.valid  = False
         other.valid = False
         info = f'({self.info}, {other.info})'
 
-        result =  Droplet(info = info, cell = self.cell)
-        self.cell.droplet = result
-
-        return result
+        return Droplet(info, self.locations | other.locations)
 
 
 class Cell:
@@ -73,37 +67,10 @@ class Cell:
     symbol = '.'
 
     def __init__(self, location: Tuple[Node, Node]) -> None:
-
         self.location = location
-        self.droplet: Optional[Droplet] = None
 
     def __str__(self):
-        return f'{self.__class__.__name__}({self.location}, {self.droplet})'
-
-    def copy(self):
-        # networkx will sometimes call copy on the data objects
-
-        return self.__class__(self.location)
-
-    def add_droplet(self, droplet: Droplet):
-        if self.droplet:
-            # self.droplet = self.droplet.mix(droplet)
-            log.warning(f'overlapping but not mixing '
-                        f'{self.droplet} with {droplet} at {self.location}')
-
-        self.droplet = droplet
-        droplet.cell = self
-
-    def send(self, other: 'Cell'):
-        """ Send contents of self to the other cell. """
-        log.debug(f'sending {self.droplet} from {self.location} to {other.location}')
-
-        droplet = self.droplet
-        self.droplet = None
-
-        # only works if we had a droplet to begin with
-        assert droplet
-        other.add_droplet(droplet)
+        return f'{self.__class__.__name__}({self.location})'
 
 
 class Heater(Cell):
@@ -126,6 +93,20 @@ class Command:
     input_locations: ClassVar[List[Node]]
     result: Any
 
+    strict: ClassVar[bool] = False
+
+
+class Move(Command):
+    input_locations: ClassVar[List[Node]] = [(0,0)]
+
+    def __init__(self, arch, droplet, location):
+        self.arch = arch
+        self.location = location
+        self.input_droplets = [droplet]
+
+    def run(self, mapping):
+        pass
+
 
 class Mix(Command):
 
@@ -146,18 +127,25 @@ class Mix(Command):
         # use the mapping to get the edges in the architecture we have to take
         arch_loop_edges = list(pairs(mapping[node] for node in self.loop))
 
-        for _ in range(self.n_mix_loops):
-            for edge in arch_loop_edges:
-                self.arch.move(edge)
+        assert self.droplet1.locations == self.droplet2.locations
 
-        # location of resulting droplet is set by that of droplet1
-        return Droplet.mix(self.droplet1, self.droplet2)
+        self.arch.remove_droplet(self.droplet1)
+        self.arch.remove_droplet(self.droplet2)
+        result = Droplet.mix(self.droplet1, self.droplet2)
+        self.arch.add_droplet(result)
+
+        for _ in range(self.n_mix_loops):
+            for src, dst in arch_loop_edges:
+                result.locations = {dst}
+
+        return result
 
 
 class Split(Command):
 
-    shape: ClassVar[nx.DiGraph] = nx.DiGraph(nx.path_graph(6))
-    input_locations: ClassVar[List[Node]] = [2]
+    shape: ClassVar[nx.DiGraph] = nx.DiGraph(nx.grid_graph([1,6]))
+    input_locations: ClassVar[List[Node]] = [(0,2)]
+    strict: ClassVar[bool] = True
 
     def __init__(self, arch, droplet):
         self.arch = arch
@@ -167,28 +155,20 @@ class Split(Command):
     def run(self, mapping):
 
         # use the mapping to get the edges in the architecture we have to take
-        edges1 = list(pairs(mapping[node] for node in range(2, -1, -1)))
-        edges2 = list(pairs(mapping[node] for node in range(3,  6,  1)))
+        nodes1 = [(0,2), (0,1), (0,0)]
+        nodes2 = [(0,3), (0,4), (0,5)]
 
-        assert len(edges1) == len(edges2)
+        self.arch.remove_droplet(self.droplet)
+        d1, d2 = self.droplet.split()
+        self.arch.add_droplet(d1)
+        self.arch.add_droplet(d2)
 
-        # "split" the droplet, and just magically move one to the adjacent cell
-        droplet1, droplet2 = self.droplet.split()
+        for n1, n2 in zip(nodes1, nodes2):
+            d1.location = {mapping[n1]}
+            d2.location = {mapping[n2]}
+            self.arch.wait()
 
-        graph = self.arch.graph
-        graph.node[mapping[2]]['cell'].add_droplet(droplet1)
-        graph.node[mapping[3]]['cell'].add_droplet(droplet2)
-
-        for e1, e2 in zip(edges1, edges2):
-            # TODO this should be in parallel
-            self.arch.move(e1)
-            self.arch.move(e2)
-
-        # make sure the results are where they should be
-        assert droplet1.cell == graph.node[mapping[0]]['cell']
-        assert droplet2.cell == graph.node[mapping[5]]['cell']
-
-        return droplet1, droplet2
+        return d1, d2
 
 
 class Architecture:
@@ -218,6 +198,8 @@ class Architecture:
         self.active_commands = []
         self.session = None
 
+        self.droplets: Set[Droplet] = set()
+
     def __str__(self):
         return '\n'.join(
             str(cell)
@@ -225,7 +207,33 @@ class Architecture:
             if cell.droplet
         )
 
+    def get_droplet(self, location):
+        for droplet in self.droplets:
+            if location in droplet.locations:
+                return droplet
+        return None
+
+    def add_droplet(self, droplet: Droplet):
+        assert droplet not in self.droplets
+        self.droplets.add(droplet)
+        self.check_collisions()
+
+    def remove_droplet(self, droplet: Droplet):
+        assert droplet in self.droplets
+        self.droplets.remove(droplet)
+
+    def check_collisions(self):
+        log.debug('colliding')
+
+    def cells(self):
+        return (data['cell'] for _, data in self.graph.nodes(data=True))
+
     def wait(self):
+
+        # print(self.spec_string(with_droplets=True))
+
+        # self.check_invariants()
+
         if self.session and self.session.rendered:
             event = self.session.rendered
             if event:
@@ -289,42 +297,16 @@ class Architecture:
         arch.source_file = filename
         return arch
 
-    def cells(self):
-        return (data['cell'] for _, data in self.graph.nodes(data=True))
-
-    def spec_string(self):
+    def spec_string(self, with_droplets=False):
         """ Return the specification string of this Architecture. """
 
         lines = [ [' '] * self.width for _ in range(self.height) ]
 
         for cell in self.cells():
             r,c = cell.location
-            lines[r][c] = cell.symbol
+            if with_droplets and cell.droplet:
+                lines[r][c] = 'o'
+            else:
+                lines[r][c] = cell.symbol
 
         return "\n".join("".join(line).rstrip() for line in lines) + "\n"
-
-    def add_droplet(self, droplet, location):
-
-        # make sure this a space in the graph that's valid but empty
-        assert type(location) is tuple and len(location) == 2
-        assert location in self.graph.node
-        cell = self.graph.node[location]['cell']
-        assert not cell.droplet
-
-        cell.add_droplet(droplet)
-        self.wait()
-
-    def move(self, edge):
-
-        # make sure this is actually an edge in the graph
-        (src, dst) = edge
-        assert dst in self.graph[src]
-
-        src_cell = self.graph.node[src]['cell']
-        dst_cell = self.graph.node[dst]['cell']
-
-        # make sure that the source cell actually has something
-        assert src_cell.droplet
-
-        src_cell.send(dst_cell)
-        self.wait()

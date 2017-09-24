@@ -9,28 +9,17 @@ def test_simple_execution(interactive=False):
 
     execution = Execution(arch)
 
-    a = Droplet('a')
-    b = Droplet('b')
+    a = Droplet('a', {(0,0)})
+    b = Droplet('b', {(2,0)})
 
-    locations = {
-        a: (1,0),
-        b: (3,0),
-    }
-
-    for drop, loc in locations.items():
-        arch.add_droplet(drop, loc)
+    arch.add_droplet(a)
+    arch.add_droplet(b)
 
     mix = Mix(arch, a, b)
     execution.go(mix)
 
-    resulting_droplets = [
-        cell.droplet
-        for cell in arch.cells()
-        if cell.droplet
-    ]
-
-    assert len(resulting_droplets) == 1
-    d = resulting_droplets[0]
+    assert len(arch.droplets) == 1
+    (d,) = arch.droplets
 
     assert d.info == '(a, b)'
 

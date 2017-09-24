@@ -5,7 +5,7 @@ from ast import literal_eval
 from typing import Tuple
 
 
-from puddle.arch import Architecture, Droplet, Mix, Split
+from puddle.arch import Architecture, Droplet, Mix, Split, Move
 from puddle.execution import Execution
 
 import logging
@@ -64,10 +64,11 @@ class Session(AbstractContextManager):
         info = info or next(self.droplet_id_counter)
 
         # make sure no droplet at this location already
-        assert self.arch.graph.node[location]['cell'].droplet is None
 
-        droplet = Droplet(info)
-        self.arch.add_droplet(droplet, location)
+        assert self.arch.get_droplet(location) is None
+
+        droplet = Droplet(info, {location})
+        self.arch.add_droplet(droplet)
 
         return droplet
 
@@ -80,6 +81,12 @@ class Session(AbstractContextManager):
 
         split_cmd = Split(self.arch, droplet)
         return self.execution.go(split_cmd)
+
+    def move(self, droplet: Droplet, location: Tuple):
+
+        assert len(droplet.locations) == 1
+        move_cmd = Move(self.arch, droplet, location)
+        return self.execution.go(move_cmd)
 
     def heat(self, droplet, temp, time):
         # route droplet to heater
