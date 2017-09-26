@@ -134,9 +134,11 @@ class Mix(Command):
         result = Droplet.mix(self.droplet1, self.droplet2)
         self.arch.add_droplet(result)
 
+        self.arch.wait()
         for _ in range(self.n_mix_loops):
             for src, dst in arch_loop_edges:
                 result.locations = {dst}
+                self.arch.wait()
 
         return result
 
@@ -164,8 +166,8 @@ class Split(Command):
         self.arch.add_droplet(d2)
 
         for n1, n2 in zip(nodes1, nodes2):
-            d1.location = {mapping[n1]}
-            d2.location = {mapping[n2]}
+            d1.locations = {mapping[n1]}
+            d2.locations = {mapping[n2]}
             self.arch.wait()
 
         return d1, d2

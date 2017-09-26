@@ -1,13 +1,13 @@
 import random
 import time
 
-from itertools import islice
+from itertools import islice, combinations
 
 import pytest
 import networkx as nx
 
 from puddle.util import pairs
-from puddle.routing.astar import Router
+from puddle.routing.astar import Router, Agent
 
 import logging
 log = logging.getLogger(__name__)
@@ -45,7 +45,14 @@ class RandomGrid:
         except StopIteration:
             raise self.Failure(str(self))
 
-        self.agents = {i: (s,g) for i, (s,g) in enumerate(zip(starts, goals))}
+        self.agents = [
+            Agent(
+                item = i,
+                source = s,
+                target = t,
+                collision_group = random.randint(0, n_agents-1))
+            for i, (s,t) in enumerate(zip(starts, goals))
+        ]
 
     def __str__(self):
         dims = 'x'.join(str(d) for d in self.dim)
@@ -92,8 +99,6 @@ class RandomGrid:
             grid.remove_nodes_from(grid.neighbors(v))
             goals.append(v)
 
-            log.debug(f'choosing {starts[i]!s:>10} -> {v!s:>10}')
-
         # restore grid to choose obstacles
         grid = nx.grid_graph(self.dim)
         grid.remove_nodes_from(starts + goals)
@@ -133,17 +138,26 @@ def test_grid(grid):
     agent_paths = router.route(grid.agents)
     t1 = time.time()
 
-    # make sure all the paths make sense
-    for a, path in agent_paths.items():
-        start, goal = grid.agents[a]
+    # make sure all the paths make sense individually
+    for agent, path in agent_paths.items():
 
-        assert path[0]  == start
-        assert path[-1] == goal
+        assert path[0]  == agent.source
+        assert path[-1] == agent.target
 
         # make sure path is connected and in the graph
         for src, dst in pairs(path):
             assert src in grid.grid
             assert dst in grid.grid[src]
+
+    # make sure that the collisions that occurred are ok
+    for (a1, path1), (a2, path2) in combinations(agent_paths.items(), 2):
+        if a1.collision_group == a2.collision_group:
+            # same collision group, so we don't care if they collide
+            continue
+
+        for (y1,x1), (y2,x2) in zip(path1, path2):
+            # TODO this only makes sense for agents of size one
+            assert abs(y1-y2) > 1 or abs(x1-x2) > 1
 
     log.info(f'Routed in time: {t1-t0}')
 

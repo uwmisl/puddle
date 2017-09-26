@@ -53,3 +53,9 @@ def grid_string(*args, height=0, width=0, empty=' '):
             grid[y][x] = char
 
     return '\n'.join(''.join(row) for row in grid)
+
+
+def manhattan_distance(pos1, pos2):
+    (y1,x1) = pos1
+    (y2,x2) = pos2
+    return abs(y1-y2) + abs(y2-x2)

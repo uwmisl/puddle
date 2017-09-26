@@ -2,8 +2,8 @@ from typing import Dict, Any
 
 import networkx as nx
 
-from puddle.arch import Architecture, Command, Move
-from puddle.routing.astar import Router, RouteFailure
+from puddle.arch import Architecture, Command, Move, Mix
+from puddle.routing.astar import Router, RouteFailure, Agent
 
 import logging
 log = logging.getLogger(__name__)
@@ -29,23 +29,56 @@ class Execution:
 
         # mapping of command nodes onto architecture nodes
         placement = self.placer.place(command)
-        # command.add_placement(placement)
         self.arch.push_command(command)
 
-        goals = {}
+        agents = []
         for droplet, input_loc in zip(command.input_droplets,
                                       command.input_locations):
+            # only works for single location droplets right now
             (location,) = droplet.locations
-            goals[droplet] = (location, placement[input_loc])
+
+            agent = Agent(
+                item = droplet,
+                source = location,
+                target = placement[input_loc]
+            )
+            agents.append(agent)
+
+            if isinstance(command, Mix):
+                # TODO this only works for a single collision group per execution
+                agent.collision_group = 1
+
+        # route those droplets who aren't in the command as well
+        for droplet in self.arch.droplets:
+            if droplet in command.input_droplets:
+                continue
+            (location,) = droplet.locations
+
+            agent = Agent(
+                item = droplet,
+                source = location,
+                target = location
+            )
+            agents.append(agent)
 
         try:
-            paths = self.router.route(goals)
+            paths = self.router.route(agents)
         except RouteFailure:
             raise ExcecutionFailure(f'Could not execute {command}')
 
         # actually route the droplets by controlling the architecture
-        for droplet, path in paths.items():
+
+        # max_len = max(len(path) for path in paths.values())
+        # for i in range(max_len):
+        #     for agent, path in paths.items():
+        #         if i < len(path):
+        #             droplet = agent.item
+        #             droplet.locations = {path[i]}
+        #     self.arch.wait()
+
+        for agent, path in paths.items():
             for loc in path:
+                droplet = agent.item
                 droplet.locations = {loc}
                 self.arch.wait()
 
