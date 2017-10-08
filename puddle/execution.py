@@ -120,7 +120,7 @@ class Placer:
         for droplet in self.arch.droplets:
             for loc in droplet.locations:
                 too_close.add(loc)
-                too_close.update(graph.neighbors_iter(loc))
+                too_close.update(graph.neighbors(loc))
 
         graph.remove_nodes_from(too_close)
 

@@ -75,13 +75,14 @@ class RandomGrid:
 
     def gen_one(self):
 
-        grid = nx.grid_graph(self.dim)
+        grid = nx.grid_2d_graph(*self.dim)
 
         # Try to pick starts, goals. If you can't, just keep trying.
         starts = []
         for _ in range(self.n_agents):
-            v = random.choice(grid.nodes())
-            grid.remove_nodes_from(grid.neighbors(v))
+            # make sure to use list on graph functions, because they return iterators
+            v = random.choice(list(grid.nodes()))
+            grid.remove_nodes_from(list(grid.neighbors(v)))
             starts.append(v)
 
         goals = []
@@ -96,16 +97,16 @@ class RandomGrid:
             idx = min(abs(int(idx)), len(nodes) - 1)
             v = nodes[idx]
 
-            grid.remove_nodes_from(grid.neighbors(v))
+            grid.remove_nodes_from(list(grid.neighbors(v)))
             goals.append(v)
 
         # restore grid to choose obstacles
-        grid = nx.grid_graph(self.dim)
+        grid = nx.grid_2d_graph(*self.dim)
         grid.remove_nodes_from(starts + goals)
         obstacles = random.sample(grid.nodes(), self.n_obstacles)
 
         # restore grid to remove obstacles
-        grid = nx.grid_graph(self.dim)
+        grid = nx.grid_2d_graph(*self.dim)
         grid.remove_nodes_from(obstacles)
 
         if not all(nx.has_path(grid, s, g) for s,g in zip(starts, goals)):
@@ -115,15 +116,15 @@ class RandomGrid:
 
 
 random_grids = [
-    RandomGrid([ 8,16], n_agents= 1, n_obstacles=10, seed='a'),
-    RandomGrid([ 8,16], n_agents= 1, n_obstacles=10, seed='b'),
-    RandomGrid([ 8,16], n_agents= 1, n_obstacles=10, seed='c'),
+    RandomGrid(( 8,16), n_agents= 1, n_obstacles=10, seed='a'),
+    RandomGrid(( 8,16), n_agents= 1, n_obstacles=10, seed='b'),
+    RandomGrid(( 8,16), n_agents= 1, n_obstacles=10, seed='c'),
 
-    RandomGrid([16,16], n_agents= 5, n_obstacles=10, seed='d'),
-    RandomGrid([16,16], n_agents= 5, n_obstacles=10, seed='e'),
-    RandomGrid([16,16], n_agents= 5, n_obstacles=10, seed='f'),
+    RandomGrid((16,16), n_agents= 5, n_obstacles=10, seed='d'),
+    RandomGrid((16,16), n_agents= 5, n_obstacles=10, seed='e'),
+    RandomGrid((16,16), n_agents= 5, n_obstacles=10, seed='f'),
 
-    RandomGrid([30,30], n_agents=10, n_obstacles=10, seed='g'),
+    RandomGrid((30,30), n_agents=10, n_obstacles=10, seed='g'),
 ]
 
 

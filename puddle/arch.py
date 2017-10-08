@@ -145,7 +145,7 @@ class Mix(Command):
 
 class Split(Command):
 
-    shape: ClassVar[nx.DiGraph] = nx.DiGraph(nx.grid_graph([1,6]))
+    shape: ClassVar[nx.DiGraph] = nx.DiGraph(nx.grid_2d_graph(1,6))
     input_locations: ClassVar[List[Node]] = [(0,2)]
     strict: ClassVar[bool] = True
 
@@ -270,7 +270,7 @@ class Architecture:
         # pad out each line to make a rectangle
         lines = [ line + ' ' * (w - len(line)) for line in lines ]
 
-        graph = nx.grid_graph([h,w])
+        graph = nx.grid_2d_graph(h,w)
         for r in range(h):
             for c in range(w):
                 sym = lines[r][c]
@@ -281,7 +281,7 @@ class Architecture:
                     continue
 
                 try:
-                    graph.node[loc]['cell'] = next(
+                    graph.nodes[loc]['cell'] = next(
                         cls(loc)
                         for cls in cell_types
                         if cls.symbol == sym)
