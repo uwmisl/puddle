@@ -1,0 +1,23 @@
+[[source]]
+url = "https://pypi.python.org/simple"
+verify_ssl = true
+name = "pypi"
+
+[requires]
+python_version = "3.6"
+
+[packages]
+flask = "*"
+networkx = "*"
+typing = "*"
+
+[dev-packages]
+mypy = "*"
+pytest = "*"
+pytest-logging = "*"
+pytest-profiling = "*"
+flake8 = "*"
+flake8-mypy = "*"
+
+# install this project in editable mode so we can import it
+"-e ." = {path = ".", editable = true}

@@ -6,22 +6,19 @@ PurpleDrop Language (PDL)
 You'll need Python 3 for this project. For the visualization code, you'll need
 `npm` and [Typescript].
 
-To download the project and setup the Python, do the following:
+We use [pipenv] to manage dependencies. Do the following to setup the project:
 ```shell
 # clone and enter the repo
 git clone git@github.com:mwillsey/puddle.git
 cd puddle
 
-# create and activate a virtualenv for isolation
-virtualenv . --python python3
-source bin/activate
-
-# install the python dependencies
-pip install -r requirements.txt
+# use pipenv to install requirements into a virtualenv
+# --dev gets the development dependencies too
+pipenv install --dev
 ```
 
-You can also use [virtualenvwrapper] for the isolation step. In that case, just
-run `mkvirtualenv puddle` to make and enter the virtual environment.
+From there, you can do `pipenv shell` to start a shell in the virtual
+environment. You can also just to `pipenv run ...` to run individual commands.
 
 Now you can install the Javascript/Typescript dependencies with `npm install`.
 Since we use TypeScript, you'll need to compile those files to Javascript. From
@@ -31,11 +28,13 @@ Hopefully your editor will keep the Javascript up-to-date as you edit the Typesc
 
 ## Running Examples
 
-To run an example program, you must point python to the `puddle`
-package, and enable the visualization if you want.
+To run an example program, make sure you install the development dependencies
+which include the `puddle` package itself. Then do the following:
 ```shell
-PYTHONPATH=. PUDDLE_VIZ=1 python tests/programs/simple.py
+PUDDLE_VIZ=1 python tests/programs/simple.py
 ```
+
+The environment `PUDDLE_VIZ` controls whether the visualization server runs.
 
 ## Developing
 
@@ -44,4 +43,4 @@ We (try to) use the [Feature Branch Workflow][feat-branch], so don't push to the
 
 [feat-branch]: https://www.atlassian.com/git/tutorials/comparing-workflows#feature-branch-workflow
 [typescript]: https://www.typescriptlang.org/#download-links
-[virtualenvwrapper]: https://virtualenvwrapper.readthedocs.io/en/latest/
+[pipenv]: https://docs.pipenv.org
