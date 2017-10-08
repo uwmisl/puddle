@@ -105,5 +105,10 @@ ENV/
 
 # editor stuff
 .idea
+
+# js garbage
 node_modules/
 *.js
+
+# profiling data
+prof/
