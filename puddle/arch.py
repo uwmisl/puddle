@@ -1,6 +1,6 @@
 import networkx as nx
 
-from typing import Tuple, Any, ClassVar, List, Set
+from typing import Tuple, Any, ClassVar, List, Dict
 
 from puddle.util import pairs
 
@@ -91,13 +91,16 @@ cell_types = (
 class Command:
     shape: ClassVar[nx.DiGraph]
     input_locations: ClassVar[List[Node]]
+    input_droplets: List[Droplet]
     result: Any
 
     strict: ClassVar[bool] = False
 
+    def run(self, mapping: Dict[Node, Node]): ...
+
 
 class Move(Command):
-    input_locations: ClassVar[List[Node]] = [(0,0)]
+    input_locations: ClassVar = [(0,0)]
 
     def __init__(self, arch, droplet, location):
         self.arch = arch
@@ -110,8 +113,8 @@ class Move(Command):
 
 class Mix(Command):
 
-    shape: ClassVar[nx.DiGraph] = nx.DiGraph(nx.grid_graph([2, 3]))
-    input_locations: ClassVar[List[Node]] = [(0,0), (0,0)]
+    shape: ClassVar = nx.DiGraph(nx.grid_2d_graph(2, 3))
+    input_locations: ClassVar = [(0,0), (0,0)]
 
     n_mix_loops = 1
     loop = [(0,0), (1,0), (1,1), (1,2), (0,2), (0,1), (0,0)]
@@ -145,9 +148,9 @@ class Mix(Command):
 
 class Split(Command):
 
-    shape: ClassVar[nx.DiGraph] = nx.DiGraph(nx.grid_2d_graph(1,6))
-    input_locations: ClassVar[List[Node]] = [(0,2)]
-    strict: ClassVar[bool] = True
+    shape: ClassVar = nx.DiGraph(nx.grid_2d_graph(1,6))
+    input_locations: ClassVar = [(0,2)]
+    strict: ClassVar = True
 
     def __init__(self, arch, droplet):
         self.arch = arch
