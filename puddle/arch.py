@@ -228,6 +228,16 @@ class Architecture:
         self.droplets.remove(droplet)
 
     def check_collisions(self):
+        """
+        Checks for single-cell collisions.
+        """
+        locations: Set[Tuple[int, int]] = set()
+        for droplet in self.droplets:
+            (location,) = droplet.locations
+            if location in locations:
+                raise RuntimeError('Multiple droplets colliding')
+            else:
+                locations.add(location)
         log.debug('colliding')
 
     def cells(self):
