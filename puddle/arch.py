@@ -165,8 +165,12 @@ class Split(Command):
 
         self.arch.remove_droplet(self.droplet)
         d1, d2 = self.droplet.split()
+        # For these adds we are okay with adjacent droplets
         self.arch.add_droplet(d1)
-        self.arch.add_droplet(d2)
+        try:
+            self.arch.add_droplet(d2)
+        except RuntimeError:
+            log.debug('collision on splitting into drop 2')
 
         for n1, n2 in zip(nodes1, nodes2):
             d1.locations = {mapping[n1]}
@@ -229,16 +233,20 @@ class Architecture:
 
     def check_collisions(self):
         """
-        Checks for single-cell collisions.
+        Checks for single-cell collisions. Adjacency of cells also counts
+        as a collision.
+        Throws a RuntimeError if there is collision on the board.
         """
-        locations: Set[Tuple[int, int]] = set()
         for droplet in self.droplets:
             (location,) = droplet.locations
-            if location in locations:
-                raise RuntimeError('Multiple droplets colliding')
-            else:
-                locations.add(location)
-        log.debug('colliding')
+            for other in self.droplets:
+                if droplet is other:
+                    continue
+
+                (other_location,) = other.locations
+                if abs(location[0] - other_location[0]) <= 1 and abs(location[1] - other_location[1]) <= 1:
+                    raise RuntimeError('Multiple droplets colliding')
+                    log.debug('colliding')
 
     def cells(self):
         return (data['cell'] for _, data in self.graph.nodes(data=True))
