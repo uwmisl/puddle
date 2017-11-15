@@ -1,0 +1,25 @@
+# latex output
+*.run.xml
+*.aux_lock
+*.auxlock
+*.bbl
+*.blg
+*.bcf
+*.aux
+*.log
+*.toc
+*.lof
+*.lot
+*.lox
+*.out
+*.synctex.gz
+*.upa
+*.upb
+*.fdb_latexmk
+*.fls
+*.pag
+*.auctex*
+_minted*
+
+# also ignore pdfs in here
+*.pdf

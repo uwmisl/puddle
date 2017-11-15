@@ -1,0 +1,245 @@
+\documentclass[12pt]{article}
+
+\usepackage{hyperref}
+\usepackage[margin=1in]{geometry}
+\usepackage[compact]{titlesec}
+
+\usepackage[
+  sorting=none,
+  giveninits=true
+]{biblatex}
+\bibliography{references}
+\ExecuteBibliographyOptions{minbibnames=2, maxbibnames=2}
+
+\usepackage{fixme}
+\fxsetup{
+  author = TODO,
+  status = draft,
+  layout = inline,
+  theme  = color
+}
+
+\usepackage{wrapfig}
+\usepackage{graphicx}
+\usepackage[
+  font=footnotesize,
+  ]{caption}
+
+\usepackage{minted}
+
+\usepackage{fancyhdr}
+\pagestyle{fancy}
+\fancyhf{}
+\lhead{Rapid and Reliable Microfluidic Programming for Domain Experts}
+\rhead{Max Willsey}
+
+
+% 2 page limit
+\begin{document}
+
+\begin{wrapfigure}{r}{0.19\linewidth}
+  \footnotesize
+  \centering
+  \includegraphics[width=0.85\linewidth]{droplet.png}
+  \caption*{Our prototype DMF chip with tracking.}
+  \vspace{-1em}
+\end{wrapfigure}
+
+% motivation, identify knowledge gap
+
+Digital microfluidic (DMF) devices programmatically manipulate small quantities of liquid,
+automating experiments in chemistry, biology, and medicine.
+But unreliable hardware and domain-specific complexity hinder DMF programming today.
+I propose a system for rapid and reliable microfluidic programming to address these challenges.
+
+With safe, high-level abstractions scientists will quickly prototype complex yet reproducible experiments.
+The automation will also be a critical part of a new breed of systems that leverage molecular computation.
+Furthermore, the principled approach will let domain experts reason about the correctness of critical processes like medical diagnostics.
+
+% % \paragraph{Proposal.}
+% The system will facilitate high-level programming by providing safe abstractions over unsafe hardware, and
+% it will enable reasoning about domain-specific (chemical, medical, etc.) protocols executed on the chip in the same manner as high-assurance software today.
+
+\paragraph{DMF background}
+DMF devices manipulate individual droplets of liquids on a grid of electrodes.
+Activating electrodes in certain patterns can move, mix, or split droplets at arbitrary locations on the chip.
+This flexibility contrasts with channel-based microfluidic devices which move liquids through a fixed network of tubes, valves, and pumps.
+The generality offered by DMF devices is especially appealing for lab automation, where the ability to run various experiments on the same chip leads to significant savings in time and resources.
+DMF platforms do still have weaknesses: the flexibility incurs a need to program specific behavior, and they suffer from poor precision and reliability compared to channel-based alternatives \cite{dmf-review}.
+
+\begin{wrapfigure}{r}{0.2\linewidth}
+  \footnotesize
+  \vspace{-3em}
+\begin{minted}{python}
+l3 = mix(l1, l2)
+if get_pH(l3) > 7:
+  heat(l3)
+\end{minted}
+  \vspace{-2em}
+  % \caption*{Fluidic program snippet.}
+\end{wrapfigure}
+
+A fluidic program consists of operations to manipulate liquids intertwined with regular computation.
+Current solutions use static automatic place and route (APR) to abstract away details like the location of droplets on the chip.
+But the execution plan is determined ahead-of-time, so
+static APR does not support dynamic programs (like the listed one) that depend on runtime values like sensor readings.
+The static approach prevents complex error detection and correction that would otherwise be possible with recent work on droplet detection using cameras \cite{dmf-vision}.
+
+
+% Past work abstracts away details like the shape of the chip and the locations of the droplets by using automatic place and route.
+% % Given some fluidic operations, place and route software finds a location for each operation on the chip and moves the droplets accordingly.
+% But the execution plan is determined ahead-of-time, so
+% static place and route does not support dynamic programs (like the listed one) that depend on runtime values like sensor readings.
+
+\paragraph{Year 1: Abstracting the hardware}
+I propose a safe, high-level programming model backed by a runtime that supports dynamic programs and transparently corrects errors.
+By doing APR dynamically, we can respond to changes in the program or the errors in the hardware.
+If the program depends on sensor values, the system will do APR when that value is known.
+If the camera system detects simple errors like failed moves, the system can use APR to re-route.
+Having APR at runtime also enables complex error recovery using program analysis: if droplets accidentally mix, we can use dynamic slicing to re-run just the necessary parts of the program instead of aborting.
+
+%ks: highlight step-by-step monitoring and recomptation on error or situation change (new droplets)
+%ks: first describe vision, then explain how to use prev work in next paragraph
+
+
+% By lazily executing fluidic operations, the runtime can build dependency graphs which encode the user's intent.
+% The runtime dependency graph enables correction of more complex errors using dynamic program slicing.
+% For example,
+% By combining simple detection and a lazy execution model, we can provide safe abstractions over unreliable DMF hardware.
+
+Along these lines, we have a preliminary system that allows the user to write regular Python and use high-level primitives to safely manipulate liquids on a simulator or a DMF device.
+Additionally, we have a prototype of a computer vision system that can detect if droplets failed to move or split improperly.
+% pavel, no etc.
+
+\paragraph{Year 2: Molecular programming}
+
+Using our system for high-level DMF programming, I will work with colleagues
+in the Molecular Information Systems Lab (MISL) at UW to automate lab procedures needed to implement
+hybrid molecular-electronic systems \cite{molecularelectronic}.
+These systems will combine the flexibility of electronic systems with the massive parallelism and storage density of DNA.
+Microfluidic devices will provide the interface between the molecular and electronic domains by controlling and extracting data from liquids.
+
+% ks: colleagues in MISL
+I anticipate difficulties stemming from both the users' inexperience programming and the challenges inherent in the specification of molecular protocols.
+Thus, we will collaborate to build a domain specific programming model on top of the DMF programming system.
+Primitives will operate on samples with molecular meaning of generic droplets.
+
+Type systems and static analyses can use these molecular semantics to help prevent protocol-level mistakes.
+For example, a synthetic biologist may want to ensure that a program always amplifies DNA samples before sequencing them.
+I will work with the scientists to address these concerns, designing a system that enables the high-level, safe development of molecular protocols.
+
+% These programs will primarily manipulate liquids (with various chemical or biological properties) rather than compute on bytes, posing a challenge to traditional PL techniques.
+% ks: use example that you can't unmix two liquids
+
+\paragraph{Year 3: Domain specific abstractions}
+
+After working with MISL to build a DMF programming system for one domain, I will generalize the work for other areas like chemistry or medicine.
+I will first codify a core set of fluidic semantics that's general across domains.
+This will ensure the safe manipulation of liquids regardless of their contents.
+For example, the mix operation consumes its arguments and produces a new liquid result, and an affine type system can provide guarantees about this at-most-once resource consumption.
+
+On top of this base, I propose extensible semantics that leverage the users' domain knowledge to prevent protocol-level mistakes.
+% While total verification is an enticing and admirable goal, especially for domains like medicine, I will focus on techniques that will pose a smaller burden on the programmers.
+% The design and implementation of these analyses is typically left to programming language experts, but this system must be extensible by domain experts.
+The scientist will write domain-specific rules, and the system will ensure that program cannot violate them.
+I will work with domain experts to discover relevant program properties, and we will co-design systems capable of enforcing those rules.
+
+% Programming language tools can also statically help prevent fluidic errors.
+% Affine types model resources that can be used at most once, which corresponds with the reality of manipulating liquids.
+
+
+% Instead of dereferencing a null variable and crashing the program, a protocol-level error might involve accidentally mixing two samples that ruins the result of a medical diagnostic test.
+% In order to be generic across domains, the system itself cannot consider the contents of the liquids or their impact on the program semantics.
+
+\paragraph{Intellectual Merit.}
+% To address these challenges, programming language techniques must bridge the gap between the electrical-engineering challenges with DMF devices and the complexities of protocols in synthetic biology.
+
+The resulting system will allow domain experts like scientists to develop programs without worrying about protocol-level mistakes or unreliable hardware.
+Combined with the small scale and automated nature of DMF devices, this work will make scientific experiments cheaper, faster, and more reproducible.
+Furthermore, extensible semantics for fluidic operations will lay the foundation for reasoning about safety-critical protocols, an area as rich as software verification.
+
+Hybrid molecular-electronic systems will open a new field of research and address the end of silicon scaling.
+But these systems are not practical yet; they critically depend on fluidic automation.
+My collaboration with the MISL group will help bring these systems to reality.
+
+\paragraph{Broader Impact.}
+DMF programming will be a boon to education in the lab.
+Chemistry classes could do more with fewer reagents, and students could interactively explore variations on experiments.
+The accessible interface will finally bring biology and chemistry to maker community that drives innovation and education in 3D-printing and microcontroller programming.
+
+% ks: another area, high-throughput assays for synthetic bio with cells
+A robust, high-level DMF programming system will advance the vision of a true lab-on-chip.
+In medicine, this technology will bring operations that previously required a hospital to the point of care in the field.
+Extensible fluidic semantics will enable experts to the develop high-assurance medical tests with the same reasoning tools we use for avionics software.
+
+
+% pavel: make broader
+
+% address these weaknesses
+% and further empower domain experts.
+% This work will certainly build on the programming abstractions proposed in previous work, but will also include software solutions to the reliability issues in DMF devices.
+% Critically,
+
+
+
+
+% microfluidics is taking off, lab automation is important in mnay domains
+% tech is getting there, reliability a serious concern
+% also, the gap between domain semantics and low-level concerns
+
+% extended proposal
+
+% methods
+
+% empower domain specialists
+% work with misl
+
+% % risks
+% droplets don't pan out
+% ok, most is general
+
+% % resources
+% work with misl
+
+% int merit
+
+% broader impact
+
+% conclusion
+
+
+
+
+
+
+
+
+
+
+
+% \section*{Programming Molecular-Electronic Systems}
+
+
+
+% % % hybrid molecular systems
+% % Silicon scaling continues to slow in spite of growing demand for computation, energy efficiency, and data storage. Hybrid molecular/electronic systems address the gap between these two trends with hyper-dense data storage and massively parallel computation. Advancements in synthetic biology bring these systems closer to reality every day, but the challenge of programming them remains unaddressed. If molecular storage and computing are to seriously complement electronics, we must develop programming models and tools that allow for rapid, reliable use of these systems.
+
+% As the demand for data storage continues to grow, \cite{idc_storage}
+
+% The research community continues to show the viability of DNA-based storage and computation. The core technologies behind building a hybrid system, DNA sequencing and DNA synthesis, are rapidly getting cheaper.
+
+
+% \vspace{2in}
+% \section*{Research Plan}
+
+% \paragraph{High-Level Programming for Microfluidics}
+
+% \paragraph{Libraries for Molecular Computation / Storage}
+
+% \paragraph{}
+
+
+\renewcommand*{\bibfont}{\footnotesize}
+\printbibliography[heading=none]
+
+\end{document}

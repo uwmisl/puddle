@@ -1,0 +1,174 @@
+\documentclass[12pt]{article}
+
+\usepackage{hyperref}
+\usepackage[margin=1in]{geometry}
+\usepackage[small, compact]{titlesec}
+
+\usepackage[
+  sorting=none
+]{biblatex}
+\bibliography{references}
+\ExecuteBibliographyOptions{maxbibnames = 5}
+\usepackage{fixme}
+\fxsetup{
+  author = TODO,
+  status = draft,
+  layout = inline,
+  theme = color
+}
+
+\usepackage{fancyhdr}
+\pagestyle{fancy}
+\fancyhf{}
+\lhead{Personal Statement, Relevant Background, and Future Goals}
+\rhead{Max Willsey}
+
+% 3 page limit
+\begin{document}
+
+Programming languages connect people with an idea to the hardware that makes it possible.
+Powerful languages help users reason about their code, letting them build faster and safer systems with less effort.
+In complex domains, the right abstractions make the difference between programming being productive or nearly impossible.
+
+Yet many areas remain out of reach for programming languages, leaving users without the safety and productivity benefits these tools can provide.
+In some cases, the domain is too complicated for the currently proposed abstractions.
+In others, users struggle with a complex programming model or the idea of programming at all.
+
+I apply the right programming language techniques to problems across domains.
+By collaborating with stakeholders and experts in various areas, I work to balance the power of programming systems with their usability.
+The research is rich with intellectual challenges, but it's fundamentally about empowering people to tackle more problems more efficiently.
+
+With an NSF Fellowship, I will continue working across domains to give users the powerful tools they need.
+The collaborative nature of the work plus my personal interests in mentorship and teaching will lead to my long term goals of a professorship.
+Leading a research team will give me the resources and opportunity to explore new domains where programming languages can help the most.
+
+\section*{Research Experience -- Intellectual Merit}
+
+My research clearly focuses on using programming languages to address difficulties and inefficiencies across domains.
+My past and current projects demonstrate that I can collaborate with domain experts and create practical, usable systems.
+These successes depended on choosing the right tool for the job and solving the problem in a way that's accessible to those in the field.
+Awards and fellowships further confirm the intellectual merit of the work.
+
+% The intellectual merit of the work on programming digital microfluidics is detailed in my research proposal.
+% Beyond that, the proposed work will help develop the field of hybrid molecular-electronic systems.
+
+% While the proposed research is in a different application domain than my past work, the core methods are similar.
+% To succeed in the proposed work, I'll need to collaborate with experts in another domain to build a real-world system that depends on programming language principles.
+% My past work has hinged on those same factors, and it has been recognized through awards and fellowships.
+% So I'm familiar with what it takes to succeed in this kind of work.
+
+
+\paragraph*{Concurrent systems}
+Since my first programming languages class at CMU, I have sought opportunities to use those principles to make complex programming easier.
+Course work introduced me to the challenges of concurrent programming, like race conditions and deadlocks.
+Session types can alleviate these issues by giving information about the structure of communication, but existing work had yet to focus on usability or performance.
+
+I worked with Frank Pfenning to create a programming language that uses session types to make concurrent programming easier and more efficient.
+We collaborated on the language design with the goal of making it accessible to introductory computer science students.
+I also implemented a runtime system that uses the guarantees from the type system to improve performance with intelligent scheduling and memory management decisions.
+
+In our publication \cite{cc0}, we demonstrated that our implementation outperformed other traditional message passing systems.
+The project culminated in my senior honors thesis which won the ``Exemplary Thesis'' award. The language is still used in both undergraduate and graduate courses at CMU.
+Moreover, the project solidified my interest in work that uses programming language principles to build tangible, useful artifacts.
+
+\paragraph*{Accelerator design}
+My undergraduate research experience informed my search for a PhD program; I looked for colleagues who were also driven to solve problems with useful tools.
+At the University of Washington, I am glad to be surrounded by researchers who look to theory---programming language or otherwise---with the goal of real-world impact.
+
+In my first year, I started a project that uses techniques from program synthesis to aid the design of domain-specific hardware.
+Because of the full-stack nature of the project, I am collaborating with a PhD student specializing in accelerator design and professors from both hardware and software backgrounds.
+This project is ongoing, and our proposal and preliminary results have been honored with a Qualcomm Innovation Fellowship award.
+
+\paragraph*{Molecular systems}
+The Molecular Information Systems Lab at UW offers an exciting domain for application of programming languages, so I joined at the end of my first year.
+Building on the lab's work in DNA storage and computing, we created a vision of hybrid molecular-electronic systems.
+These systems will pair the enormous storage density and parallelism of DNA with the flexibility of electronic computing.
+To motivate this paradigm, we proposed a hybrid molecular-electronic system for massively parallel image search with a capacity that would far exceed purely electronic systems \cite{molecularelectronic}.
+
+In my current and future research, I want to bring these systems closer to reality.
+My research proposal addresses a critical gap in programming the interaction between the molecular and electronic portions of these systems.
+The MISL group is the perfect setting for this work, because
+I can collaborate with experts in related fields like electrical engineering and synthetic biology.
+% Also, the need for this work goes far beyond enabling hybrid molecular-electronic systems.
+% I want to explore applications ranging from cheaper, safer medical diagnostics to a more interactive approach to education in the lab.
+% In short, the intellectual challenges, potential impact, and available resources and collaborations make this an ideal project for me.
+With this excitement, I've already begun preliminary work that's been met with excitement from MISL scientists and other researchers in the field.
+
+% While hybrid molecular-electronic systems are promising, many research questions must be solved before they become practical.
+% For one, communication between the molecular and electronic domain depends on a microfluidic system that can efficiently manipulate fluids with various molecular properties.
+% In my research statement, I propose a system for safe, high-level microfluidic programming that will bring these hybrid molecular-electronic systems closer to reality.
+
+\section*{Personal Experience -- Broader Impact}
+
+Aside from research, I have consistently involved myself in leadership and service throughout undergrad, and I continue to do so during my PhD.
+I've had great teachers and mentors throughout my academic career, so I look to give that experience back to younger students.
+
+These experiences have been personally rewarding, and my own mentors and teachers have recognized the broader impact of my actions.
+At CMU, I was honored with a Senior Leadership Award, and I was chosen as an Andrew Carnegie Scholar.
+Both awards consider leadership in and out of academics.
+
+I'm also excited to connect these personal activities with my research.
+My current and upcoming work afford the opportunity to work with undergraduate students and develop technology for the classroom.
+
+\paragraph{Mentoring}
+Since high school, I've fortunately been welcomed into each new stage in my career, so I've sought to provide this experience to others through mentoring and orientation efforts.
+At CMU, I was a resident assistant for two years, responsible for mentoring and advising approximately 30 first-year undergrads.
+Many of my residents went on to become resident assistants on their own, citing my mentorship as a key motivation.
+In addition, faculty and staff selected me to be on numerous panels and committees with goals ranging from fundraising to addressing campus sexual harassment and violence.
+My leadership awards further support my impact on the CMU community outside of research.
+
+In graduate school, I recognized the challenge of transitioning from undergrad to the PhD program, so I've focused on improving this experience.
+I organized and ran the orientation for new PhD students, and many of them have expressed their appreciation for my efforts.
+I'm also a part of the department-wide mentoring program, where current PhD students help first-years navigate and get acclimated to the program.
+
+Finally, I've began to connect my personal passion for mentoring with my research.
+I am working with a senior undergrad and a high school student on the digital microfluidics project detailed in my research proposal.
+Leading them through project-sized chunks of the larger vision has already been both productive and personally rewarding.
+I look forward to continuing work with them this year and for future mentorship/collaboration opportunities with younger students.
+The relationship pays dividends both ways: more collaborators help advance the work, and younger students get exposed to research sooner (as I wish I had been).
+
+\paragraph{Teaching}
+
+As a student, I've always enjoyed classes that lift the curtain on systems that seem opaque.
+So at CMU, I enjoyed TAing the notorious operating systems course twice.
+Printing out and reading kernels was hard work, but many students had never undergone a code review before, so they found the feedback invaluable.
+
+I've continued teaching in grad school. This year, I TAed the first course in the systems sequence at UW.
+I also take part in the departmental undergrad tutoring program, where graduate students get paired with a small group of undergrads for additional academic help.
+
+My research statement details how my proposed work will have broader impact in education.
+Through my own experience as a student and teacher, I appreciate the value that efficient tooling adds to the learning experience.
+I plan to open-source the resulting hardware and software so educators in chemistry and biology can do more experiments with less cost thanks to the automation at small scale.
+I look forward to working with teachers and students to support such use cases.
+
+\section*{Future Goals}
+
+I plan to keep working to make programming easier, more efficient, and even possible complex domains.
+But success in this includes more than just the research.
+I want to take every opportunity to share and collaborate with domain experts, educators, fellow researchers, and younger students.
+I want to present and support my work to ensure that it's understood and usable.
+Only by taking these steps will I ensure that my research has the intended impact of empowering problem solvers in various domains.
+
+With the help of an NSF Fellowship, I can follow this path through my PhD to my long term goal of professorship.
+Leading a research lab will combine my research goals with my personal passion for mentoring.
+An academic job will also allow me to continue working in the classroom and building tools for education.
+An NSF Fellowship will let me not only pursue my research agenda, but further grow my research, education, and mentoring skills with the ultimate goal of passing it along to others.
+
+% These goals offer many opportunities to collaborate with and mentor undergraduate students, which I am currently enjoying and plan to do even more.
+
+% My long term goal of becoming a professor combines my research and personal experiences.
+
+% This project requires collaboration with both hardware designers and synthetic biologists, and together we will prototype microfluidic chips and run real-world protocols on them.
+% My proposed work on programmable fluidics and my collaboration with the MISL group at UW will place me squarely in the middle of this new field.
+
+% My position in this exciting new area will attract a talented cohort of students, and I cannot wait to see what such a collaboration will bring.
+
+% this project would also provide the automation necessary to advance the field of molecular computation and storage.
+% Combined with advances in various technologies in synthetic biology, this will lead to an integrated platform which can store and manipulate data in both the silicon and molecular domains.
+
+\vfill
+\hrule
+\renewcommand*{\bibfont}{\footnotesize}
+\printbibliography[heading=none]
+
+\end{document}
