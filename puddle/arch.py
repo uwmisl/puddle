@@ -169,7 +169,7 @@ class Split(Command):
         self.arch.add_droplet(d1)
         try:
             self.arch.add_droplet(d2)
-        except RuntimeError:
+        except CollisionError:
             log.debug('collision on splitting into drop 2')
 
         for n1, n2 in zip(nodes1, nodes2):
@@ -178,6 +178,10 @@ class Split(Command):
             self.arch.wait()
 
         return d1, d2
+
+
+class CollisionError(Exception):
+    pass
 
 
 class Architecture:
@@ -235,7 +239,7 @@ class Architecture:
         """
         Checks for single-cell collisions. Adjacency of cells also counts
         as a collision.
-        Throws a RuntimeError if there is collision on the board.
+        Throws a CollisionError if there is collision on the board.
         """
         for droplet in self.droplets:
             (location,) = droplet.locations
@@ -245,7 +249,7 @@ class Architecture:
 
                 (other_location,) = other.locations
                 if abs(location[0] - other_location[0]) <= 1 and abs(location[1] - other_location[1]) <= 1:
-                    raise RuntimeError('Multiple droplets colliding')
+                    raise CollisionError('Multiple droplets colliding')
                     log.debug('colliding')
 
     def cells(self):
@@ -333,3 +337,4 @@ class Architecture:
                 lines[r][c] = cell.symbol
 
         return "\n".join("".join(line).rstrip() for line in lines) + "\n"
+
