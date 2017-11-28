@@ -4,7 +4,7 @@ import heapq
 
 from typing import Dict, Set, Tuple, List, Any, Optional
 
-from puddle.util import manhattan_distance
+from puddle.util import manhattan_distance, neighborhood
 
 import networkx as nx
 
@@ -37,20 +37,6 @@ class Agent:
             self.collision_group = object()
         else:
             self.collision_group = collision_group
-
-
-def neighborhood(pos):
-    (y,x) = pos
-
-    yield (y+1, x+1)
-    yield (y+1, x-1)
-    yield (y+1, x  )
-    yield (y-1, x+1)
-    yield (y-1, x-1)
-    yield (y-1, x  )
-    yield (y  , x+1)
-    yield (y  , x-1)
-    yield (y  , x  )
 
 
 class Router:

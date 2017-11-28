@@ -4,6 +4,7 @@ import networkx as nx
 
 from puddle.arch import Architecture, Command, Move, Mix
 from puddle.routing.astar import Router, RouteFailure, Agent
+from puddle.util import neighborhood
 
 import logging
 log = logging.getLogger(__name__)
@@ -119,8 +120,9 @@ class Placer:
 
         for droplet in self.arch.droplets:
             for loc in droplet.locations:
-                too_close.add(loc)
-                too_close.update(graph.neighbors(loc))
+                for loc2 in neighborhood(loc):
+                    if loc2 in graph:
+                        too_close.add(loc2)
 
         graph.remove_nodes_from(too_close)
 

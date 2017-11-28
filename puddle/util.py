@@ -59,3 +59,17 @@ def manhattan_distance(pos1, pos2):
     (y1,x1) = pos1
     (y2,x2) = pos2
     return abs(y1-y2) + abs(y2-x2)
+
+
+def neighborhood(pos):
+    (y,x) = pos
+
+    yield (y+1, x+1)
+    yield (y+1, x-1)
+    yield (y+1, x  )
+    yield (y-1, x+1)
+    yield (y-1, x-1)
+    yield (y-1, x  )
+    yield (y  , x+1)
+    yield (y  , x-1)
+    yield (y  , x  )
