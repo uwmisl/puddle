@@ -3,15 +3,15 @@ from pathlib import Path
 import pytest
 
 
-program_paths = Path('tests/programs').glob('*.py')
+example_paths = Path('examples').glob('*.py')
 
 
-@pytest.mark.parametrize('path', program_paths)
-def test_program(path):
+@pytest.mark.parametrize('example', example_paths)
+def test_example(example):
     # make sure the test doesn't start the visualization
     os.environ['PUDDLE_VIZ'] = str(0)
 
-    with path.open() as f:
+    with example.open() as f:
         # empty dicts for globals, locals
         exec(f.read(), {}, {})
     return True

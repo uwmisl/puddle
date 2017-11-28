@@ -161,12 +161,3 @@ def test_grid(grid):
             assert abs(y1-y2) > 1 or abs(x1-x2) > 1
 
     log.info(f'Routed in time: {t1-t0}')
-
-
-def profile():
-    import cProfile as profile
-    fname = 'stats.log'
-    profile.run('test_route()', fname)
-    import pstats
-    p = pstats.Stats(fname).strip_dirs().sort_stats('cumulative')
-    p.print_stats(20)

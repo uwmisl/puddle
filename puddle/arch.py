@@ -194,6 +194,8 @@ class Architecture:
             graph = nx.DiGraph(graph)
         assert type(graph) is nx.DiGraph
 
+        self.source_file = None
+
         # only works for graphs with nodes (y, x)
         assert all(len(n) == 2 for n in graph)
 
@@ -337,4 +339,3 @@ class Architecture:
                 lines[r][c] = cell.symbol
 
         return "\n".join("".join(line).rstrip() for line in lines) + "\n"
-
