@@ -1,6 +1,7 @@
 import pytest
 from puddle import Session, Architecture
 
+
 def test_input_fail():
     """
     Test to make sure that inputting droplets next to each other fails
@@ -10,7 +11,7 @@ def test_input_fail():
     with Session(arch) as session:
         a = session.input_droplet((3,1))
         with pytest.raises(Exception):
-            b = session.input_droplet((3,2))
+            session.input_droplet((3,2))
 
         arch.remove_droplet(a)
 
@@ -24,7 +25,7 @@ def test_mix():
         a = session.input_droplet((1,1))
         b = session.input_droplet((3,3))
 
-        ab = session.mix(a, b)
+        session.mix(a, b)
 
 
 @pytest.mark.skip(reason="split currently does not check for collisions")
