@@ -1,13 +1,16 @@
 import pytest
 
-from puddle.arch import CollisionError
+from puddle.arch import Architecture, CollisionError
 
 
-def test_arch_parse(arch):
-    """ Test that parsing and printing an arch gets you the same thing back. """
-    with open(arch.source_file) as f:
-        gstr = f.read()
-    assert arch.spec_string().rstrip() == gstr.rstrip()
+def test_arch_parse(arch_path):
+    """ Test that parsing doesn't crash.
+
+    This test doesn't use the `arch` fixture because it's testing parsing.
+
+    TODO this test could be make much stronger
+    """
+    assert Architecture.from_file(arch_path)
 
 
 def test_collision(session01):

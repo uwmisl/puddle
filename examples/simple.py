@@ -1,6 +1,6 @@
 from puddle import Session, Architecture
 
-arch = Architecture.from_file('tests/arches/01.arch')
+arch = Architecture.from_file('tests/arches/arch01.yaml')
 
 with Session(arch) as session:
 

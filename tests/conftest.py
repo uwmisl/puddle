@@ -6,12 +6,17 @@ from puddle.arch import Architecture
 from puddle.api import Session
 
 
-arch_paths = Path('tests/arches').glob('*.arch')
+_arch_paths = Path('tests/arches').glob('*.yaml')
 
 
-@pytest.fixture(scope='function', params=arch_paths)
-def arch(request):
-    return Architecture.from_file(request.param)
+@pytest.fixture(scope='function', params=_arch_paths)
+def arch_path(request):
+    return request.param
+
+
+@pytest.fixture(scope='function')
+def arch(arch_path):
+    return Architecture.from_file(arch_path)
 
 
 @pytest.fixture(scope='function')
@@ -24,7 +29,7 @@ def session(arch):
 @pytest.fixture(scope='function')
 def arch01():
     """ A hack to get a fixture for a specific architecture. """
-    return Architecture.from_file('tests/arches/01.arch')
+    return Architecture.from_file('tests/arches/arch01.yaml')
 
 
 @pytest.fixture(scope='function')

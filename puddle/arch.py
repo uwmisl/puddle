@@ -1,4 +1,5 @@
 import networkx as nx
+import yaml
 
 from typing import Tuple, Any, ClassVar, List, Dict
 
@@ -64,28 +65,12 @@ class Droplet:
 
 class Cell:
 
-    symbol = '.'
-
-    def __init__(self, location: Tuple[Node, Node]) -> None:
+    def __init__(self, id: int, location: Tuple[Node, Node]) -> None:
+        self.id = id
         self.location = location
 
     def __str__(self):
         return f'{self.__class__.__name__}({self.location})'
-
-
-class Heater(Cell):
-    symbol = 'H'
-
-
-class Input(Cell):
-    symbol = 'I'
-
-
-cell_types = (
-    Cell,
-    Heater,
-    Input
-)
 
 
 class Command:
@@ -181,6 +166,9 @@ class Split(Command):
 
 
 class CollisionError(Exception):
+    pass
+
+class ArchitectureError(Exception):
     pass
 
 
@@ -289,31 +277,56 @@ class Architecture:
         .....
         """
 
-        lines = string.split('\n')
+        data = yaml.load(string)
+        board = data['board']
 
-        h = len(lines)
-        w = max(len(line) for line in lines)
 
-        # pad out each line to make a rectangle
-        lines = [ line + ' ' * (w - len(line)) for line in lines ]
+        h = len(board)
+        w = max(len(row) for row in board)
 
-        graph = nx.grid_2d_graph(h,w)
-        for r in range(h):
-            for c in range(w):
-                sym = lines[r][c]
-                loc = (r,c)
+        empty_values = ['_', None]
 
-                if sym == ' ':
-                    graph.remove_node(loc)
+
+        # cells keyed by id
+        cells = {}
+
+        locs_to_add = []
+
+        for y, row in enumerate(board):
+            for x, elem in enumerate(row):
+                if elem in empty_values:
                     continue
 
-                try:
-                    graph.nodes[loc]['cell'] = next(
-                        cls(loc)
-                        for cls in cell_types
-                        if cls.symbol == sym)
-                except StopIteration:
-                    raise ValueError(f'invalid arch spec character: {sym}')
+                if type(elem) is int:
+                    id = elem
+                    if id in cells:
+                        raise ArchitectureError("Duplicate ids in arch file")
+                    cells[id] = Cell(id, (y,x))
+
+                elif elem == 'a':
+                    locs_to_add.append((y,x))
+
+                else:
+                    raise ArchitectureError("Unrecognized board element '{}'".format(elem))
+
+        try_id = 0
+        for loc in locs_to_add:
+            while try_id in cells:
+                try_id += 1
+
+            assert try_id not in cells
+            cells[try_id] = Cell(try_id, loc)
+
+        # make sure ids are consecutive from 0
+        assert set(cells.keys()) == set(range(len(cells)))
+
+        locs = set(c.location for c in cells.values())
+
+        graph = nx.grid_2d_graph(h, w)
+        graph.remove_nodes_from([n for n in graph if n not in locs])
+
+        for cell in cells.values():
+            graph.node[cell.location]['cell'] = cell
 
         return cls(graph, **kwargs)
 
