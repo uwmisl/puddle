@@ -148,7 +148,7 @@ class Mix(Command):
 
 class Split(Command):
 
-    shape: ClassVar = nx.DiGraph(nx.grid_2d_graph(1,6))
+    shape: ClassVar = nx.DiGraph(nx.grid_2d_graph(1,5))
     input_locations: ClassVar = [(0,2)]
     strict: ClassVar = True
 
@@ -161,7 +161,7 @@ class Split(Command):
 
         # use the mapping to get the edges in the architecture we have to take
         nodes1 = [(0,2), (0,1), (0,0)]
-        nodes2 = [(0,3), (0,4), (0,5)]
+        nodes2 = [(0,2), (0,3), (0,4)]
 
         self.arch.remove_droplet(self.droplet)
         d1, d2 = self.droplet.split()
