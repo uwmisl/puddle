@@ -52,3 +52,33 @@ def test_simple_execution(arch01, interactive=False):
     (d,) = arch.droplets
 
     assert d.info == '(a, b)'
+
+
+@pytest.mark.xfail(reason='Collisions during routing.')
+def test_lots_of_movement(session01):
+
+    session = session01
+    n = 5
+
+    droplets = [
+        session.input_droplet((0, 2*i))
+        for i in range(n)
+    ]
+
+    for i in range(5):
+
+        # mix all of the droplets
+        mega_droplet = droplets[0]
+        for d in droplets[1:]:
+            mega_droplet = session.mix(mega_droplet, d)
+        droplets = [mega_droplet]
+
+        # now split them recursive into 2 ** n_splits droplets
+        n_splits = 2
+        for _ in range(n_splits):
+            old_droplets = droplets
+            droplets = []
+            for d in old_droplets:
+                a,b = session.split(d)
+                droplets.append(a)
+                droplets.append(b)
