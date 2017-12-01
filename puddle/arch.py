@@ -1,7 +1,8 @@
 import networkx as nx
 import yaml
 
-from typing import Tuple, Any, ClassVar, List, Dict
+from attr import dataclass
+from typing import Tuple, Any, ClassVar, List, Dict, Set
 
 from puddle.util import pairs
 
@@ -9,22 +10,16 @@ import logging
 log = logging.getLogger(__name__)
 
 
-Node = Any
+Location = Tuple[int, int]
 
 
+# disable generation of cmp so it uses id-based hashing
+@dataclass(cmp=False)
 class Droplet:
 
-    def __init__(self, info='a', cells=None):
-        self.info = info
-        self.locations: Set[Tuple] = cells or set()
-        self.valid = True
-
-    def __str__(self):
-        invalid_str = '' if self.valid else 'INVALID, '
-        return f'Droplet({invalid_str}{self.info!r})'
-
-    def __repr__(self):
-        return f'{self} at 0x{id(self):x}'
+    info: Any
+    locations: Set[Location]
+    valid: bool = True
 
     def to_dict(self):
         """ Used to JSONify this for rendering in the client """
@@ -63,25 +58,21 @@ class Droplet:
         return Droplet(info, self.locations | other.locations)
 
 
+@dataclass
 class Cell:
-
-    def __init__(self, id: int, location: Tuple[Node, Node]) -> None:
-        self.id = id
-        self.location = location
-
-    def __str__(self):
-        return f'{self.__class__.__name__}({self.location})'
+    pin: int
+    location: Location
 
 
 class Command:
     shape: ClassVar[nx.DiGraph]
-    input_locations: ClassVar[List[Node]]
+    input_locations: ClassVar[List[Location]]
     input_droplets: List[Droplet]
     result: Any
 
     strict: ClassVar[bool] = False
 
-    def run(self, mapping: Dict[Node, Node]): ...
+    def run(self, mapping: Dict[Location, Location]): ...
 
 
 class Move(Command):
@@ -167,6 +158,7 @@ class Split(Command):
 
 class CollisionError(Exception):
     pass
+
 
 class ArchitectureError(Exception):
     pass
@@ -280,12 +272,10 @@ class Architecture:
         data = yaml.load(string)
         board = data['board']
 
-
         h = len(board)
         w = max(len(row) for row in board)
 
         empty_values = ['_', None]
-
 
         # cells keyed by id
         cells = {}
@@ -339,8 +329,8 @@ class Architecture:
         arch.source_file = filename
         return arch
 
-    def spec_string(self, with_droplets=False):
-        """ Return the specification string of this Architecture. """
+    def to_yaml_string(self, with_droplets=False):
+        """ Dump the Architecture to YAML string. """
 
         lines = [ [' '] * self.width for _ in range(self.height) ]
 

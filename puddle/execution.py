@@ -9,9 +9,6 @@ from puddle.util import neighborhood
 import logging
 log = logging.getLogger(__name__)
 
-# simple type aliases
-Node = Any
-
 
 class ExcecutionFailure(Exception):
     pass

@@ -8,8 +8,8 @@ from puddle.execution import Execution, Placer
 # NOTE this does a little bit of badness by creating droplets without
 # locations. It works fine for now.
 @pytest.mark.parametrize('command_cls, droplets', [
-    (Mix,   [Droplet('a'), Droplet('b')]),
-    (Split, [Droplet('a')]),
+    (Mix,   [Droplet('a', set()), Droplet('b', set())]),
+    (Split, [Droplet('a', set())]),
 ])
 def test_place(arch, command_cls, droplets):
 

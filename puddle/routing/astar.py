@@ -2,8 +2,10 @@
 import itertools
 import heapq
 
-from typing import Dict, Set, Tuple, List, Any, Optional
+from attr import dataclass, Factory
+from typing import Dict, Tuple, List, Any, Optional
 
+from puddle.arch import Location
 from puddle.util import manhattan_distance, neighborhood
 
 import networkx as nx
@@ -12,36 +14,32 @@ import logging
 log = logging.getLogger(__name__)
 
 
-Node  = Any
-Path  = List[Node]
+Path  = List[Location]
 
 
 class RouteFailure(Exception):
     pass
 
 
+@dataclass(cmp=False)
 class Agent:
+    """ An agent to be routed.
 
-    def __init__(self, item, source, target,
-                 collision_group: Optional[int] = None):
-        """ An agent to be routed.
+    collision_group of None can never collide with anything.
+    """
 
-        collision_group of None can never collide with anything.
-        """
-
-        self.item = item
-        self.source = source
-        self.target = target
-        if collision_group is None:
-            # create a guaranteed unique group
-            self.collision_group = object()
-        else:
-            self.collision_group = collision_group
+    item: Any
+    source: Location
+    target: Location
+    # create a guaranteed unique group
+    collision_group: Optional[int] = Factory(object)
 
 
 class Router:
 
-    def __init__(self, graph: nx.DiGraph) -> None:
+    graph = nx.DiGraph
+
+    def __init__(self, graph) -> None:
         self.graph = graph
 
     def route(
@@ -80,7 +78,7 @@ class Router:
         return paths
 
     @staticmethod
-    def build_path(predecessors: Dict[Node, Node], last) -> Path:
+    def build_path(predecessors: Dict[Location, Location], last) -> Path:
         """Reconstruct a path from the destination and a predecessor map."""
         path = []
         node = last
@@ -113,10 +111,10 @@ class Router:
 
         # Maps enqueued nodes to distance of discovered paths and the
         # computed heuristics to target. Saves recomputing heuristics.
-        enqueued: Dict[Node, Tuple[int, int]] = {}
+        enqueued: Dict[Location, Tuple[int, int]] = {}
 
         # Maps explored nodes to its predecessor on the shortest path.
-        explored: Dict[Node, Node] = {}
+        explored: Dict[Location, Location] = {}
 
         while todo:
             _, _, current, distance, time, parent = pop(todo)

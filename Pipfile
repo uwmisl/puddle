@@ -12,6 +12,7 @@ networkx = "*"
 typing = "*"
 PyYAML = "*"
 pigpio = "*"
+attrs = "*"
 
 [dev-packages]
 mypy = "*"
