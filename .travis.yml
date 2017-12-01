@@ -1,7 +1,13 @@
 language: python
+
 python: 3.6
-install: [
-  "pip install pipenv",
-  "pipenv install --deploy --system --dev"
-]
+
+install:
+  - "pip install pipenv"
+  - "pipenv install --deploy --system --dev"
+
 script: pytest
+
+notifications:
+  slack:
+    secure: Z3zaOdSOF3URDKpJpdlSS9JkEiX5fmy2f+IlnDQRq4S8jAMQwVdYtp7b8HddMkvhq3FVIkvXCzMXaYdDAyDgoglKv/gPyZaUUAwFbIMAF1CFOZy8lzbTqcq7v+vqV2n97ThtpTdcJYARb8uklz4ghejXmlXKfPn8MlPtRMyS2ioFs4UgvG7Nx2PvsTQssjk0rN8Jo20EYZbLaiprkyzVPgABTkDgFC3MdJqF151oAB/vIHU9Beyn2bW6FY9jx0i1Ld9VzBjnY6H/KQyNFvi3D8J4NxRhNtKGbyKJDKrh5qpwgI23MCOwzvwTXuuyFNeussF1d0TZTiidfdG0Y7ASBApP0rz0xsWrHn6tBGg1uPRWCs7NvRvl8bEuTsd66eAltTEj4/NAJpomqONeGDdAUR90Azji6HVv4uKLfAO3BzjnsV+IqjIyvxLf3x7OJum8gSvfv7V6moP9B7afD9g+HalZcrpEezYGUrID7/7Q9XZvmrJGQ/AHz5MHEkRzIAI8o+9+BFAZt4cv8asT1UqSslPMGSalXViWajf9Dur5ON8IUK5X7nJ+oASEcPZZG1T5MFst8Bbw0OZu25OkX7MbHumMOHdEOjjGDp9w1jT2B3yP05Z78cP2isrRLYYZzfsiyqGC/w8A7LqDTVcpVA5YGb/tyLP64qT+n7sWs4R+MxQ=
