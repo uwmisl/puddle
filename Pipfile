@@ -10,7 +10,8 @@ python_version = "3.6"
 flask = "*"
 networkx = "*"
 typing = "*"
-yaml = "*"
+PyYAML = "*"
+pigpio = "*"
 
 [dev-packages]
 mypy = "*"
