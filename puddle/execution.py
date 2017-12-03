@@ -64,21 +64,14 @@ class Execution:
         except RouteFailure:
             raise ExcecutionFailure(f'Could not execute {command}')
 
-        # actually route the droplets by controlling the architecture
-
-        # max_len = max(len(path) for path in paths.values())
-        # for i in range(max_len):
-        #     for agent, path in paths.items():
-        #         if i < len(path):
-        #             droplet = agent.item
-        #             droplet.locations = {path[i]}
-        #     self.arch.wait()
-
-        for agent, path in paths.items():
-            for loc in path:
+        # actually route the droplets setting their location
+        longest = max(len(path) for path in paths.values())
+        for i in range(longest):
+            for agent, path in paths.items():
+                j = min(len(path)-1, i)
                 droplet = agent.item
-                droplet.locations = {loc}
-                self.arch.wait()
+                droplet.locations = set((path[j],))
+            self.arch.wait()
 
         # execute the command
         result = command.run(placement)
