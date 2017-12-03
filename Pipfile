@@ -17,6 +17,7 @@ attrs = "*"
 [dev-packages]
 mypy = "*"
 pytest = "*"
+pytest-cov = "*"
 pytest-logging = "*"
 pytest-profiling = "*"
 flake8 = "*"
