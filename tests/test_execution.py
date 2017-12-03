@@ -5,11 +5,11 @@ from puddle.arch import Droplet, Mix, Split
 from puddle.execution import Execution, Placer
 
 
-# NOTE this does a little bit of badness by creating droplets without
-# locations. It works fine for now.
+# NOTE this does a little bit of badness by creating droplets
+# where the location doesn't matter. It works fine for now.
 @pytest.mark.parametrize('command_cls, droplets', [
-    (Mix,   [Droplet('a', set()), Droplet('b', set())]),
-    (Split, [Droplet('a', set())]),
+    (Mix,   [Droplet('a', (0,0)), Droplet('b', (0,0))]),
+    (Split, [Droplet('a', (0,0))]),
 ])
 def test_place(arch, command_cls, droplets):
 
@@ -39,8 +39,8 @@ def test_simple_execution(arch01, interactive=False):
 
     execution = Execution(arch)
 
-    a = Droplet('a', {(0,0)})
-    b = Droplet('b', {(2,0)})
+    a = Droplet('a', (0,0))
+    b = Droplet('b', (2,0))
 
     arch.add_droplet(a)
     arch.add_droplet(b)

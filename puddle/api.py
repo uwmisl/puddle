@@ -67,7 +67,7 @@ class Session(AbstractContextManager):
 
         assert self.arch.get_droplet(location) is None
 
-        droplet = Droplet(info, {location})
+        droplet = Droplet(info, location)
         self.arch.add_droplet(droplet)
 
         return droplet
@@ -84,7 +84,6 @@ class Session(AbstractContextManager):
 
     def move(self, droplet: Droplet, location: Tuple):
 
-        assert len(droplet.locations) == 1
         move_cmd = Move(self.arch, droplet, location)
         return self.execution.go(move_cmd)
 

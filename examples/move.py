@@ -10,5 +10,4 @@ with Session(arch) as session:
 
     session.move(a, target)
 
-    (loc,) = a.locations
-    assert loc == target
+    assert a.location == target

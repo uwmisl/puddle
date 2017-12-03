@@ -33,11 +33,9 @@ class Execution:
         for droplet, input_loc in zip(command.input_droplets,
                                       command.input_locations):
             # only works for single location droplets right now
-            (location,) = droplet.locations
-
             agent = Agent(
                 item = droplet,
-                source = location,
+                source = droplet.location,
                 target = placement[input_loc]
             )
             agents.append(agent)
@@ -50,12 +48,11 @@ class Execution:
         for droplet in self.arch.droplets:
             if droplet in command.input_droplets:
                 continue
-            (location,) = droplet.locations
 
             agent = Agent(
                 item = droplet,
-                source = location,
-                target = location
+                source = droplet.location,
+                target = droplet.location
             )
             agents.append(agent)
 
@@ -70,7 +67,7 @@ class Execution:
             for agent, path in paths.items():
                 j = min(len(path)-1, i)
                 droplet = agent.item
-                droplet.locations = set((path[j],))
+                droplet.location = path[j]
             self.arch.wait()
 
         # execute the command
@@ -109,10 +106,9 @@ class Placer:
         too_close = set()
 
         for droplet in self.arch.droplets:
-            for loc in droplet.locations:
-                for loc2 in neighborhood(loc):
-                    if loc2 in graph:
-                        too_close.add(loc2)
+            for loc2 in neighborhood(droplet.location):
+                if loc2 in graph:
+                    too_close.add(loc2)
 
         graph.remove_nodes_from(too_close)
 

@@ -1,10 +1,13 @@
+
+from itertools import combinations
+
 import networkx as nx
 import yaml
 
 from attr import dataclass
 from typing import Tuple, Any, ClassVar, List, Dict, Set
 
-from puddle.util import pairs
+from puddle.util import pairs, manhattan_distance
 
 import logging
 log = logging.getLogger(__name__)
@@ -18,13 +21,12 @@ Location = Tuple[int, int]
 class Droplet:
 
     info: Any
-    locations: Set[Location]
+    location: Location
     valid: bool = True
 
     def to_dict(self):
         """ Used to JSONify this for rendering in the client """
-        (loc,) = self.locations
-        y,x = loc
+        y,x = self.location
         return {
             'id': id(self),
             'y': y,
@@ -33,7 +35,7 @@ class Droplet:
         }
 
     def copy(self):
-        return self.__class__(self.info, self.locations)
+        return self.__class__(self.info, self.location)
 
     def split(self, ratio=0.5):
         assert self.valid
@@ -55,7 +57,9 @@ class Droplet:
         other.valid = False
         info = f'({self.info}, {other.info})'
 
-        return Droplet(info, self.locations | other.locations)
+        # TODO this logic definitely won't work when droplets are larger
+        # it should give back the "union" of both shapes
+        return Droplet(info, self.location)
 
 
 @dataclass
@@ -106,7 +110,7 @@ class Mix(Command):
         # use the mapping to get the edges in the architecture we have to take
         arch_loop_edges = list(pairs(mapping[node] for node in self.loop))
 
-        assert self.droplet1.locations == self.droplet2.locations
+        assert self.droplet1.location == self.droplet2.location
 
         self.arch.remove_droplet(self.droplet1)
         self.arch.remove_droplet(self.droplet2)
@@ -116,7 +120,7 @@ class Mix(Command):
         self.arch.wait()
         for _ in range(self.n_mix_loops):
             for src, dst in arch_loop_edges:
-                result.locations = {dst}
+                result.location = dst
                 self.arch.wait()
 
         return result
@@ -149,8 +153,8 @@ class Split(Command):
             log.debug('collision on splitting into drop 2')
 
         for n1, n2 in zip(nodes1, nodes2):
-            d1.locations = {mapping[n1]}
-            d2.locations = {mapping[n2]}
+            d1.location = mapping[n1]
+            d2.location = mapping[n2]
             self.arch.wait()
 
         return d1, d2
@@ -204,7 +208,7 @@ class Architecture:
 
     def get_droplet(self, location):
         for droplet in self.droplets:
-            if location in droplet.locations:
+            if location == droplet.location:
                 return droplet
         return None
 
@@ -223,16 +227,10 @@ class Architecture:
         as a collision.
         Throws a CollisionError if there is collision on the board.
         """
-        for droplet in self.droplets:
-            (location,) = droplet.locations
-            for other in self.droplets:
-                if droplet is other:
-                    continue
-
-                (other_location,) = other.locations
-                if abs(location[0] - other_location[0]) <= 1 and abs(location[1] - other_location[1]) <= 1:
-                    raise CollisionError('Multiple droplets colliding')
-                    log.debug('colliding')
+        for d1, d2 in combinations(self.droplets, 2):
+            if manhattan_distance(d1.location, d2.location) <= 1:
+                raise CollisionError('Multiple droplets colliding')
+                log.debug('colliding')
 
     def cells(self):
         return (data['cell'] for _, data in self.graph.nodes(data=True))
