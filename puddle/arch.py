@@ -232,9 +232,20 @@ class Architecture:
         return None
 
     def add_droplet(self, droplet: Droplet):
+
+        if droplet.location not in self.graph:
+            raise KeyError("Location {} is not in the architecture"
+                            .format(droplet.location))
+
         assert droplet not in self.droplets
         self.droplets.add(droplet)
-        self.check_collisions()
+
+        # remove the droplet if there was a collision
+        try:
+            self.check_collisions()
+        except CollisionError as e:
+            self.droplets.remove(droplet)
+            raise e
 
     def remove_droplet(self, droplet: Droplet):
         assert droplet in self.droplets
