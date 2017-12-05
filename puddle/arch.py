@@ -76,7 +76,9 @@ class Command:
 
     strict: ClassVar[bool] = False
 
-    def run(self, mapping: Dict[Location, Location]): ...
+    def run(self, mapping: Dict[Location, Location]):
+        for d,l in zip(self.input_droplets, self.input_locations):
+            assert d.location == mapping[l]
 
 
 class Move(Command):
@@ -106,6 +108,8 @@ class Mix(Command):
         self.input_droplets = [droplet1, droplet2]
 
     def run(self, mapping):
+
+        super().run(mapping)
 
         # use the mapping to get the edges in the architecture we have to take
         arch_loop_edges = list(pairs(mapping[node] for node in self.loop))
@@ -138,6 +142,8 @@ class Split(Command):
         self.input_droplets = [droplet]
 
     def run(self, mapping):
+
+        super().run(mapping)
 
         # use the mapping to get the edges in the architecture we have to take
         nodes1 = [(0,2), (0,1), (0,0)]
