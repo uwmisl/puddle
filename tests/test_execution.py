@@ -32,12 +32,9 @@ def test_place(arch, command_cls, droplets):
     assert nx.is_isomorphic(placement_target, command.shape)
 
 
-def test_simple_execution(arch01, interactive=False):
+def test_simple_execution(arch01):
 
     arch = arch01
-    if interactive:
-        arch.pause = 0.8
-
     execution = Execution(arch)
 
     a = Droplet('a', (0,0))
@@ -82,3 +79,32 @@ def test_lots_of_movement(session01):
                 a,b = session.split(d)
                 droplets.append(a)
                 droplets.append(b)
+
+
+@pytest.fixture
+def lollipop_board_session():
+    arch = Architecture.from_string("""
+    board: [
+    [_, _, _, a, a, a],
+    [a, a, a, a, a, a],
+    [_, _, _, a, a, a]
+    ]
+    """)
+
+    with Session(arch) as s:
+        yield s
+
+
+@pytest.mark.xfail(reason="Not implemented yet.")
+def test_same_collision_group_mix(lollipop_board_session):
+    s = lollipop_board_session
+
+    a = s.input_droplet((1,0), 'a')
+    b = s.input_droplet((1,3), 'b')
+
+    a.collision_group = 1
+    b.collision_group = 1
+
+    s.move(a, (1,4))
+
+    assert len(s.arch.droplets) == 1
