@@ -84,7 +84,11 @@ class Session(AbstractContextManager):
 
     def move(self, droplet: Droplet, location: Tuple):
 
-        move_cmd = Move(self.arch, droplet, location)
+        move_cmd = Move(
+            self.arch,
+            droplets = [droplet],
+            locations = [location]
+        )
         return self.execution.go(move_cmd)
 
     def heat(self, droplet, temp, time):

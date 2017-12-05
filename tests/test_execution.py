@@ -1,7 +1,8 @@
 import pytest
 import networkx as nx
 
-from puddle.arch import Droplet, Mix, Split
+from puddle.api import Session
+from puddle.arch import Architecture, Droplet, Mix, Split
 from puddle.execution import Execution, Placer
 
 
@@ -54,7 +55,6 @@ def test_simple_execution(arch01, interactive=False):
     assert d.info == '(a, b)'
 
 
-@pytest.mark.xfail(reason='Collisions during routing.')
 def test_lots_of_movement(session01):
 
     session = session01

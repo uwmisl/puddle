@@ -1,11 +1,11 @@
 
-from itertools import combinations
+from itertools import combinations, count
 
 import networkx as nx
 import yaml
 
-from attr import dataclass
-from typing import Tuple, Any, ClassVar, List, Dict, Set
+from attr import dataclass, Factory
+from typing import Tuple, Any, ClassVar, List, Dict, Set, Optional
 
 from puddle.util import pairs, manhattan_distance
 
@@ -16,6 +16,9 @@ log = logging.getLogger(__name__)
 Location = Tuple[int, int]
 
 
+_next_collision_group = count()
+
+
 # disable generation of cmp so it uses id-based hashing
 @dataclass(cmp=False)
 class Droplet:
@@ -23,6 +26,9 @@ class Droplet:
     info: Any
     location: Location
     valid: bool = True
+
+    collision_group: int = Factory(_next_collision_group.__next__)
+    destination: Optional[Location] = None
 
     def to_dict(self):
         """ Used to JSONify this for rendering in the client """
@@ -82,15 +88,11 @@ class Command:
 
 
 class Move(Command):
-    input_locations: ClassVar = [(0,0)]
 
-    def __init__(self, arch, droplet, location):
+    def __init__(self, arch, droplets, locations):
         self.arch = arch
-        self.location = location
-        self.input_droplets = [droplet]
-
-    def run(self, mapping):
-        pass
+        self.input_droplets = droplets
+        self.input_locations = locations
 
 
 class Mix(Command):
@@ -106,6 +108,11 @@ class Mix(Command):
         self.droplet1 = droplet1
         self.droplet2 = droplet2
         self.input_droplets = [droplet1, droplet2]
+
+        # we are going to mix, so set them all to the same collision group.
+        collision_group = min(d.collision_group for d in self.input_droplets)
+        for d in self.input_droplets:
+            d.collision_group = collision_group
 
     def run(self, mapping):
 
@@ -146,22 +153,28 @@ class Split(Command):
         super().run(mapping)
 
         # use the mapping to get the edges in the architecture we have to take
-        nodes1 = [(0,2), (0,1), (0,0)]
-        nodes2 = [(0,2), (0,3), (0,4)]
+        nodes1 = [(0,1), (0,0)]
+        nodes2 = [(0,3), (0,4)]
 
         self.arch.remove_droplet(self.droplet)
         d1, d2 = self.droplet.split()
+
+        # allow collisions
+        cg2 = d2.collision_group
+        d2.collision_group = d1.collision_group
+
         # For these adds we are okay with adjacent droplets
         self.arch.add_droplet(d1)
-        try:
-            self.arch.add_droplet(d2)
-        except CollisionError:
-            log.debug('collision on splitting into drop 2')
+        self.arch.add_droplet(d2)
+        self.arch.wait()
 
         for n1, n2 in zip(nodes1, nodes2):
             d1.location = mapping[n1]
             d2.location = mapping[n2]
             self.arch.wait()
+
+        # don't allow collisions
+        d2.collision_group = cg2
 
         return d1, d2
 
@@ -234,7 +247,8 @@ class Architecture:
         Throws a CollisionError if there is collision on the board.
         """
         for d1, d2 in combinations(self.droplets, 2):
-            if manhattan_distance(d1.location, d2.location) <= 1:
+            if d1.collision_group != d2.collision_group and \
+               manhattan_distance(d1.location, d2.location) <= 1:
                 raise CollisionError('Multiple droplets colliding')
                 log.debug('colliding')
 
@@ -245,7 +259,7 @@ class Architecture:
 
         # print(self.spec_string(with_droplets=True))
 
-        # self.check_invariants()
+        self.check_collisions()
 
         if self.session and self.session.rendered:
             event = self.session.rendered

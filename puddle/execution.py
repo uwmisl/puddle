@@ -2,8 +2,8 @@ from typing import Dict, Any
 
 import networkx as nx
 
-from puddle.arch import Architecture, Command, Move, Mix
-from puddle.routing.astar import Router, RouteFailure, Agent
+from puddle.arch import Architecture, Command, Move
+from puddle.routing.astar import Router, RouteFailure
 from puddle.util import neighborhood
 
 import logging
@@ -19,7 +19,7 @@ class Execution:
     def __init__(self, arch: Architecture) -> None:
         self.arch = arch
         self.placer = Placer(arch)
-        self.router = Router(arch.graph)
+        self.router = Router(arch)
 
     def go(self, command: Command) -> Any:
 
@@ -29,50 +29,34 @@ class Execution:
         placement = self.placer.place(command)
         self.arch.push_command(command)
 
-        agents = []
         for droplet, input_loc in zip(command.input_droplets,
                                       command.input_locations):
             # only works for single location droplets right now
-            agent = Agent(
-                item = droplet,
-                source = droplet.location,
-                target = placement[input_loc]
-            )
-            agents.append(agent)
-
-            if isinstance(command, Mix):
-                # TODO this only works for a single collision group per execution
-                agent.collision_group = 1
-
-        # route those droplets who aren't in the command as well
-        for droplet in self.arch.droplets:
-            if droplet in command.input_droplets:
-                continue
-
-            agent = Agent(
-                item = droplet,
-                source = droplet.location,
-                target = droplet.location
-            )
-            agents.append(agent)
+            droplet.destination = placement[input_loc]
 
         try:
-            paths = self.router.route(agents)
+            paths = self.router.route(self.arch.droplets)
         except RouteFailure:
             raise ExcecutionFailure(f'Could not execute {command}')
 
         # actually route the droplets setting their location
         longest = max(len(path) for path in paths.values())
+        log.info(f"Routing {longest} steps")
         for i in range(longest):
-            for agent, path in paths.items():
+            for droplet, path in paths.items():
                 j = min(len(path)-1, i)
-                droplet = agent.item
                 droplet.location = path[j]
             self.arch.wait()
 
         # execute the command
         result = command.run(placement)
         self.arch.pop_command()
+
+        # clear the destinations, as no one has anywhere to go now
+        for d in self.arch.droplets:
+            if d.destination:
+                assert d.destination == d.location
+            d.destination = None
 
         return result
 
@@ -93,9 +77,14 @@ class Placer:
         """
 
         if isinstance(command, Move):
-            return {(0,0): command.location}
+            # just return the identity mapping, we are trusting the user here
+            return {loc: loc for loc in command.input_locations}
 
-        # TODO this should allow droplets that are to be used in the reaction
+        # NOTE this assumption of only one collision group allows us to place
+        # over droplets that are to be used in the reaction
+        c_groups = set(d.collision_group for d in command.input_droplets)
+        assert len(c_groups) == 1
+        (c_group,) = c_groups
 
         # copy the architecture graph so we can modify it
         graph = nx.DiGraph(self.arch.graph)
@@ -106,6 +95,8 @@ class Placer:
         too_close = set()
 
         for droplet in self.arch.droplets:
+            if droplet.collision_group == c_group:
+                continue
             for loc2 in neighborhood(droplet.location):
                 if loc2 in graph:
                     too_close.add(loc2)

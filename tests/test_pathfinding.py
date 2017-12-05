@@ -1,13 +1,14 @@
 import random
 import time
 
-from itertools import islice, combinations
+from itertools import islice, combinations, cycle
 
 import pytest
 import networkx as nx
 
-from puddle.util import pairs
-from puddle.routing.astar import Router, Agent
+from puddle.arch import Architecture, Droplet, Move
+from puddle.execution import Execution
+from puddle.util import pairs, alphanum
 
 import logging
 log = logging.getLogger(__name__)
@@ -41,18 +42,10 @@ class RandomGrid:
             random.seed(seed)
 
         try:
-            self.grid, starts, goals = next(islice(self.gen(), max_retry))
+            gen = islice(self.gen(), max_retry)
+            self.grid, self.starts, self.goals = next(gen)
         except StopIteration:
             raise self.Failure(str(self))
-
-        self.agents = [
-            Agent(
-                item = i,
-                source = s,
-                target = t,
-                collision_group = random.randint(0, n_agents-1))
-            for i, (s,t) in enumerate(zip(starts, goals))
-        ]
 
     def __str__(self):
         dims = 'x'.join(str(d) for d in self.dim)
@@ -129,35 +122,53 @@ random_grids = [
 
 
 @pytest.mark.parametrize('grid', random_grids)
-def test_grid(grid):
-    """Runs a bunch of tests on random_grid's with the given args."""
+def test_random_move(grid):
 
-    router = Router(grid.grid)
+    arch = Architecture(grid.grid)
+    chars = cycle(alphanum)
 
-    log.info(f'Routing {len(grid.agents)} agents...')
-    t0 = time.time()
-    agent_paths = router.route(grid.agents)
-    t1 = time.time()
+    droplets = [
+        Droplet(char, start)
+        for start, char in zip(grid.starts, chars)
+    ]
 
-    # make sure all the paths make sense individually
-    for agent, path in agent_paths.items():
+    for d in droplets:
+        arch.add_droplet(d)
 
-        assert path[0]  == agent.source
-        assert path[-1] == agent.target
+    ex = Execution(arch)
+    move = Move(arch, droplets, grid.goals)
 
-        # make sure path is connected and in the graph
-        for src, dst in pairs(path):
-            assert src in grid.grid
-            assert dst in grid.grid[src]
+    ex.go(move)
 
-    # make sure that the collisions that occurred are ok
-    for (a1, path1), (a2, path2) in combinations(agent_paths.items(), 2):
-        if a1.collision_group == a2.collision_group:
-            # same collision group, so we don't care if they collide
-            continue
+# def test_grid(grid):
+#     """Runs a bunch of tests on random_grid's with the given args."""
 
-        for (y1,x1), (y2,x2) in zip(path1, path2):
-            # TODO this only makes sense for agents of size one
-            assert abs(y1-y2) > 1 or abs(x1-x2) > 1
+#     router = Router(grid.grid)
 
-    log.info(f'Routed in time: {t1-t0}')
+#     log.info(f'Routing {len(grid.agents)} agents...')
+#     t0 = time.time()
+#     agent_paths = router.route(grid.agents)
+#     t1 = time.time()
+
+#     # make sure all the paths make sense individually
+#     for agent, path in agent_paths.items():
+
+#         assert path[0]  == agent.source
+#         assert path[-1] == agent.target
+
+#         # make sure path is connected and in the graph
+#         for src, dst in pairs(path):
+#             assert src in grid.grid
+#             assert dst in grid.grid[src]
+
+#     # make sure that the collisions that occurred are ok
+#     for (a1, path1), (a2, path2) in combinations(agent_paths.items(), 2):
+#         if a1.collision_group == a2.collision_group:
+#             # same collision group, so we don't care if they collide
+#             continue
+
+#         for (y1,x1), (y2,x2) in zip(path1, path2):
+#             # TODO this only makes sense for agents of size one
+#             assert abs(y1-y2) > 1 or abs(x1-x2) > 1
+
+#     log.info(f'Routed in time: {t1-t0}')
