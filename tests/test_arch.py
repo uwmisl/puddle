@@ -55,7 +55,8 @@ def test_add_droplet(arch01):
 
 def test_mix(session01):
     # Test that mix succeeds as normal
-    session = session01
+    a = session01.input_droplet((1,1), info='a')
+    b = session01.input_droplet((3,3), info='b')
 
     a = session.input_droplet(location=(1,1), info='a')
     b = session.input_droplet(location=(3,3), info='b')
@@ -66,6 +67,8 @@ def test_mix(session01):
 
 
 def test_split(session01):
+    a = session01.input_droplet((0,0))
+    b = session01.input_droplet((3,3))
 
     session = session01
 

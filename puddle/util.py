@@ -73,3 +73,16 @@ def neighborhood(pos):
     yield (y  , x+1)
     yield (y  , x-1)
     yield (y  , x  )
+
+
+def shape_neighborhood(pos, shape):
+    """
+    Returns the neighborhood for a position with its shape representing offsets
+    from the base position
+    """
+    shape_nbrhd = set()
+    # TODO this is definitely not pythonic
+    for place in (neighborhood((pos[0] + offset[0], pos[1] + offset[1])) for offset in shape):
+        shape_nbrhd.update(place)
+
+    return shape_nbrhd

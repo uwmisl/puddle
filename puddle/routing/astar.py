@@ -6,7 +6,7 @@ import random
 from typing import Dict, Tuple, List
 
 from puddle.arch import Location, Droplet
-from puddle.util import manhattan_distance, neighborhood
+from puddle.util import manhattan_distance, neighborhood, shape_neighborhood
 
 import networkx as nx
 
@@ -92,8 +92,12 @@ class Router:
             # the path to avoid collisions
             for time, node in enumerate(path):
                 for t in (-1, 0, 1):
-                    self.avoid.update(((nbr, time + t), d.collision_group)
-                                      for nbr in neighborhood(node))
+                    # We want to avoid the entire neighborhood of the shape of
+                    # each droplet
+                    self.avoid.update(
+                        ((nbr, time + t), d.collision_group)
+                        for nbr in shape_neighborhood(node, d.shape)
+                    )
 
             # add the end points of the path
             end = path[-1]

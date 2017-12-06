@@ -25,7 +25,11 @@ _next_droplet_id = count()
 class Droplet:
 
     location: Location
+
     info: Any = None
+
+    # TODO not sure about whether (0,0) should be here
+    shape: Set[Location] = set([(0, 0)])
     valid: bool = True
 
     # volume is unitless right now
@@ -86,6 +90,8 @@ class Command:
 
     strict: ClassVar[bool] = False
 
+    # TODO change the name of this to something else? I feel like this is more
+    # of a run verification than an actual run
     def run(self, mapping: Dict[Location, Location]):
         for d,l in zip(self.input_droplets, self.input_locations):
             assert d.location == mapping[l]
@@ -183,11 +189,11 @@ class Split(Command):
         return d1, d2
 
 
-class CollisionError(Exception):
+class ArchitectureError(Exception):
     pass
 
 
-class ArchitectureError(Exception):
+class CollisionError(ArchitectureError):
     pass
 
 
@@ -230,6 +236,8 @@ class Architecture:
         )
 
     def get_droplet(self, location):
+        # TODO needs to be updated to look through each droplet's location +
+        # offsets
         for droplet in self.droplets:
             if location == droplet.location:
                 return droplet
@@ -268,6 +276,7 @@ class Architecture:
         as a collision.
         Throws a CollisionError if there is collision on the board.
         """
+        # TODO update for multi cell collisions
         for d1, d2 in combinations(self.droplets, 2):
             if d1.collision_group != d2.collision_group and \
                manhattan_distance(d1.location, d2.location) <= 1:
