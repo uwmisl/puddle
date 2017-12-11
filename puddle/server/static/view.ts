@@ -3,8 +3,8 @@ const CELL_SIZE = 50;
 
 interface DropletJSON {
     id: number;
-    x: number;
-    y: number;
+    location: [number, number];
+    volume: number;
     info: string;
 }
 
@@ -26,8 +26,8 @@ class Droplet implements DropletJSON {
         if (this.id != json.id) {
             console.error('updating with droplet that has the wrong id', this, json)
         }
-        this.x = json.x;
-        this.y = json.y;
+        this.location = json.location;
+        this.volume = json.volume;
         this.info = json.info;
     }
 
@@ -39,17 +39,20 @@ class Droplet implements DropletJSON {
 
         node = $(`<div id="${this.id}" class="ball"></div>`);
         node.appendTo($('#container'))
-        node.css('border-radius', CELL_SIZE)
-        node.css('height', CELL_SIZE)
-        node.css('width', CELL_SIZE)
+        let r = Math.sqrt(this.volume) * CELL_SIZE / 2;
+        node.css('border-radius', r)
+        node.css('height', r * 2)
+        node.css('width', r * 2)
 
         return node
     }
 
     render() {
         this.node.text(this.info)
-        let x = this.x * CELL_SIZE;
-        let y = this.y * CELL_SIZE;
+        let r = Math.sqrt(this.volume) * CELL_SIZE / 2;
+        let cr = CELL_SIZE / 2;
+        let y = this.location[0] * CELL_SIZE + cr - r;
+        let x = this.location[1] * CELL_SIZE + cr - r;
         this.node.css('transform', `translate(${x}px, ${y}px)`);
     }
 

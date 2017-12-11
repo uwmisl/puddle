@@ -17,6 +17,7 @@ Location = Tuple[int, int]
 
 
 _next_collision_group = count()
+_next_droplet_id = count()
 
 
 # disable generation of cmp so it uses id-based hashing
@@ -27,26 +28,21 @@ class Droplet:
     location: Location
     valid: bool = True
 
+    # volume is unitless right now
+    volume: float = 1.0
+
+    id: int = Factory(_next_droplet_id.__next__)
     collision_group: int = Factory(_next_collision_group.__next__)
     destination: Optional[Location] = None
 
-    def to_dict(self):
-        """ Used to JSONify this for rendering in the client """
-        y,x = self.location
-        return {
-            'id': id(self),
-            'y': y,
-            'x': x,
-            'info': self.info,
-        }
-
-    def copy(self):
-        return self.__class__(self.info, self.location)
+    def copy(self, **kwargs):
+        return self.__class__(self.info, self.location, **kwargs)
 
     def split(self, ratio=0.5):
         assert self.valid
-        a = self.copy()
-        b = self.copy()
+        volume = self.volume / 2
+        a = self.copy(volume=volume)
+        b = self.copy(volume=volume)
         self.valid = False
         return a, b
 
@@ -65,7 +61,11 @@ class Droplet:
 
         # TODO this logic definitely won't work when droplets are larger
         # it should give back the "union" of both shapes
-        return Droplet(info, self.location)
+        return Droplet(
+            info = info,
+            location = self.location,
+            volume = self.volume + other.volume
+        )
 
 
 @dataclass

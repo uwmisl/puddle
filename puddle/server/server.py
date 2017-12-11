@@ -33,7 +33,7 @@ def state():
     if not session:
         return jsonify([])
 
-    droplets = [d.to_dict() for d in session.arch.droplets]
+    droplets = [d.__dict__ for d in session.arch.droplets]
 
     session.rendered.set()
 
