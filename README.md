@@ -51,12 +51,12 @@ PUDDLE_VIZ=1 python examples/simple.py
 The environment `PUDDLE_VIZ` controls whether the visualization server runs.
 It's off by default.
 
-## Developing
+## Contributing
 
-We (try to) use the [Feature Branch Workflow][feat-branch], so don't push to the
-`master` branch unless you know what you're doing.
+Check out the [Code of Conduct][cc] and the [Contributing Guidelines][contrib].
 
-[feat-branch]: https://www.atlassian.com/git/tutorials/comparing-workflows#feature-branch-workflow
+[cc]: CODE_OF_CONDUCT.md
+[contrib]: CONTRIBUTING.md
 [typescript]: https://www.typescriptlang.org/#download-links
 [pipenv]: https://docs.pipenv.org
 [pipsi]: https://github.com/mitsuhiko/pipsi
