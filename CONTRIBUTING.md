@@ -13,6 +13,13 @@ Do your best to use descriptive branch names, but more importantly, use good
 commit messages!
 Here's a [good post][commit] to write about commit messages.
 
+Try not to commit super large files. If you need to, try to compress it first.
+For mostly static videos (like of droplets) try this:
+```shell
+ffmpeg -i input.mp4 -vcodec libx264 -crf 28 output.mp4
+```
+A higher `crf` will be more compressed.
+
 ## Code Style
 
 Please watch your trailing whitespace! There should basically be no whitespace
