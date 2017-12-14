@@ -30,6 +30,7 @@ class Droplet:
 
     # volume is unitless right now
     volume: float = 1.0
+    concentration: float = 0.0
 
     id: int = Factory(_next_droplet_id.__next__)
     collision_group: int = Factory(_next_collision_group.__next__)
@@ -45,8 +46,13 @@ class Droplet:
     def split(self, ratio=0.5):
         assert self.valid
         volume = self.volume / 2
-        a = self.copy(volume=volume)
-        b = self.copy(volume=volume)
+        # concentration stays the same
+        a = self.copy(
+            volume=volume,
+            concentration=self.concentration)
+        b = self.copy(
+            volume=volume,
+            concentration=self.concentration)
         self.valid = False
         return a, b
 
@@ -63,12 +69,18 @@ class Droplet:
         other.valid = False
         info = f'({self.info}, {other.info})'
 
+        m1 = self.volume * self.concentration
+        m2 = other.volume * other.concentration
+
+        new_volume = self.volume + other.volume
+
         # TODO this logic definitely won't work when droplets are larger
         # it should give back the "union" of both shapes
         return Droplet(
             info = info,
             location = self.location,
-            volume = self.volume + other.volume
+            volume = new_volume,
+            concentration = (m1 + m2) / new_volume,
         )
 
 
