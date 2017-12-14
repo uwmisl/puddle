@@ -24,8 +24,8 @@ _next_droplet_id = count()
 @dataclass(cmp=False)
 class Droplet:
 
-    info: Any
     location: Location
+    info: Any = None
     valid: bool = True
 
     # volume is unitless right now
@@ -36,7 +36,11 @@ class Droplet:
     destination: Optional[Location] = None
 
     def copy(self, **kwargs):
-        return self.__class__(self.info, self.location, **kwargs)
+        return self.__class__(
+            info=self.info,
+            location=self.location,
+            **kwargs
+        )
 
     def split(self, ratio=0.5):
         assert self.valid
@@ -233,9 +237,16 @@ class Architecture:
 
     def add_droplet(self, droplet: Droplet):
 
-        if droplet.location not in self.graph:
-            raise KeyError("Location {} is not in the architecture"
-                            .format(droplet.location))
+        if droplet.location is None:
+            shape = nx.DiGraph()
+            shape.add_node((0,0))
+            placement = self.session.execution.placer.place_shape(shape)
+            droplet.location = placement[(0,0)]
+        else:
+            if droplet.location not in self.graph:
+                raise KeyError("Location {} is not in the architecture"
+                               .format(droplet.location))
+
 
         assert droplet not in self.droplets
         self.droplets.add(droplet)

@@ -58,19 +58,12 @@ class Session(AbstractContextManager):
         self.close()
         return False
 
-    def input_droplet(self, location, info=None) -> Droplet:
+    def input_droplet(self, **kwargs) -> Droplet:
         """bind location to new droplet"""
 
-        info = info or next(self.droplet_id_counter)
-
-        # make sure no droplet at this location already
-
-        assert self.arch.get_droplet(location) is None
-
-        droplet = Droplet(info, location)
-        self.arch.add_droplet(droplet)
-
-        return droplet
+        d = Droplet(**kwargs)
+        self.arch.add_droplet(d)
+        return d
 
     def mix(self, droplet1: Droplet, droplet2: Droplet) -> Droplet:
 

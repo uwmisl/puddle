@@ -32,7 +32,7 @@ def test_add_droplet(arch01):
     c2 = Droplet(info='c2', location=(4,5))
 
     # this one should be okay to overlap with b
-    b_ok = Droplet('b_ok', (3,3))
+    b_ok = Droplet(info='b_ok', location=(3,3))
     b_ok.collision_group = b.collision_group
 
     arch.add_droplet(a)
@@ -57,8 +57,8 @@ def test_mix(session01):
     # Test that mix succeeds as normal
     session = session01
 
-    a = session.input_droplet((1,1), info='a')
-    b = session.input_droplet((3,3), info='b')
+    a = session.input_droplet(location=(1,1), info='a')
+    b = session.input_droplet(location=(3,3), info='b')
 
     ab = session.mix(a, b)
     assert len(session.arch.droplets) == 1
@@ -69,8 +69,8 @@ def test_split(session01):
 
     session = session01
 
-    a = session.input_droplet((0,0), info='a')
-    session.input_droplet((3,3), info='b')
+    a = session.input_droplet(location=(0,0), info='a')
+    session.input_droplet(location=(3,3), info='b')
 
     a1, a2 = session.split(a)
     assert len(session.arch.droplets) == 3

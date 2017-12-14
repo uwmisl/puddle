@@ -37,8 +37,8 @@ def test_simple_execution(arch01):
     arch = arch01
     execution = Execution(arch)
 
-    a = Droplet('a', (0,0))
-    b = Droplet('b', (2,0))
+    a = Droplet(info='a', location=(0,0))
+    b = Droplet(info='b', location=(2,0))
 
     arch.add_droplet(a)
     arch.add_droplet(b)
@@ -58,7 +58,7 @@ def test_lots_of_movement(session01):
     n = 5
 
     droplets = [
-        session.input_droplet((0, 2*i))
+        session.input_droplet(location=(0, 2*i))
         for i in range(n)
     ]
 
@@ -99,8 +99,8 @@ def lollipop_board_session():
 def test_same_collision_group_mix(lollipop_board_session):
     s = lollipop_board_session
 
-    a = s.input_droplet((1,0), 'a')
-    b = s.input_droplet((1,3), 'b')
+    a = s.input_droplet(location=(1,0), info='a')
+    b = s.input_droplet(location=(1,3), info='b')
 
     a.collision_group = 1
     b.collision_group = 1

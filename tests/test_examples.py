@@ -12,6 +12,6 @@ def test_example(example):
     os.environ['PUDDLE_VIZ'] = str(0)
 
     with example.open() as f:
-        # empty dicts for globals, locals
-        exec(f.read(), {}, {})
+        # empty dicts for globals, used a initial locals
+        exec(f.read(), {})
     return True
