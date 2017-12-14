@@ -26,7 +26,7 @@ class Execution:
         log.info(f'Executing {command}')
 
         # mapping of command nodes onto architecture nodes
-        placement = self.placer.place(command)
+        placement = self.placer.place_command(command)
         self.arch.push_command(command)
 
         for droplet, input_loc in zip(command.input_droplets,
@@ -70,7 +70,7 @@ class Placer:
     def __init__(self, arch):
         self.arch = arch
 
-    def place(self, command: Command) -> Dict:
+    def place_command(self, command: Command) -> Dict:
         """ Returns a mapping of command nodes onto architecture nodes.
 
         Also makes sure the "neighborhood" surrounding the command is empty.
@@ -86,6 +86,20 @@ class Placer:
         assert len(c_groups) == 1
         (c_group,) = c_groups
 
+        result = self.place_shape(
+            shape = command.shape,
+            collision_group = c_group,
+            strict = command.strict,
+            raise_if_fail = False,
+        )
+
+        if result is None:
+            raise PlaceError(f'Failed to place {command}')
+
+        return result
+
+    def place_shape(self, shape, collision_group=-62824, strict=False, raise_if_fail=True):
+
         # copy the architecture graph so we can modify it
         graph = nx.DiGraph(self.arch.graph)
 
@@ -95,7 +109,7 @@ class Placer:
         too_close = set()
 
         for droplet in self.arch.droplets:
-            if droplet.collision_group == c_group:
+            if droplet.collision_group == collision_group:
                 continue
             for loc2 in neighborhood(droplet.location):
                 if loc2 in graph:
@@ -104,19 +118,19 @@ class Placer:
         graph.remove_nodes_from(too_close)
 
         # a strict placement doesn't allow bending, so do a dumber placement
-        if command.strict:
+        if strict:
             for oy,ox in graph:
                 # test if all of the command's locations are left in `graph`, which
                 # are all OK nodes to place in
                 if all((y+oy, x+ox) in graph
-                       for y,x in command.shape):
+                       for y,x in shape):
                     d =  {
                         (y,x): (y+oy, x+ox)
-                        for y,x in command.shape
+                        for y,x in shape
                     }
                     return d
         else:
-            matcher = nx.isomorphism.DiGraphMatcher(graph, command.shape)
+            matcher = nx.isomorphism.DiGraphMatcher(graph, shape)
 
             # for now, just return the first match because we don't care
             for match in matcher.subgraph_isomorphisms_iter():
@@ -124,4 +138,5 @@ class Placer:
                 return {cn: an for an, cn in match.items()}
 
         # couldn't place the command
-        raise PlaceError(f'Failed to place {command}')
+        if raise_if_fail:
+            raise PlaceError(f'Failed to place {shape}')

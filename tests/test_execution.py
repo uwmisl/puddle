@@ -12,13 +12,13 @@ from puddle.execution import Execution, Placer
     (Mix,   [Droplet('a', (0,0)), Droplet('b', (0,0))]),
     (Split, [Droplet('a', (0,0))]),
 ])
-def test_place(arch, command_cls, droplets):
+def test_place_command(arch, command_cls, droplets):
 
     placer = Placer(arch)
 
     command = command_cls(arch, *droplets)
 
-    placement = placer.place(command)
+    placement = placer.place_command(command)
 
     assert placement
 
