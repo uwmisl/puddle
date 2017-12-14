@@ -139,36 +139,3 @@ def test_random_move(grid):
     move = Move(arch, droplets, grid.goals)
 
     ex.go(move)
-
-# def test_grid(grid):
-#     """Runs a bunch of tests on random_grid's with the given args."""
-
-#     router = Router(grid.grid)
-
-#     log.info(f'Routing {len(grid.agents)} agents...')
-#     t0 = time.time()
-#     agent_paths = router.route(grid.agents)
-#     t1 = time.time()
-
-#     # make sure all the paths make sense individually
-#     for agent, path in agent_paths.items():
-
-#         assert path[0]  == agent.source
-#         assert path[-1] == agent.target
-
-#         # make sure path is connected and in the graph
-#         for src, dst in pairs(path):
-#             assert src in grid.grid
-#             assert dst in grid.grid[src]
-
-#     # make sure that the collisions that occurred are ok
-#     for (a1, path1), (a2, path2) in combinations(agent_paths.items(), 2):
-#         if a1.collision_group == a2.collision_group:
-#             # same collision group, so we don't care if they collide
-#             continue
-
-#         for (y1,x1), (y2,x2) in zip(path1, path2):
-#             # TODO this only makes sense for agents of size one
-#             assert abs(y1-y2) > 1 or abs(x1-x2) > 1
-
-#     log.info(f'Routed in time: {t1-t0}')
