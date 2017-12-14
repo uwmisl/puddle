@@ -1,5 +1,7 @@
 from collections import Counter
 
+import networkx as nx
+
 from puddle import Session, Architecture
 
 arch = Architecture.from_file('tests/arches/arch02.yaml')
@@ -7,6 +9,47 @@ arch = Architecture.from_file('tests/arches/arch02.yaml')
 min_volume = 1.0
 max_volume = 4.0
 
+def plan(low, high, target, epsilon=0.01):
+    graph = nx.DiGraph()
+    mid = (low + high) / 2
+
+    while abs(mid - target) > epsilon:
+        graph.add_edge(low, mid)
+        graph.add_edge(high, mid)
+        if target < mid:
+            high = mid
+        else:
+            low = mid
+        mid = (low + high) / 2
+
+    rev_topo = reversed(list(nx.topological_sort(graph)))
+    result = next(rev_topo)
+    for _, _, data in graph.in_edges(result, data=True):
+        data['weight'] = 1
+
+    for node in rev_topo:
+        print(node)
+        total = sum(w for _,_,w in graph.out_edges(node, data='weight'))
+        graph.node[node]['total'] = total
+        in_w = (total + 1) // 2
+        for _,_,data in graph.in_edges(node, data=True):
+            data['weight'] = in_w
+
+    print(list(graph.nodes(data='total'))),
+    print(list(graph.edges(data='weight')))
+
+    for node in graph:
+        ins = graph.in_edges(node, data='weight')
+        outs = graph.out_edges(node, data='weight')
+        out_amt = sum(w for _,_,w in outs)
+        in_amt = sum(w for _,_,w in ins)
+        print(ins, outs, in_amt, out_amt)
+        assert not ins or out_amt <= in_amt
+
+    return graph
+
+def test_plan():
+    g = plan(0, 1, 0.1, epsilon=.001)
 
 def dilute(session, d_low_factory, d_high_factory, c_target,
            epsilon = 0.001):
