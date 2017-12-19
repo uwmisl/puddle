@@ -40,8 +40,8 @@ class Droplet implements DropletJSON {
 }
 
 let frame = 0;
-let canvas: HTMLCanvasElement;
-let context: CanvasRenderingContext2D;
+let canvas: HTMLCanvasElement = <HTMLCanvasElement>document.getElementById('chip');
+let context: CanvasRenderingContext2D = canvas.getContext("2d")
 
 let frameArray = new Array<Array<Droplet>>(); // drops for each frame
 let prevArray: Droplet[]; // drops from most recent frame
@@ -54,9 +54,6 @@ let animate = true; // depends on checkbox
 // TODO(@chrstn): put the init stuff in a separate place
 function parse_data(data: DropletJSON[]) {
     frame += 1;
-
-    canvas = <HTMLCanvasElement>document.getElementById('chip');
-    context = canvas.getContext("2d");
 
     context.clearRect(0, 0, canvas.width, canvas.height);
     frameArray[frame] = new Array<Droplet>();
