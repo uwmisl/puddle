@@ -2,12 +2,11 @@
 <html lang="en">
     <head>
         <meta charset="UTF-8">
-        <title>Title</title>
+        <title>Puddle Viz</title>
         <style>
-         #container {
-             margin-top: 30px;
-             position: relative;
-         }
+        body {
+            font-family: sans-serif;
+        }
          .ball {
              background: #c00;
              position: absolute;
@@ -25,8 +24,12 @@
         <script src="static/view.js" defer></script>
     </head>
     <body>
-        <input id="ready" type="checkbox">
+        <canvas width='600px' height='600px' id='chip'></canvas>
+        <br>
         <button type="button" id="step">Step</button>
-        <div id="container"></div>
+        <br>
+        <input id="ready" type="checkbox">Rapid Fire</input>
+        <br>
+        <input id="animate" type="checkbox" checked="true">Animations</input>
     </body>
 </html>

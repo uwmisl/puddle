@@ -6,9 +6,8 @@ interface DropletJSON {
     location: [number, number];
     volume: number;
     info: string;
+    destination: [number, number];
 }
-
-let droplets = new Map<number, Droplet>();
 
 // Have Droplet (the class) actually inherit the fields from DropletJSON
 interface Droplet extends DropletJSON {}
@@ -16,79 +15,107 @@ interface Droplet extends DropletJSON {}
 class Droplet implements DropletJSON {
 
     constructor(json: DropletJSON) {
-        console.log(`${counter} - creating`, json)
+        console.log(`${frame} - creating`, json)
         this.id = json.id;
-        this.update(json)
-        droplets.set(this.id, this)
-    }
-
-    update(json: DropletJSON) {
-        if (this.id != json.id) {
-            console.error('updating with droplet that has the wrong id', this, json)
-        }
         this.location = json.location;
         this.volume = json.volume;
         this.info = json.info;
-    }
-
-    // gets the HTML node for this droplet, creating it if necessary
-    get node(): JQuery<HTMLElement> {
-        let node = $('#' + this.id);
-        if (node.length > 0)
-            return node
-
-        node = $(`<div id="${this.id}" class="ball"></div>`);
-        node.appendTo($('#container'))
-        let r = Math.sqrt(this.volume) * CELL_SIZE / 2;
-        node.css('border-radius', r)
-        node.css('height', r * 2)
-        node.css('width', r * 2)
-
-        return node
+        if (json.destination != null) {
+            this.destination = json.destination;
+        }
     }
 
     render() {
-        this.node.text(this.info)
         let r = Math.sqrt(this.volume) * CELL_SIZE / 2;
         let cr = CELL_SIZE / 2;
         let y = this.location[0] * CELL_SIZE + cr - r;
         let x = this.location[1] * CELL_SIZE + cr - r;
-        this.node.css('transform', `translate(${x}px, ${y}px)`);
-    }
 
-    destroy() {
-        console.log(`${counter} - deleting`, this)
-        this.node.remove()
-        droplets.delete(this.id)
+        context.beginPath();
+        context.arc(x + (CELL_SIZE / 2), y + (CELL_SIZE / 2), r, 0, Math.PI * 2, false);
+        context.closePath();
+        context.fillStyle = "#006699";
+        context.fill();
     }
 }
 
-let counter = 0
+let frame = 0;
+let canvas: HTMLCanvasElement;
+let context: CanvasRenderingContext2D;
 
+let frameArray = new Array<Array<Droplet>>(); // drops for each frame
+let prevArray: Droplet[]; // drops from most recent frame
+
+let duration = 1000; // animation length in ms
+let startTime; // browser time at start of animation
+
+let animate = true; // depends on checkbox
+
+// TODO(@chrstn): put the init stuff in a separate place
 function parse_data(data: DropletJSON[]) {
+    frame += 1;
 
-    counter += 1;
+    canvas = <HTMLCanvasElement>document.getElementById('chip');
+    context = canvas.getContext("2d");
 
-    // remove old droplets
-    for (let [id, droplet] of droplets) {
-        let is_present = data.find((elem) => elem.id == id)
-        if (!is_present) {
-            droplet.destroy()
-        }
+    context.clearRect(0, 0, canvas.width, canvas.height);
+    frameArray[frame] = new Array<Droplet>();
+
+    for (let json of data) {
+        let droplet = new Droplet(json);
+        frameArray[frame][droplet.id] = droplet;
     }
 
-    // add or update droplets
-    for (let json of data) {
-        let droplet = droplets.get(json.id)
-        if (!droplet) {
-            droplet = new Droplet(json)
-        } else {
-            droplet.update(json)
-        }
-        droplet.render()
+    if (frame != 1 && animate) {
+        prevArray = frameArray[frame - 1].slice(0);
+        requestAnimationFrame(anim);
+    } else {
+        prevArray = frameArray[frame].slice(0);
+        draw();
     }
 }
 
+// Canvas animation using current browser time
+function anim(time) {
+    if (!startTime) {
+        startTime = time || performance.now();
+    }
+
+    var delta = (time - startTime) / duration;
+
+    for (let i = 0; i < prevArray.length; i++) {
+        if (prevArray[i] != null && frameArray[frame][i] != null) {
+            let deltaX = (frameArray[frame][i].location[0] -
+                frameArray[frame - 1][i].location[0]) * delta;
+            let deltaY = (frameArray[frame][i].location[1] -
+                frameArray[frame - 1][i].location[1]) * delta;
+            prevArray[i].location[0] += deltaX;
+            prevArray[i].location[1] += deltaY;
+        }
+    }
+
+    if (delta >= 1) { // animation complete
+        startTime = null;
+        draw();
+    } else {
+        draw();
+        requestAnimationFrame(anim);
+    }
+}
+
+// Draws all elements of prevArray
+function draw(){
+    context.clearRect(0, 0, canvas.width, canvas.height);
+    for (let i = 0; i < prevArray.length; i++) {
+        if (prevArray[i] != null) {
+           var drop = prevArray[i];
+           drop.render();
+        }
+    }
+}
+
+// button interactions
+// TODO(@chrstn): work out behavior for rapid progression/animations
 function get_data() {
     if ($("#ready").is(':checked')) {
         setTimeout(() => {
@@ -111,3 +138,7 @@ $("#ready").change(
 if ($("#ready").is(':checked')) {
     get_data()
 }
+
+$('#animate').change(function(){
+    animate = $(this).is(':checked');
+});
