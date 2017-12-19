@@ -47,7 +47,7 @@ let frameArray = new Array<Array<Droplet>>(); // drops for each frame
 let prevArray: Droplet[]; // drops from most recent frame
 
 let duration = 1000; // animation length in ms
-let startTime; // browser time at start of animation
+let startTime: number; // browser time at start of animation
 
 let animate = true; // depends on checkbox
 
@@ -76,7 +76,7 @@ function parse_data(data: DropletJSON[]) {
 }
 
 // Canvas animation using current browser time
-function anim(time) {
+function anim(time: number) {
     if (!startTime) {
         startTime = time || performance.now();
     }
