@@ -43,6 +43,17 @@ let frame = 0;
 let canvas: HTMLCanvasElement = <HTMLCanvasElement>document.getElementById('chip');
 let context: CanvasRenderingContext2D = canvas.getContext("2d")
 
+let ratio = window.devicePixelRatio || 1;
+
+// style the canvas based on the original, intended dimensions
+canvas.style.width = canvas.width + 'px';
+canvas.style.height = canvas.height + 'px';
+
+// now scale the canvas and the context up
+canvas.width *= ratio;
+canvas.height *= ratio;
+context.scale(ratio, ratio);
+
 let frameArray = new Array<Array<Droplet>>(); // drops for each frame
 let prevArray: Droplet[]; // drops from most recent frame
 
