@@ -1,4 +1,4 @@
-# import logging
+import logging
 from pathlib import Path
 
 from flask import Flask, jsonify, request, send_from_directory
@@ -6,7 +6,7 @@ from flask import Flask, jsonify, request, send_from_directory
 app = Flask(__name__)
 
 # suppress debug printing from the web server
-# logging.getLogger('werkzeug').setLevel(logging.DEBUG)
+logging.getLogger('werkzeug').setLevel(logging.DEBUG)
 
 # relative where the server is being run from, hopefully the project root
 TEST_DIR = Path('tests').resolve(strict=True)
