@@ -7,6 +7,7 @@ from typing import Tuple
 
 from puddle.arch import Architecture, Droplet, Mix, Split, Move
 from puddle.execution import Execution
+from puddle.engine import Engine
 
 import logging
 log = logging.getLogger(__name__)
@@ -20,8 +21,8 @@ class Session(AbstractContextManager):
         # create graph, connect to hw
         self.arch = arch
         self.arch.session = self
-        # self.queue = cmd.CommandQueue()
         self.execution = Execution(arch)
+        self.engine = Engine(self.execution)
 
         self.rendered = None
         self.server_thread = None
@@ -61,6 +62,8 @@ class Session(AbstractContextManager):
     def input_droplet(self, **kwargs) -> Droplet:
         """bind location to new droplet"""
 
+        self.engine.flush()
+
         d = Droplet(**kwargs)
         self.arch.add_droplet(d)
         return d
@@ -68,12 +71,27 @@ class Session(AbstractContextManager):
     def mix(self, droplet1: Droplet, droplet2: Droplet) -> Droplet:
 
         mix_cmd = Mix(self.arch, droplet1, droplet2)
-        return self.execution.go(mix_cmd)
+        droplet, = self.engine.virtualize(mix_cmd)
+        return droplet
 
     def split(self, droplet: Droplet) -> Tuple[Droplet, Droplet]:
 
         split_cmd = Split(self.arch, droplet)
-        return self.execution.go(split_cmd)
+        droplet1, droplet2 = self.engine.virtualize(split_cmd)
+        return droplet1, droplet2
+
+    def force_mix(self, droplet1: Droplet, droplet2: Droplet) -> Droplet:
+
+        mix_cmd = Mix(self.arch, droplet1, droplet2)
+        droplet, = self.engine.realize(mix_cmd)
+        return droplet
+
+    def force_split(self, droplet: Droplet) -> Tuple[Droplet, Droplet]:
+
+        split_cmd = Split(self.arch, droplet)
+        droplet1, droplet2 = self.engine.realize(split_cmd)
+        return droplet1, droplet2
+
 
     def move(self, droplet: Droplet, location: Tuple):
 
@@ -82,13 +100,14 @@ class Session(AbstractContextManager):
             droplets = [droplet],
             locations = [location]
         )
-        return self.execution.go(move_cmd)
+
+        self.engine.flush()
+
+        return self.engine.realize(move_cmd)
 
     def heat(self, droplet, temp, time):
         # route droplet to heater
         pass
 
-    def flush(self) -> None:
-        raise NotImplementedError('ahhhh')
-        # for cmd in self.queue:
-        #     self.execution.go(cmd)
+    def flush(self):
+        self.engine.flush()
