@@ -80,13 +80,13 @@ class Session(AbstractContextManager):
         droplet1, droplet2 = self.engine.virtualize(split_cmd)
         return droplet1, droplet2
 
-    def force_mix(self, droplet1: Droplet, droplet2: Droplet) -> Droplet:
+    def mix_now(self, droplet1: Droplet, droplet2: Droplet) -> Droplet:
 
         mix_cmd = Mix(self.arch, droplet1, droplet2)
         droplet, = self.engine.realize(mix_cmd)
         return droplet
 
-    def force_split(self, droplet: Droplet) -> Tuple[Droplet, Droplet]:
+    def split_now(self, droplet: Droplet) -> Tuple[Droplet, Droplet]:
 
         split_cmd = Split(self.arch, droplet)
         droplet1, droplet2 = self.engine.realize(split_cmd)

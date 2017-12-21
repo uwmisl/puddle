@@ -22,7 +22,7 @@ with Session(arch) as session:
     # Force evaluation with one of the commands below:
     #
     #   Example1: "move(ababc, (2, 2))"
-    #   Example2: "f = force_split(ababc)" (try it!)
+    #   Example2: "f = split_now(ababc)" (try it!)
     #
     # You may have to flicker the auto render check box
     # after doing so to see anything.
@@ -47,11 +47,11 @@ with Session(arch) as session:
         session.flush()
 
     # ...commands that a and b depend on.
-    def force_mix(a, b):
+    def mix_now(a, b):
         return session.force_mix(a,b)
 
     # ...commands that a depends on.
-    def force_split(a):
+    def split_now(a):
         return session.force_split(a)
 
     #
