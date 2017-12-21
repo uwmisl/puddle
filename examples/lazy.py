@@ -1,3 +1,5 @@
+import os
+
 from puddle import Session, Architecture
 
 arch = Architecture.from_file('tests/arches/arch01.yaml')
@@ -29,41 +31,43 @@ with Session(arch) as session:
     #
     # CTRL-D to exit the REPL.
 
-
-    #
-    # These commands force evaluation of...
-    #
-
-    # ...all queued commands.
-    def input(x, y):
-        return session.input_droplet(location = (x, y))
-
-    # ...all queued commands.
-    def move(a, location):
-        return session.move(a, location)
-
-    # ... all queued commands.
-    def flush():
+    # don't run the repl if you aren't visualizing
+    viz = os.environ.get("PUDDLE_VIZ", "0")
+    if not int(viz):
         session.flush()
 
-    # ...commands that a and b depend on.
-    def mix_now(a, b):
-        return session.split_now(a,b)
+    else:
+        # These commands force evaluation of...
 
-    # ...commands that a depends on.
-    def split_now(a):
-        return session.split_now(a)
+        # ...all queued commands.
+        def input(x, y):
+            return session.input_droplet(location = (x, y))
 
-    #
-    # These commands do not force evaluation.
-    #
+        # ...all queued commands.
+        def move(a, location):
+            return session.move(a, location)
 
-    def mix(a, b):
-        return session.mix(a,b)
+        # ... all queued commands.
+        def flush():
+            session.flush()
 
-    def split(a):
-        return session.split(a)
+        # ...commands that a and b depend on.
+        def mix_now(a, b):
+            return session.split_now(a,b)
 
+        # ...commands that a depends on.
+        def split_now(a):
+            return session.split_now(a)
 
-    import code
-    code.InteractiveConsole(locals=globals()).interact()
+        #
+        # These commands do not force evaluation.
+        #
+
+        def mix(a, b):
+            return session.mix(a,b)
+
+        def split(a):
+            return session.split(a)
+
+        import code
+        code.InteractiveConsole(locals=globals()).interact()
