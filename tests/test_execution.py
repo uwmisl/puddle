@@ -108,3 +108,79 @@ def test_same_collision_group_mix(lollipop_board_session):
     s.move(a, (1,4))
 
     assert len(s.arch.droplets) == 1
+
+
+def test_lazy_mix(session01):
+    s = session01
+
+    a = s.input_droplet(location=(1,1), info='a')
+    b = s.input_droplet(location=(1,3), info='b')
+
+    # abc will depend on c twice
+    ab = s.mix(a, b)
+
+    # make sure nothing is executed yet
+    assert s.arch.droplets == set([a,b])
+    s.flush()
+    assert s.arch.droplets == set([ab])
+
+
+@pytest.mark.xfail
+def test_lazy_move(session01):
+    s = session01
+    a = s.input_droplet(location=(1,1), info='a')
+
+    s.move(a, (3,3))
+
+    assert a.location == (1,1)
+
+
+@pytest.mark.xfail(reason="Droplet a should be consumed by the mix.")
+def test_lazy_mix_consumed(session01):
+    s = session01
+    a = s.input_droplet(location=(1,1), info='a')
+    b = s.input_droplet(location=(1,3), info='b')
+
+    s.mix(a,b)
+
+    # the location should be invalid (from the user's perspective)
+    assert a.location is None
+    # the droplet should be consumed at this point
+    assert not a.valid
+
+
+@pytest.mark.xfail(reason="Consumption error not implemented")
+def test_double_consume(session01):
+    s = session01
+    a = s.input_droplet(location=(1,1), info='a')
+    b = s.input_droplet(location=(1,3), info='b')
+    c = s.input_droplet(location=(1,5), info='c')
+
+    s.mix(a,b)
+
+    # TODO make this exception more granular
+    # this should fail because b is consumed, and it should fail even if we are
+    # using lazy execution
+    with pytest.raises(Exception):
+        s.mix(b,c)
+
+
+def test_lazy_double_dependency(session01):
+    s = session01
+
+    a = s.input_droplet(location=(1,1), info='a')
+    b = s.input_droplet(location=(1,3), info='b')
+    c = s.input_droplet(location=(1,5), info='c')
+
+    c1, c2 = s.split(c)
+
+    ac1 = s.mix(a, c1)
+    bc2 = s.mix(b, c2)
+
+    # abc will depend on c twice
+    abc = s.mix(ac1, bc2)
+
+    # make sure nothing is executed yet
+    assert s.arch.droplets == set([a,b,c])
+    s.flush()
+    assert s.arch.droplets == set([abc])

@@ -45,6 +45,9 @@ class Engine:
                         dependency = self.dependencies[droplet.id]
                         visited.append(dependency)
 
+        # make sure visited is unique so we don't do anything twice
+        assert len(set(visited)) == len(visited)
+
         for cmd in reversed(visited):
             # Only execute commands with non-virtual outputs.
             if all(d.virtual for d in cmd.output_droplets):
