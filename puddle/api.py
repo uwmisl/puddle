@@ -92,7 +92,6 @@ class Session(AbstractContextManager):
         droplet1, droplet2 = self.engine.realize(split_cmd)
         return droplet1, droplet2
 
-
     def move(self, droplet: Droplet, location: Tuple):
 
         move_cmd = Move(

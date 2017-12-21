@@ -57,4 +57,4 @@ class Engine:
         for droplet_id in self.dependencies:
             cmd = self.dependencies[droplet_id]
             if all(d.virtual for d in cmd.output_droplets):
-                _  = self.realize(cmd)
+                self.realize(cmd)
