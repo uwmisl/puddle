@@ -103,7 +103,7 @@ class Session(AbstractContextManager):
 
         self.engine.flush()
 
-        return self.engine.realize(move_cmd)
+        self.engine.realize(move_cmd)
 
     def heat(self, droplet, temp, time):
         # route droplet to heater
