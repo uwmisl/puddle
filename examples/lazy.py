@@ -15,13 +15,19 @@ with Session(arch) as session:
 
     # Simple REPL setup for seeing laziness... in action?
     #
-    # Run through the animation until the commands above finish
-    # rendering and you see the ">>>" prompt. Then, use the
-    # functions below to further manipulate the droplets.
+    # Run with visualization, check the auto rendering box.
+    # No animation will play at first because none of the commands
+    # above force evaluation.
     #
-    # Best viewed with the auto-render box checked.
+    # Force evaluation with one of the commands below:
     #
-    # NOTE: CTRL-D to exit the REPL
+    #   Example1: "move(ababc, (2, 2))"
+    #   Example2: "f = force_split(ababc)" (try it!)
+    #
+    # You may have to flicker the auto render check box
+    # after doing so to see anything.
+    #
+    # CTRL-D to exit the REPL.
 
 
     #
@@ -31,6 +37,14 @@ with Session(arch) as session:
     # ...all queued commands.
     def input(a, b):
         return session.input((a, b))
+
+    # ...all queued commands.
+    def move(a, location):
+        return session.move(a, location)
+
+    # ... all queued commands.
+    def flush():
+        session.flush()
 
     # ...commands that a and b depend on.
     def force_mix(a, b):
