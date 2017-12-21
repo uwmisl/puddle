@@ -27,6 +27,7 @@ class Droplet:
     location: Location
     info: Any = None
     valid: bool = True
+    virtual: bool = True
 
     # volume is unitless right now
     volume: float = 1.0
@@ -42,15 +43,24 @@ class Droplet:
             **kwargs
         )
 
-    def split(self, ratio=0.5):
+    def split(self, result1, result2, ratio=0.5):
         assert self.valid
         volume = self.volume / 2
-        a = self.copy(volume=volume)
-        b = self.copy(volume=volume)
-        self.valid = False
-        return a, b
 
-    def mix(self, other: 'Droplet'):
+        result1.volume = volume
+        result1.info = self.info
+        result1.location = self.location
+        result1.virtual = False
+
+        result2.volume = volume
+        result2.info = self.info
+        result2.location = self.location
+        result2.virtual = False
+
+        self.valid = False
+        return result1, result2
+
+    def mix(self, other: 'Droplet', result):
         log.debug(f'mixing {self} with {other}')
         assert self.valid
         assert other.valid
@@ -65,11 +75,13 @@ class Droplet:
 
         # TODO this logic definitely won't work when droplets are larger
         # it should give back the "union" of both shapes
-        return Droplet(
-            info = info,
-            location = self.location,
-            volume = self.volume + other.volume
-        )
+
+        result.info = info
+        result.location = self.location
+        result.volume = self.volume + other.volume
+        result.virtual = False
+
+        return result
 
 
 @dataclass
@@ -82,7 +94,7 @@ class Command:
     shape: ClassVar[nx.DiGraph]
     input_locations: ClassVar[List[Location]]
     input_droplets: List[Droplet]
-    result: Any
+    output_droplets: List[Droplet]
 
     strict: ClassVar[bool] = False
 
@@ -97,6 +109,7 @@ class Move(Command):
         self.arch = arch
         self.input_droplets = droplets
         self.input_locations = locations
+        self.output_droplets = []
 
 
 class Mix(Command):
@@ -112,6 +125,7 @@ class Mix(Command):
         self.droplet1 = droplet1
         self.droplet2 = droplet2
         self.input_droplets = [droplet1, droplet2]
+        self.output_droplets = [Droplet(None)]
 
         # we are going to mix, so set them all to the same collision group.
         collision_group = min(d.collision_group for d in self.input_droplets)
@@ -129,7 +143,7 @@ class Mix(Command):
 
         self.arch.remove_droplet(self.droplet1)
         self.arch.remove_droplet(self.droplet2)
-        result = Droplet.mix(self.droplet1, self.droplet2)
+        result = Droplet.mix(self.droplet1, self.droplet2, *self.output_droplets)
         self.arch.add_droplet(result)
 
         self.arch.wait()
@@ -151,6 +165,7 @@ class Split(Command):
         self.arch = arch
         self.droplet = droplet
         self.input_droplets = [droplet]
+        self.output_droplets = [Droplet(None), Droplet(None)]
 
     def run(self, mapping):
 
@@ -161,7 +176,7 @@ class Split(Command):
         nodes2 = [(0,3), (0,4)]
 
         self.arch.remove_droplet(self.droplet)
-        d1, d2 = self.droplet.split()
+        d1, d2 = self.droplet.split(*self.output_droplets)
 
         # allow collisions
         cg2 = d2.collision_group
