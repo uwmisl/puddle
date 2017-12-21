@@ -35,8 +35,8 @@ with Session(arch) as session:
     #
 
     # ...all queued commands.
-    def input(a, b):
-        return session.input((a, b))
+    def input(x, y):
+        return session.input_droplet(location = (x, y))
 
     # ...all queued commands.
     def move(a, location):
