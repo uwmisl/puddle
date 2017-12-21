@@ -48,11 +48,11 @@ with Session(arch) as session:
 
     # ...commands that a and b depend on.
     def mix_now(a, b):
-        return session.force_mix(a,b)
+        return session.split_now(a,b)
 
     # ...commands that a depends on.
     def split_now(a):
-        return session.force_split(a)
+        return session.split_now(a)
 
     #
     # These commands do not force evaluation.
