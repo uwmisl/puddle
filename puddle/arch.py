@@ -20,6 +20,9 @@ _next_collision_group = count()
 _next_droplet_id = count()
 
 
+# Shape helpers
+_default_shape = set([(0, 0)])
+
 # disable generation of cmp so it uses id-based hashing
 @dataclass(cmp=False)
 class Droplet:
@@ -28,8 +31,8 @@ class Droplet:
 
     info: Any = None
 
-    # TODO not sure about whether (0,0) should be here
-    shape: Set[Location] = set([(0, 0)])
+    # Require that a new droplet shape must include (0, 0)
+    shape: Set[Location] = attr.ib(default=Factory(_default_shape), validator=_check_shape)
     valid: bool = True
 
     # volume is unitless right now
@@ -38,6 +41,10 @@ class Droplet:
     id: int = Factory(_next_droplet_id.__next__)
     collision_group: int = Factory(_next_collision_group.__next__)
     destination: Optional[Location] = None
+
+    def _check_shape(self, attr, value):
+        if (0, 0) not in value:
+            raise ValueError("shape must contain (0, 0)")
 
     def copy(self, **kwargs):
         return self.__class__(
@@ -125,7 +132,6 @@ class Mix(Command):
             d.collision_group = collision_group
 
     def run(self, mapping):
-
         super().run(mapping)
 
         # use the mapping to get the edges in the architecture we have to take
@@ -159,7 +165,6 @@ class Split(Command):
         self.input_droplets = [droplet]
 
     def run(self, mapping):
-
         super().run(mapping)
 
         # use the mapping to get the edges in the architecture we have to take
