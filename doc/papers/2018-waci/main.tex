@@ -1,0 +1,223 @@
+\documentclass[
+  10pt,
+  a4paper,
+  twocolumn,
+]{article}
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+
+\usepackage{minted}
+\usepackage{caption}
+
+\usepackage[cm]{fullpage}
+
+\usepackage[pdftex]{graphicx} % Required for including pictures
+\usepackage[pdftex,linkcolor=black,pdfborder={0 0 0}]{hyperref} % Format links for pdf
+
+\usepackage[protrusion=true,expansion=true]{microtype}
+
+\usepackage[
+	backend=biber
+]{biblatex}
+\bibliography{references}
+
+\hypersetup{
+  pdftitle = {Extensible Semantics for Lab Automation},
+  pdfauthor = {Max Willsey, Luis Ceze, ???}
+}
+
+\title{Extensible Semantics for Lab Automation}
+\author{Max Willsey, Luis Ceze, ???
+\\ \small Paul G. Allen School for Computer Science and Engineering
+\\ \small University of Washington}
+\date{}
+
+\begin{document}
+
+\maketitle
+
+Lab automation technology automatically manipulates chemical or biological samples at smaller scales than ever before, saving time and reagents.
+Scientists are now writing programs instead of informal, textbook-style protocols.
+
+These programs mix computation with fluidic manipulation, introducing the
+difficulties of traditional programming \emph{plus} liquid handling problems and domain-specific complexities.
+
+A successful programming solution must manage these complexities
+and leverage scientists' domain knowledge. Importantly, the system must be accessible
+by users who are not programming language experts (or even programmers!).
+
+We believe the programming language community is well-suited
+to address these challenges.
+
+We picture a two-fold solution:
+a core fluidic semantics to manage the complexities of liquid handling,
+and an extensible layer that ensures programs respect user-provided domain-specific properties.
+This talk will present how some of the problems in this area line up with---and sometimes
+challenge---well understood PL techniques.
+
+\section*{Programming Lab Automation}
+
+Lab automation is coming, with or without the input of programming language experts.
+
+Droplet-based microfluidic (DMF) technology is especially promising because of its flexibility.
+DMF devices manipulate individual droplets of liquids on a grid of electrodes (\autoref{fig:board}).
+Activating electrodes in certain patterns can move, mix, or split droplets anywhere on the chip.
+These DMF devices are akin to general-purpose CPUs when contrasted with other liquid handling
+technologies which are fixed function hardware,  similar to GPUs or other accelerators.
+Unfortunately, they suffer from little programming abstraction and high failure rates \cite{dmf-review}.
+
+Programming these devices is similar to other forms of heterogeneous programming in that
+it involves controlling and communicating with a specialized device.
+\autoref{fig:code} shows a short pseudocode snippet of a fluidic program.
+On top of conventional programming constructs, we have primitives like {\tt mix} and {\tt heat} that manipulate fluids.
+Embedded in a general purpose language, users can combine these primitives into complex procedures that mix computation and fluidic manipulation like {\tt get\_pH} and {\tt acidify} in the example.
+{\tt get\_pH} also demonstrates how programs can depend on properties of the physical world like the pH of a sample.
+
+\begin{figure}
+  \begin{minipage}{0.4\linewidth}
+    \footnotesize
+    \centering
+    \includegraphics[width=0.9\linewidth]{droplet.png}
+  \end{minipage}
+  \hfill
+  \begin{minipage}{0.5\linewidth}
+    \begin{minted}{python}
+l3 = mix(l1, l2)
+while get_pH(l3) > 7:
+    heat(l3)
+    acidify(l3)
+    ...
+# l4 = mix(l1, l3)
+# error!
+    \end{minted}
+  \end{minipage}
+  \captionof{figure}{Our prototype DMF chip with droplet tracking.}
+  \label{fig:board}
+  \vspace{-1em}
+  \captionof{figure}{
+    A simple fluidic program.
+    The commented-out line would fail because {\tt l1} has already been consumed.
+  }
+  \label{fig:code}
+\end{figure}
+
+Fluidic manipulation poses interesting compilation challenges related to placement and routing that we will not cover due to space.
+Instead, we will focus on two key questions raised by the combination of programming, liquid handling, and chemistry:
+\begin{itemize}
+\item Can we help the programmer deal with complexities and high failure rate of liquid handling?
+\item How can we reason about programs (like the loop in \autoref{fig:code}) that rely on physical processes from chemistry and biology?
+\end{itemize}
+
+
+% This programming model includes the complexities found in other heterogeneous
+% and non-standard programming models, with added complexity introduced by the
+% addition of unreliable hardware, and the presence of chemical reactions.
+
+% We believe that ideas from programming languages can be applied to yield safe,
+% high-level abstractions that enable scientists to quickly prototype complex,
+% reproducible experiments.
+
+% The automation will also be a critical part of a new breed of systems that
+% leverage molecular computation. Furthermore, the principled approach will let
+% domain experts reason about the correctness of critical processes like
+% medical diagnostics.
+
+\section*{Core Fluidic Semantics}
+
+The first step toward an effective fluidic programming model is a core semantics.
+This semantics should capture notions inherent to liquid handling but generic across
+specific domains of chemistry or biology.
+
+Fluids have physical properties such as volume or location on a DMF device.
+Liquid handling primitives like {\tt mix} and {\tt split} affect these properties and add complexity to the program.
+Programs that manipulate physical entities are fundamentally resource-oriented: you only have so much of a sample.
+Furthermore, these manipulations are error prone on DMF devices: a split may result in loss of precision, for example
+sample volumes that are slightly off, or failure to split altogether.
+
+We will discuss a few programming language techniques we believe to be applicable in this setting to aid with
+resource management and error tolerance.
+
+% mass, and volume, and primitive operations such as splitting  and mixing.
+% These primitive actions enable the manipulation of fluids but don't provide domain specific properties.
+% For example we could use the hypothetical DMF language to perform chemical reactions, such as mixing and acid and bases but without domain specific extensions would be unable to reason about acid, base reactions.
+% We believe the semantics ideally will capture a set of core behaviors around resource consumption, garbage collection, error correction, and approximate probabilistic execution.
+
+\paragraph{Substructual typing}
+
+In programming languages, we use linear or affine logics to enforce \emph{exactly once} or \emph{at-most-once} use of certain variables. When a variable is \emph{consumed}, the type system prevents the program from using it again.
+These kinds of semantics are a perfect fit for liquid handling, where operations like {\tt mix} \emph{physically consume}
+their inputs. Such a type system could prevent errors like the one in \autoref{fig:code}.
+
+A more fine-grained notion of substructural typing that enriches variables with a notion of quantity could be useful.
+For example, a {\tt split} operation on a DMF chip may not work if the sample is too small.
+
+\paragraph{Garbage collection}
+
+Garbage collection has made programming safer and more accessible by automating memory management.
+A similar technique would be useful in liquid handling, as many reactions generate waste byproducts that take up space and must be disposed.
+
+A runtime system could determine which samples the programmer is no longer using and dispose of them.
+Some samples may be too volatile for automatically disposal.
+Linear semantics could require the user to invoke a destructor which safely disposes of the resource.
+
+\paragraph{Dynamic analysis}
+
+Many of the operations on a DMF device are error-prone, so prior work has used sensors and cameras
+to detect these errors at runtime \cite{dmf-vision}. Because of their frequency, treating these errors as
+user handled exceptions is a non-option; the execution must incorporate automatic error correction.
+
+Simple errors can be fixed by retrying: if a split yields the wrong volume ratio, the runtime can mix them together and retry.
+More complex errors will require program analysis to correct. If a sample gets ruined (perhaps by an accidental collision with
+another sample), a dynamic analysis like slicing could figure out which parts of the program must be re-run to regenerate the sample.
+
+\paragraph{Probabilistic Complications}
+
+The ideas proposed above may solve some of the problems with fluidic programming, but we cannot just apply them off-the-shelf because of the domain's idiosyncrasies.
+
+The error-prone nature of the hardware necessitates some kind of
+automatic error correction. The addition of a retry mechanism should improve reliability, but it complicates resource management. For example, sub-structural typing can no longer can promise safe resource usage if the runtime system can re-run any part of the program.
+
+Further complicating things, parts of the program involving chemical reactions may have time constraints.
+For example, a heated sample should be used before it cools.
+But again, the system cannot guarantee that a program meets time constraints if the runtime can do retries.
+
+In order to address these challenges we need to define probabilistic error models of the hardware and adapt these techniques
+to the stochastic environment. Recent work has recognized the need for a stochastic approach \cite{bioprotocols}, but a system
+that provides high-level, safe liquid handling is still a ways out.
+
+\section*{Domain-specific Extensions}
+
+Researchers have spent decades understanding how chemical and biological systems operate.
+Scientists rely on this vast body of knowledge when developing protocols.
+Ideally, the programming system would understand the relevant biochemical properties of the protocol and
+ensure that the user respects them.
+But attempting to encode a significant fraction of biology or chemistry into the core
+formal semantics is impossible.
+Instead, users should be able to \emph{extend} the semantics with relevant biochemical properties.
+
+\paragraph{Static assertions}
+Many domain-specific properties could be phrased as safety properties: never let substance $X$ mix with substance $Y$, or make sure I use at most 20mL of this solution. Such properties are easy to assert dynamically, but crashing the program at runtime is expensive when the experiment takes hours to run and consumes reagents.
+
+Techniques from verification, testing, symbolic execution or abstract interpretation can be used to establish static guarantees but there are both scaling and precision problems applying these in large systems. Luckily, many protocols are simple in terms of computation and control flow. If the user can provide the right abstraction over the chemical or biological properties at play, these techniques could statically ensure many properties. This kind of assurance will be necessary as fluidic devices make their way into safety-critical fields like medicine.
+
+\paragraph{Protocol checking}
+Session types \cite{Honda1993} describe communication protocols and enforce that programs adhere to the correct structure.
+We can view  fluidic programs as protocols that communicate with the natural world.
+The correct session type would  ensure that the user takes certain actions in the correct order.
+
+For example, a synthetic biologist may want to ensure DNA amplification \emph{always} occurs before sequencing it.
+The user could add domain knowledge to the system by writing down a session type describing the series of events that must occur.
+The system can then ensure regardless of what computation occurs, that the program respects the fluidic protocol.
+
+\section*{Conclusion}
+
+Mixing conventional programming and liquid handling poses a rich set of challenges to the PL community.
+In the talk, we will give examples of these kinds of problems and discuss how PL techniques might be suited to solve them.
+We will also briefly present our prototype fluidic programming system.
+
+\vfill
+
+\renewcommand*{\bibfont}{\footnotesize}
+\printbibliography[heading=none]
+
+\end{document}
