@@ -41,14 +41,14 @@ class Droplet:
     destination: Optional[Location] = None
 
     @shape.validator
-    def _check_shape(self, attr, value):
-        if (0, 0) not in value:
+    def _check_shape(self, attr, shape):
+        if (0, 0) not in shape:
             raise ValueError("shape must contain (0, 0)")
         # shape should be contiguous
-        if len(value) > 1:
-            for offset1 in value:
-                if not any(((offset1 is not offset2) and manhattan_distance(offset1, offset2) == 1) for offset2 in value):
-                    raise ValueError("shape {} must be contiguous".format(value))
+        if len(shape) > 1:
+            for offset1 in shape:
+                if not any(((offset1 is not offset2) and manhattan_distance(offset1, offset2) == 1) for offset2 in shape):
+                    raise ValueError("shape {} must be contiguous".format(shape))
 
     def copy(self, **kwargs):
         return self.__class__(
