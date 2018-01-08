@@ -21,7 +21,7 @@ _next_droplet_id = count()
 
 
 # Shape helpers
-_default_shape = lambda: set([(0, 0)])
+_default_shape = lambda: {(0, 0)}
 
 # disable generation of cmp so it uses id-based hashing
 @dataclass(cmp=False)
@@ -78,9 +78,9 @@ class Droplet:
         assert other.valid
 
         # for now, they must be in the same place; use shape with location
-        other_shape = set((offset[0] + other.location[0] - self.location[0],
+        other_shape = {(offset[0] + other.location[0] - self.location[0],
                            offset[1] + other.location[1] - self.location[1])
-                          for offset in other.shape)
+                          for offset in other.shape}
         assert self.shape.intersection(other_shape)
 
         self.valid  = False
@@ -96,8 +96,8 @@ class Droplet:
         )
 
     def locations(self):
-        return set((self.location[0] + offset[0], self.location[1] + offset[1])
-                   for offset in self.shape)
+        return {(self.location[0] + offset[0], self.location[1] + offset[1])
+                   for offset in self.shape}
 
 
 @dataclass

@@ -75,24 +75,22 @@ def test_split(session01):
 def test_multi_location_droplet(arch01):
     """ Basic adding and getting of multi-location droplets """
     arch = arch01
-    a = Droplet(info='a', location=(0,0), shape=set([(0,0), (1,0)]))
+    a = Droplet(info='a', location=(0,0), shape={(0,0), (1,0)})
     arch.add_droplet(a)
     assert len(arch.droplets) == 1
     assert a.info == arch.get_droplet((1,0)).info
 
     # Test invalid shapes
     with pytest.raises(ValueError):
-        bad = Droplet(location=(0,0), shape=set([(1,0)]))
+        bad = Droplet(location=(0,0), shape={(1,0)})
     with pytest.raises(ValueError):
-        bad = Droplet(location=(0,0), shape=set([(0,0), (2,0), (1,1)]))
+        bad = Droplet(location=(0,0), shape={(0,0), (2,0), (1,1)})
     with pytest.raises(ValueError):
-        bad = Droplet(location=(0,0), shape=set([(0,0), (0,1),
-                                                 (2,0), (2,1)]))
+        bad = Droplet(location=(0,0), shape={(0,0), (0,1),
+                                                 (2,0), (2,1)})
 
-@pytest.mark.xfail(reason="routing multi droplets doesn't work yet")
 def test_multi_location_droplet_routing(session01):
-
-    a = session01.input_droplet(location=(1,3), shape=set([(0,0), (1,0)]))
+    a = session01.input_droplet(location=(1,1), shape={(0,0), (1,0)})
     b = session01.input_droplet(location=(3,3))
 
-    session01.move(a, (5,3))
+    session01.move(a, (5,1))
