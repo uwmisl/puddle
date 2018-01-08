@@ -43,6 +43,10 @@ def test_simple_execution(arch01):
     arch.add_droplet(a)
     arch.add_droplet(b)
 
+    # hack to manually add droplets
+    a._state = Droplet.State.REAL
+    b._state = Droplet.State.REAL
+
     mix = Mix(arch, a, b)
     execution.go(mix)
 
@@ -116,6 +120,8 @@ def test_lazy_mix(session01):
     a = s.input_droplet(location=(1,1), info='a')
     b = s.input_droplet(location=(1,3), info='b')
 
+    s.flush()
+
     # abc will depend on c twice
     ab = s.mix(a, b)
 
@@ -171,6 +177,8 @@ def test_lazy_double_dependency(session01):
     a = s.input_droplet(location=(1,1), info='a')
     b = s.input_droplet(location=(1,3), info='b')
     c = s.input_droplet(location=(1,5), info='c')
+
+    s.flush()
 
     c1, c2 = s.split(c)
 

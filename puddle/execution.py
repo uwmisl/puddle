@@ -40,7 +40,7 @@ class Execution:
             raise ExcecutionFailure(f'Could not execute {command}')
 
         # actually route the droplets setting their location
-        longest = max(len(path) for path in paths.values())
+        longest = max(map(len, paths.values()), default=0)
         log.info(f"Routing {longest} steps")
         for i in range(longest):
             for droplet, path in paths.items():
@@ -76,7 +76,7 @@ class Placer:
         Also makes sure the "neighborhood" surrounding the command is empty.
         """
 
-        if isinstance(command, Move):
+        if command.locations_given:
             # just return the identity mapping, we are trusting the user here
             return {loc: loc for loc in command.input_locations}
 

@@ -35,6 +35,14 @@ def test_add_droplet(arch01):
     b_ok = Droplet(info='b_ok', location=(3,3))
     b_ok.collision_group = b.collision_group
 
+    # hack to manually add droplets
+    a._state = Droplet.State.REAL
+    b._state = Droplet.State.REAL
+    c._state = Droplet.State.REAL
+    b2._state = Droplet.State.REAL
+    c2._state = Droplet.State.REAL
+    b_ok._state = Droplet.State.REAL
+
     arch.add_droplet(a)
     arch.add_droplet(b)
     arch.add_droplet(c)
@@ -51,6 +59,18 @@ def test_add_droplet(arch01):
 
     # this one should be added as normal
     arch.add_droplet(b_ok)
+
+
+def test_lazy_input(session01):
+    s = session01
+
+    a = s.input_droplet(location=(1, 1))
+    b = s.input_droplet()
+
+    assert s.arch.droplets == {a, b}
+
+    with pytest.raises(KeyError):
+        s.input_droplet(location=(-1324, 9999))
 
 
 def test_mix(session01):

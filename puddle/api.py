@@ -4,8 +4,9 @@ from contextlib import AbstractContextManager
 from ast import literal_eval
 from typing import Tuple
 
+import puddle.arch
+from puddle.arch import Architecture, Droplet
 
-from puddle.arch import Architecture, Droplet, Mix, Split, Move
 from puddle.execution import Execution
 from puddle.engine import Engine
 
@@ -62,27 +63,26 @@ class Session(AbstractContextManager):
     def input_droplet(self, **kwargs) -> Droplet:
         """bind location to new droplet"""
 
-        self.engine.flush()
-
         d = Droplet(**kwargs)
-        self.arch.add_droplet(d)
-        return d
+        cmd = puddle.arch.Input(self.arch, d)
+        droplet, = self.engine.virtualize(cmd)
+        return droplet
 
     def mix(self, droplet1: Droplet, droplet2: Droplet) -> Droplet:
 
-        mix_cmd = Mix(self.arch, droplet1, droplet2)
+        mix_cmd = puddle.arch.Mix(self.arch, droplet1, droplet2)
         droplet, = self.engine.virtualize(mix_cmd)
         return droplet
 
     def split(self, droplet: Droplet) -> Tuple[Droplet, Droplet]:
 
-        split_cmd = Split(self.arch, droplet)
+        split_cmd = puddle.arch.Split(self.arch, droplet)
         droplet1, droplet2 = self.engine.virtualize(split_cmd)
         return droplet1, droplet2
 
     def move(self, droplet: Droplet, location: Tuple):
 
-        move_cmd = Move(
+        move_cmd = puddle.arch.Move(
             self.arch,
             droplets = [droplet],
             locations = [location]

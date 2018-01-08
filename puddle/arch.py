@@ -41,7 +41,7 @@ class Droplet:
         # REAL_BOUND    -> CONSUMED
         # CONSUMED      -> X
 
-    location: Location
+    location: Optional[Location] = None
     info: Any = None
     volume: float = 1.0
 
@@ -199,27 +199,47 @@ class Command:
     output_droplets: List[Droplet]
 
     strict: ClassVar[bool] = False
+    locations_given: ClassVar[bool] = False
 
     def run(self, mapping: Dict[Location, Location]):
         for d,l in zip(self.input_droplets, self.input_locations):
             assert d.location == mapping[l]
 
 
-# class Input(Command):
+class Input(Command):
 
-#     def __init__(self, arch, droplet):
-#         self.arch = arch
-#         self.droplet = droplet
-#         self.input_droplets = [droplet]
-#         self.output_droplets = []
+    # TODO mwillsey: make this the shape of the droplet to be inputted
+    shape: ClassVar = nx.DiGraph(nx.grid_2d_graph(1, 1))
+    locations_given: ClassVar = True
+    input_locations: ClassVar = []
 
-#         droplet._bind()
+    def __init__(self, arch, droplet):
+        self.arch = arch
+        self.droplet = droplet
+        self.input_droplets = []
+        self.output_droplets = [droplet]
 
-#     def run(self, mapping):
-#         self.arch.add_droplet(droplet)
+        loc = self.droplet.location
+        if loc and loc not in self.arch.graph:
+            raise KeyError("Location {} is not in the architecture".format(loc))
+
+        self.arch.add_droplet(self.droplet)
+
+    def run(self, mapping):
+
+        # this is a bit of a hack to do manual placement here
+        if self.droplet.location is None:
+            shape = nx.DiGraph()
+            shape.add_node((0,0))
+            placement = self.arch.session.execution.placer.place_shape(shape)
+            self.droplet.location = placement[(0,0)]
+
+        self.droplet._realize()
 
 
 class Move(Command):
+
+    locations_given: ClassVar = True
 
     def __init__(self, arch, droplets, locations):
         self.arch = arch
@@ -376,23 +396,11 @@ class Architecture:
 
     def add_droplet(self, droplet: Droplet):
 
-        if droplet.location is None:
-            shape = nx.DiGraph()
-            shape.add_node((0,0))
-            placement = self.session.execution.placer.place_shape(shape)
-            droplet.location = placement[(0,0)]
-
-        else:
-            if droplet.location not in self.graph:
-                raise KeyError("Location {} is not in the architecture"
-                               .format(droplet.location))
+        if droplet.real and droplet.location not in self.graph:
+            raise KeyError("Location {} is not in the architecture"
+                            .format(droplet.location))
 
         assert droplet not in self.droplets
-
-        # this should not remain here
-        # making input_droplet a command will help this situation
-        droplet._state = droplet.State.REAL
-
         self.droplets.add(droplet)
 
         # remove the droplet if there was a collision
@@ -412,7 +420,8 @@ class Architecture:
         as a collision.
         Throws a CollisionError if there is collision on the board.
         """
-        for d1, d2 in combinations(self.droplets, 2):
+        real_droplets = (d for d in self.droplets if d.real)
+        for d1, d2 in combinations(real_droplets, 2):
             if d1.collision_group != d2.collision_group and \
                manhattan_distance(d1.location, d2.location) <= 1:
                 raise CollisionError('Multiple droplets colliding')
