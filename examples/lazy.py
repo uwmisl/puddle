@@ -47,17 +47,10 @@ with Session(arch) as session:
         def move(a, location):
             return session.move(a, location)
 
-        # ... all queued commands.
-        def flush():
-            session.flush()
-
-        # ...commands that a and b depend on.
-        def mix_now(a, b):
-            return session.split_now(a,b)
-
-        # ...commands that a depends on.
-        def split_now(a):
-            return session.split_now(a)
+        # all queued commands, OR all commands on which the
+        # given droplet depends
+        def flush(droplet=None):
+            session.flush(droplet=droplet)
 
         #
         # These commands do not force evaluation.
