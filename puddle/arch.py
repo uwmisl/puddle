@@ -4,10 +4,10 @@ from itertools import combinations, count
 import networkx as nx
 import yaml
 
-from attr import dataclass, Factory
+from attr import dataclass, Factory, ib
 from typing import Tuple, Any, ClassVar, List, Dict, Set, Optional
 
-from puddle.util import pairs, manhattan_distance
+from puddle.util import pairs, manhattan_distance, shape_neighborhood
 
 import logging
 log = logging.getLogger(__name__)
@@ -21,18 +21,16 @@ _next_droplet_id = count()
 
 
 # Shape helpers
-_default_shape = set([(0, 0)])
+_default_shape = lambda: set([(0, 0)])
 
 # disable generation of cmp so it uses id-based hashing
 @dataclass(cmp=False)
 class Droplet:
 
     location: Location
-
     info: Any = None
-
     # Require that a new droplet shape must include (0, 0)
-    shape: Set[Location] = attr.ib(default=Factory(_default_shape), validator=_check_shape)
+    shape: Set[Location] = ib(default=Factory(_default_shape))
     valid: bool = True
 
     # volume is unitless right now
@@ -42,7 +40,9 @@ class Droplet:
     collision_group: int = Factory(_next_collision_group.__next__)
     destination: Optional[Location] = None
 
+    @shape.validator
     def _check_shape(self, attr, value):
+        """Validator to check the `shape` field"""
         if (0, 0) not in value:
             raise ValueError("shape must contain (0, 0)")
 
@@ -50,6 +50,7 @@ class Droplet:
         return self.__class__(
             info=self.info,
             location=self.location,
+            shape=self.shape,
             **kwargs
         )
 
@@ -66,21 +67,24 @@ class Droplet:
         assert self.valid
         assert other.valid
 
-        # for now, they much be in the same place
-        # assert self.cell is other.cell
-        # FIXME right now we assume cells only have one droplet
+        # for now, they must be in the same place; use shape with location
+        other_shape = set([ (offset[0] + other.location[0] - self.location[0], offset[1] + other.location[1] - self.location[1]) for offset in other.shape ])
+        assert self.shape.intersection(other_shape)
 
         self.valid  = False
         other.valid = False
         info = f'({self.info}, {other.info})'
 
-        # TODO this logic definitely won't work when droplets are larger
         # it should give back the "union" of both shapes
         return Droplet(
             info = info,
             location = self.location,
+            shape = self.shape.union(other_shape),
             volume = self.volume + other.volume
         )
+
+    def locations(self):
+        return set([ (self.location[0] + offset[0], self.location[1] + offset[1]) for offset in self.shape ])
 
 
 @dataclass
@@ -241,15 +245,12 @@ class Architecture:
         )
 
     def get_droplet(self, location):
-        # TODO needs to be updated to look through each droplet's location +
-        # offsets
         for droplet in self.droplets:
-            if location == droplet.location:
+            if location in droplet.locations():
                 return droplet
         return None
 
     def add_droplet(self, droplet: Droplet):
-
         if droplet.location is None:
             shape = nx.DiGraph()
             shape.add_node((0,0))
@@ -259,7 +260,6 @@ class Architecture:
             if droplet.location not in self.graph:
                 raise KeyError("Location {} is not in the architecture"
                                .format(droplet.location))
-
 
         assert droplet not in self.droplets
         self.droplets.add(droplet)
@@ -281,10 +281,12 @@ class Architecture:
         as a collision.
         Throws a CollisionError if there is collision on the board.
         """
-        # TODO update for multi cell collisions
         for d1, d2 in combinations(self.droplets, 2):
+            # For each pair of droplets, we don't want adjacency, so we use shape_neighborhood
             if d1.collision_group != d2.collision_group and \
-               manhattan_distance(d1.location, d2.location) <= 1:
+                    shape_neighborhood(d1.location, d1.shape).intersection(d2.locations()):
+                print(d1)
+                print(d2)
                 raise CollisionError('Multiple droplets colliding')
                 log.debug('colliding')
 
@@ -292,7 +294,6 @@ class Architecture:
         return (data['cell'] for _, data in self.graph.nodes(data=True))
 
     def wait(self):
-
         # print(self.spec_string(with_droplets=True))
 
         self.check_collisions()

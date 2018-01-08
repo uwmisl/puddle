@@ -55,28 +55,20 @@ def test_add_droplet(arch01):
 
 def test_mix(session01):
     # Test that mix succeeds as normal
-    a = session01.input_droplet((1,1), info='a')
-    b = session01.input_droplet((3,3), info='b')
+    a = session01.input_droplet(location=(1,1), info='a')
+    b = session01.input_droplet(location=(3,3), info='b')
 
-    a = session.input_droplet(location=(1,1), info='a')
-    b = session.input_droplet(location=(3,3), info='b')
-
-    ab = session.mix(a, b)
-    assert len(session.arch.droplets) == 1
+    ab = session01.mix(a, b)
+    assert len(session01.arch.droplets) == 1
     assert ab.info == '(a, b)'
 
 
 def test_split(session01):
-    a = session01.input_droplet((0,0))
-    b = session01.input_droplet((3,3))
+    a = session01.input_droplet(location=(0,0), info='a')
+    b = session01.input_droplet(location=(3,3), info='b')
 
-    session = session01
-
-    a = session.input_droplet(location=(0,0), info='a')
-    session.input_droplet(location=(3,3), info='b')
-
-    a1, a2 = session.split(a)
-    assert len(session.arch.droplets) == 3
+    a1, a2 = session01.split(a)
+    assert len(session01.arch.droplets) == 3
     assert a1.info == a2.info == 'a'
 
 
@@ -86,4 +78,4 @@ def test_multi_location_droplet(arch01):
     a = Droplet(info='a', location=(0,0), shape=set([(0, 0), (1, 0)]))
     arch.add_droplet(a)
     assert len(arch.droplets) == 1
-    assert a.info = arch.get_droplet((1, 0)).info
+    assert a.info == arch.get_droplet((1, 0)).info
