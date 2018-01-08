@@ -60,9 +60,9 @@ def test_mix(session01):
     a = session.input_droplet(location=(1,1), info='a')
     b = session.input_droplet(location=(3,3), info='b')
 
-    ab = session.mix_now(a, b)
-    # ab = session.mix(a, b)
-    # session.flush()
+    ab = session.mix(a, b)
+    session.flush()
+
     assert len(session.arch.droplets) == 1
     assert ab.info == '(a, b)'
 
@@ -74,8 +74,8 @@ def test_split(session01):
     a = session.input_droplet(location=(0,0), info='a')
     session.input_droplet(location=(3,3), info='b')
 
-    a1, a2 = session.split_now(a)
-    # a1, a2 = session.split(a)
-    # session.flush()
+    a1, a2 = session.split(a)
+    session.flush()
+
     assert len(session.arch.droplets) == 3
     assert a1.info == a2.info == 'a'
