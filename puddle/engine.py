@@ -55,9 +55,15 @@ class Engine:
 
         return command.output_droplets
 
-    def flush(self) -> None:
-
-        for droplet_id in self.dependencies:
-            cmd = self.dependencies[droplet_id]
+    def flush(self, droplet=None) -> None:
+        if droplet is None:
+            # flush all
+            for droplet_id in self.dependencies:
+                cmd = self.dependencies[droplet_id]
+                if all(d.virtual for d in cmd.output_droplets):
+                    self.realize(cmd)
+        else:
+            # only evaluate dependencies for given droplet
+            cmd = self.dependencies[droplet.id]
             if all(d.virtual for d in cmd.output_droplets):
                 self.realize(cmd)
