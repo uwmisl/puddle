@@ -46,9 +46,15 @@ class Droplet:
             raise ValueError("shape must contain (0, 0)")
         # shape should be contiguous
         if len(shape) > 1:
-            for offset1 in shape:
-                if not any(((offset1 is not offset2) and manhattan_distance(offset1, offset2) == 1) for offset2 in shape):
-                    raise ValueError("shape {} must be contiguous".format(shape))
+            g = nx.Graph()
+            g.add_nodes_from(shape)
+            g.add_edges_from(
+                (o1, o2)
+                for o1, o2 in combinations(shape, 2)
+                if manhattan_distance(o1, o2) == 1
+            )
+            if not nx.is_connected(g):
+                raise ValueError("shape {} must be contiguous".format(shape))
 
     def copy(self, **kwargs):
         return self.__class__(

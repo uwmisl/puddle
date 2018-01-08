@@ -85,3 +85,6 @@ def test_multi_location_droplet(arch01):
         bad = Droplet(location=(0,0), shape=set([(1,0)]))
     with pytest.raises(ValueError):
         bad = Droplet(location=(0,0), shape=set([(0,0), (2,0), (1,1)]))
+    with pytest.raises(ValueError):
+        bad = Droplet(location=(0,0), shape=set([(0,0), (0,1),
+                                                 (2,0), (2,1)]))
