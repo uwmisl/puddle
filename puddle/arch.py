@@ -296,12 +296,10 @@ class Architecture:
         """
         for d1, d2 in combinations(self.droplets, 2):
             # For each pair of droplets, we don't want adjacency, so we use shape_neighborhood
-            if d1.collision_group != d2.collision_group and \
-                    shape_neighborhood(d1.location, d1.shape).intersection(d2.locations()):
-                print(d1)
-                print(d2)
-                raise CollisionError('Multiple droplets colliding')
+            if (d1.collision_group != d2.collision_group and
+                shape_neighborhood(d1.location, d1.shape).intersection(d2.locations())):
                 log.debug('colliding')
+                raise CollisionError('Multiple droplets colliding')
 
     def cells(self):
         return (data['cell'] for _, data in self.graph.nodes(data=True))
