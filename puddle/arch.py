@@ -78,7 +78,9 @@ class Droplet:
         assert other.valid
 
         # for now, they must be in the same place; use shape with location
-        other_shape = set([ (offset[0] + other.location[0] - self.location[0], offset[1] + other.location[1] - self.location[1]) for offset in other.shape ])
+        other_shape = set((offset[0] + other.location[0] - self.location[0],
+                           offset[1] + other.location[1] - self.location[1])
+                          for offset in other.shape)
         assert self.shape.intersection(other_shape)
 
         self.valid  = False
@@ -94,7 +96,8 @@ class Droplet:
         )
 
     def locations(self):
-        return set([ (self.location[0] + offset[0], self.location[1] + offset[1]) for offset in self.shape ])
+        return set((self.location[0] + offset[0], self.location[1] + offset[1])
+                   for offset in self.shape)
 
 
 @dataclass
