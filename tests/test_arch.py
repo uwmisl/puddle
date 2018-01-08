@@ -75,7 +75,13 @@ def test_split(session01):
 def test_multi_location_droplet(arch01):
     """ Basic adding and getting of multi-location droplets """
     arch = arch01
-    a = Droplet(info='a', location=(0,0), shape=set([(0, 0), (1, 0)]))
+    a = Droplet(info='a', location=(0,0), shape=set([(0,0), (1,0)]))
     arch.add_droplet(a)
     assert len(arch.droplets) == 1
-    assert a.info == arch.get_droplet((1, 0)).info
+    assert a.info == arch.get_droplet((1,0)).info
+
+    # Test invalid shapes
+    with pytest.raises(ValueError):
+        bad = Droplet(location=(0,0), shape=set([(1,0)]))
+    with pytest.raises(ValueError):
+        bad = Droplet(location=(0,0), shape=set([(0,0), (2,0), (1,1)]))
