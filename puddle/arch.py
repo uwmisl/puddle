@@ -136,7 +136,7 @@ class Droplet:
     def split(self, result1, result2, ratio=0.5):
 
         assert self.real
-        assert self.bound
+        # assert self.bound
         assert not self.consumed
 
         volume = self.volume / 2
