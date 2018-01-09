@@ -15,7 +15,7 @@
 }
 \tikzset{
   every node/.style={draw, align=center, rounded corners},
-  -{Stealth[scale=1.5]},
+  -{Stealth[scale=1.2]},
 }
 
 \usepackage[cm]{fullpage}
@@ -91,6 +91,20 @@ while get_pH(l3) > 7:
   \vspace{-2em}
 \end{figure}
 
+\section*{Why Microfluidics?}
+
+Microfluidic technology focuses on automatically manipulating small quantities of fluids.
+Laboratories typically use these devices to automate experiments, sample preparation, or other processes.
+
+A more advanced programming platform for microfluidics would have applications far beyond just lab automation in chemistry and biology.
+If we could reason about programs that manipulate fluids, we could use techniques from programming languages to write safer medical diagnostics.
+If writing these programs involved less tedium and was more reliable, lab-based courses could take a more interactive and exploratory approach to education.
+
+In the Molecular Information Systems Group at UW, we are excited about using microfluidic technology to build hybrid molecular-electronic systems.
+DNA provides a powerful foundation for data storage \cite{bornholt2016} and computation.
+But before we can build practical computer systems that harness the power of molecules, we need a way to automate the liquid handling steps that these protocols entail.
+Furthermore, we need an integrated solution that can combine liquid handling with general purpose computation to control the molecular components and analyze data.
+
 \section*{Droplet-based Microfluidics}
 
 While there are several kinds of lab automation devices,
@@ -104,18 +118,12 @@ Unfortunately, the tooling surrounding DMF technology offers little programming 
 and the hardware itself suffers from high failure rates \cite{dmf-review}.
 
 The ``assembly language'' that controls DMF devices is little more than controlling individual electrodes.
-For example, the commands to move a droplet from cell (1,3) to cell (2,5) would be something like the following:
-
-\begin{verbatim}
-       activate(1,3); activate(1,4);
-       activate(1,5); activate(2,5);
-\end{verbatim}
-
+For example, the commands to move a droplet from cell (1,3) to cell (2,5) would just be activating the electrodes connecting those cells in sequence.
 The program explicitly refers to locations on the chip, and there's no notion of the identity, properties, or even the existence of the droplets!
 
 \begin{figure}
   \hfill
-  \begin{minipage}{0.45\linewidth}
+  \begin{minipage}{0.5\linewidth}
     \begin{minted}[fontsize=\small, escapeinside=||]{python}
 a = |\textbf{input}|(substance_A)
 b = |\textbf{input}|(substance_B)
@@ -125,26 +133,26 @@ ab = |\textbf{mix}|(a, b)
     \end{minted}
   \end{minipage}
   \hfill
-  \begin{minipage}{0.45\linewidth}
+  \begin{minipage}{0.35\linewidth}
     \begin{tikzpicture}
-      \footnotesize \sf
+      \tiny \sf
       \node[draw=none] (mid) {};
-      \node (A) [left = 1mm of mid, fill=cyan] {
+      \node (A) [left = 5mm of mid, fill=cyan] {
         \textbf{INPUT A} \\
         time 0--2 \\
         port (0,2)
       };
-      \node (B) [right = 1mm of mid, fill=cyan] {
+      \node (B) [right = 5mm of mid, fill=cyan] {
         \textbf{INPUT B} \\
         time 0--2 \\
         port (0,4)
       };
-      \node (mix) [below = 10mm of mid, fill=green] {
+      \node (mix) [below = 5mm of mid, fill=green] {
         \textbf{MIX} \\
         time 2--5 \\
         cell (2,4)
       };
-      \node (heat) [below = 5mm of mix, fill=yellow] {
+      \node (heat) [below = 3mm of mix, fill=yellow] {
         \textbf{HEAT} \\
         time 5--9 \\
         cell (5,6)
@@ -155,6 +163,7 @@ ab = |\textbf{mix}|(a, b)
       \draw (mix) -- (heat);
     \end{tikzpicture}
   \end{minipage}
+  \hfill
 
   \caption{
     Fluidic program and the corresponding DAG where the operations have been
@@ -183,19 +192,19 @@ With the \href{\puddleurl}{Puddle}\footnote{\tt \puddleurl} framework, we take a
 Instead of operating on programs in a restricted language (without functions, loops, or other features),
 we instead provide a syscall-like interface that can be used from any programming environment.
 
-\begin{figure}
-  \centering
-  \includegraphics[width=0.8\linewidth]{information-flow.pdf}
-  \caption{Information flow of the Puddle system.}
-  \label{fig:flow}
-\end{figure}
-
 \autoref{fig:flow} shows a stack diagram of our system. At the top, the \textsf{API Layer} shows the system calls accessible to the user.
 The program deals with opaque handles to droplets (think file descriptors), so the system calls in the \textsf{Control} box \emph{do not have any observable effects to the user}.
 In regular operating systems, the only way to observe effects from the \texttt{write} syscall is with other syscalls like \texttt{read};
 therefore, the OS doesn't need to execute the \texttt{write} immediately.
 Likewise in the Puddle system, we build up a DAG of pending operations.
 When the user makes a sensor reading, we are forced to execute those pending operations, take the reading, and return it to the user.
+
+\begin{figure}
+  \centering
+  \includegraphics[height=0.2\textheight]{information-flow.pdf}
+  \caption{Information flow of the Puddle system.}
+  \label{fig:flow}
+\end{figure}
 
 The core of the Puddle system is placement and routing, shown in the \textsf{Routing} box.
 Because all the complications of a programming language (loops, function calls, conditionals) are handled at the user level, the DAG is quite simple.
@@ -210,6 +219,28 @@ We use a computer vision system to detect the locations of the droplets (shown i
 Finally, the operating system approach allows portability across different microfluidic devices.
 As long as the hardware can implement what's in the \textsf{Architecture} box, the Puddle system can provide a high-level programming interface.
 
+\section*{Future Work}
+
+By building an operating system for fluidics instead of a custom, restricted programming language, we gain the ability to do transparent error correction, and we get all the general purpose programming languages.
+Importantly, this means that users can now mix regular computation and fluidic manipulation: the same program can run an experiment on the device, analyze the data, and take action based on the results.
+
+\paragraph{Program Analysis}
+With our dynamic approach, we lose the ability to statically determine if we can execute a given program on some hardware without running out of space.
+This (and all reasoning about the program) gets more challenging since a general purpose language is making the system calls.
+However, we hope to apply techniques from programming languages to recover this static reasoning \cite{obt18}.
+
+\paragraph{Approximate Computing}
+Many of the operations on a DMF device are low-precision: a \texttt{split} operation may yield two droplets of unequal size.
+The error correction system can deal with this to some extent by retrying, but ultimately some level of precision loss will have to be dealt with at the program level.
+
+\paragraph{Molecular Systems}
+The Puddle system makes it possible to combine computation with fluidic manipulation.
+On top of this, we want to build a library for manipulating and processing synthetic DNA.
+Domain-specific abstractions will make it easier to build and reason about hybrid molecular-electronic systems.
+
+
+
+
 % So, a fluidic program in our framework is just a Python program that uses our API.
 % fluidic ``syscalls'' like \texttt{mix}, \texttt{input}, \texttt{heat}, etc\.
 % call into the runtime system.
@@ -221,7 +252,7 @@ As long as the hardware can implement what's in the \textsf{Architecture} box, t
 
 \vfill
 
-\renewcommand*{\bibfont}{\footnotesize}
+\renewcommand*{\bibfont}{\tiny}
 \printbibliography[heading=none]
 
 \end{document}
