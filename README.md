@@ -13,6 +13,10 @@ We use [pipenv] to manage dependencies. I'm also a fan of [pipsi] to install
 Python scripts. You can [install them both][fancy-pipenv] in a way that doesn't
 mess with your Python installation.
 
+We use [Git LFS][lfs] to store larger files. If you want to see those larger
+files (videos, presentations, etc.) make sure to install it. Once you have it
+installed, you can use Git as you usually would.
+
 Once you have Python 3.6 and `pipenv`, do the following to setup the project:
 ```shell
 # clone and enter the repo
@@ -61,3 +65,4 @@ Check out the [Code of Conduct][cc] and the [Contributing Guidelines][contrib].
 [pipenv]: https://docs.pipenv.org
 [pipsi]: https://github.com/mitsuhiko/pipsi
 [fancy-pipenv]: https://docs.pipenv.org/install.html#fancy-installation-of-pipenv
+[lfs]: https://git-lfs.github.com/
