@@ -20,6 +20,10 @@
 
 \usepackage[cm]{fullpage}
 
+\usepackage{mathpazo} % palatino rm and math
+\usepackage[scaled]{helvet} % sf
+\usepackage{sourcecodepro} % tt
+
 \usepackage{graphicx}
 \usepackage{hyperref}
 
@@ -28,8 +32,10 @@
 ]{biblatex}
 \bibliography{references}
 
-\def\mytitle{Puddle: Reliable, High-Level Programming of Microfluidic Devices}
-\def\myauthors{Max Willsey, Luis Ceze, ???}
+\def\mytitle{Puddle: An Operating System for Reliable, High-Level Programming of Microfluidic Devices}
+\def\myauthors{Max Willsey, Luis Ceze, and the MISL group}
+
+\def\puddleurl{http://misl.cs.washington.edu/projects/puddle.html}
 
 \hypersetup{
   pdftitle = {\mytitle},
@@ -56,6 +62,35 @@ We will describe the hardware and the challenges of programming it with existing
 We will present our prototype system, explaining how it provides a higher-level programming model.
 Finally, we will touch on some future work that these abstractions will enable, including connections to type systems and verification, approximate computing, and molecular computing systems.
 
+\begin{figure}[h]
+  \begin{minipage}{0.4\linewidth}
+    \footnotesize
+    \centering
+    \includegraphics[width=0.9\linewidth]{droplet.png}
+  \end{minipage}
+  \hfill
+  \begin{minipage}{0.53\linewidth}
+    \begin{minted}[escapeinside=||]{python}
+l3 = |\textbf{mix}|(l1, l2)
+while get_pH(l3) > 7:
+    |\textbf{mix}|(l3)
+    acidify(l3)
+    ...
+# l4 = mix(l1, l3)
+# error!
+    \end{minted}
+  \end{minipage}
+  \captionof{figure}{Our prototype DMF chip with droplet tracking.}
+  \label{fig:board}
+  \vspace{-1em}
+  \captionof{figure}{
+    A simple program in the Puddle framework.
+    The commented-out line would fail because {\tt l1} has already been consumed.
+  }
+  \label{fig:code}
+  \vspace{-2em}
+\end{figure}
+
 \section*{Droplet-based Microfluidics}
 
 While there are several kinds of lab automation devices,
@@ -72,37 +107,21 @@ The ``assembly language'' that controls DMF devices is little more than controll
 For example, the commands to move a droplet from cell (1,3) to cell (2,5) would be something like the following:
 
 \begin{verbatim}
-activate(1,3); activate(1,4);
-activate(1,5); activate(2,5);
+       activate(1,3); activate(1,4);
+       activate(1,5); activate(2,5);
 \end{verbatim}
 
-Locations on the chip are referred to explicitly, and there's no notion in the program of the identity, properties, or even the existence of the droplets!
-This, of course, is no way to write a program whose primary concern is manipulating droplets.
-
-Existing work uses place-and-route techniques from VLSI to abstract away specific locations.
-In this model, the program is DAG that encodes the dependencies of the operations.
-\autoref{fig:dag} shows a pseudo-code snippet along with the corresponding DAG.
-Tools can take such a DAG and automatically determine when and where to execute each operation \cite{grissom2015open}.
-The tool then plans routes for every droplet so that they don't collide on the way.
-Importantly, this is all done \emph{ahead of time}.
-We don't have to waste computation at runtime creating an execution plan.
-Also, we can statically determine if execution a given program on a given chip is possible.
-
-On the other hand, static place-and-route techniques cannot offer error correction or data-dependent control flow.
-For example, if the controller attempts to move a droplet but cannot, a static execution plan will just continue, and the plan's model of chip will fall out-of-sync with reality.
-If a program branches on the value of a sensor reading, static execution planning gets more complicated.
-While simple conditionals can be handled by ``compiling'' basic blocks, loops and procedures are still out of reach, as there's no ``stack'' on which to push an unknown amount frames.
+The program explicitly refers to locations on the chip, and there's no notion of the identity, properties, or even the existence of the droplets!
 
 \begin{figure}
   \hfill
   \begin{minipage}{0.45\linewidth}
-    \begin{minted}[fontsize=\small]{python}
-a = input(substance_A)
-b = input(substance_B)
-# mix in 2:1 ratio
-ab = mix(a, b, 2)
+    \begin{minted}[fontsize=\small, escapeinside=||]{python}
+a = |\textbf{input}|(substance_A)
+b = |\textbf{input}|(substance_B)
+ab = |\textbf{mix}|(a, b)
 
-heat(ab)
+|\textbf{heat}|(ab)
     \end{minted}
   \end{minipage}
   \hfill
@@ -121,7 +140,7 @@ heat(ab)
         port (0,4)
       };
       \node (mix) [below = 10mm of mid, fill=green] {
-        \textbf{MIX 2:1} \\
+        \textbf{MIX} \\
         time 2--5 \\
         cell (2,4)
       };
@@ -143,6 +162,62 @@ heat(ab)
   }
 \label{fig:dag}
 \end{figure}
+
+Existing work uses place-and-route techniques from VLSI to abstract away specific locations.
+In this approach, the program is a DAG that encodes the dependencies of the operations.
+\autoref{fig:dag} shows a pseudo-code snippet along with the corresponding DAG.
+Tools can take such a DAG and automatically determine when and where to execute each operation \cite{grissom2015open}.
+The tool then plans routes for every droplet so that they don't collide on the way.
+Importantly, this is all done \emph{ahead of time}.
+We don't have to waste computation at runtime creating an execution plan.
+Also, we can statically determine if executing a given program on a given chip is possible.
+
+On the other hand, static place-and-route techniques cannot offer error correction or data-dependent control flow.
+For example, if the hardware fails when the controller attempts to move a droplet, a static execution plan will just continue, and the plan's model of chip will fall out-of-sync with reality.
+If a program branches on the value of a sensor reading, static execution planning gets more complicated.
+Simple conditionals can be handled by ``compiling'' basic blocks, but loops and procedures are still out of reach, as there's no ``stack'' on which to dynamically allocation droplets that might be created.
+
+\section*{An Operating System for Fluidics}
+
+With the \href{\puddleurl}{Puddle}\footnote{\tt \puddleurl} framework, we take a dynamic approach to abstracting away the details of DMF programming.
+Instead of operating on programs in a restricted language (without functions, loops, or other features),
+we instead provide a syscall-like interface that can be used from any programming environment.
+
+\begin{figure}
+  \centering
+  \includegraphics[width=0.8\linewidth]{information-flow.pdf}
+  \caption{Information flow of the Puddle system.}
+  \label{fig:flow}
+\end{figure}
+
+\autoref{fig:flow} shows a stack diagram of our system. At the top, the \textsf{API Layer} shows the system calls accessible to the user.
+The program deals with opaque handles to droplets (think file descriptors), so the system calls in the \textsf{Control} box \emph{do not have any observable effects to the user}.
+In regular operating systems, the only way to observe effects from the \texttt{write} syscall is with other syscalls like \texttt{read};
+therefore, the OS doesn't need to execute the \texttt{write} immediately.
+Likewise in the Puddle system, we build up a DAG of pending operations.
+When the user makes a sensor reading, we are forced to execute those pending operations, take the reading, and return it to the user.
+
+The core of the Puddle system is placement and routing, shown in the \textsf{Routing} box.
+Because all the complications of a programming language (loops, function calls, conditionals) are handled at the user level, the DAG is quite simple.
+The DAG knows nothing about control flow; it just records the dependencies of the syscalls the user has made on various handles.
+We can use all the same place-and-route algorithms developed by existing work without giving up the ability to write rich programs.
+
+The other major benefit of the dynamic approach is error correction.
+The Puddle system can call place and route at runtime, so we can detect and make corrections when droplets do not move properly.
+Because users deal only with opaque handles, they cannot inspect the location of a droplet, so error correction is \emph{completely transparent} to the user.
+We use a computer vision system to detect the locations of the droplets (shown in \autoref{fig:board}), and we report that information back into the \textsf{Safe Control} component of Puddle that performs error correction.
+
+Finally, the operating system approach allows portability across different microfluidic devices.
+As long as the hardware can implement what's in the \textsf{Architecture} box, the Puddle system can provide a high-level programming interface.
+
+% So, a fluidic program in our framework is just a Python program that uses our API.
+% fluidic ``syscalls'' like \texttt{mix}, \texttt{input}, \texttt{heat}, etc\.
+% call into the runtime system.
+
+% This approach gives both the programmer and us as runtime implementers more flexibility.
+
+% \autoref{fig:code} shows a snippet of a fluidic program written using Puddle.
+% The advantages of the API level
 
 \vfill
 
