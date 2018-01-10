@@ -32,8 +32,8 @@
 ]{biblatex}
 \bibliography{references}
 
-\def\mytitle{Puddle: An Operating System for Reliable, High-Level Programming of Microfluidic Devices}
-\def\myauthors{Max Willsey, Luis Ceze, and the MISL group}
+\def\mytitle{Puddle: An Operating System for Reliable, High-Level Programming of Digital Microfluidic Devices}
+\def\myauthors{Max Willsey, Luis Ceze, Karin Strauss and the MISL group}
 
 \def\puddleurl{http://misl.cs.washington.edu/projects/puddle.html}
 
@@ -52,7 +52,7 @@
 
 \maketitle
 
-Lab automation technology automatically manipulates small chemical or biological samples to save time and reagents.
+Wet protocol automation technology automatically manipulates small chemical or biological samples to save time and reagents, and to scale up processes.
 While promising, these lab-on-a-chip devices are error-prone and difficult to program.
 We propose a runtime system that automates error handling and resource management to provide a system-call-ish interface.
 Abstracting away low-level details will make it possible to write high-level programs to automate a variety of lab protocols.
@@ -80,7 +80,7 @@ while get_pH(l3) > 7:
 # error!
     \end{minted}
   \end{minipage}
-  \captionof{figure}{Our prototype DMF chip with droplet tracking.}
+  \captionof{figure}{Our prototype digital microfluidic chip with droplet tracking.}
   \label{fig:board}
   \vspace{-1em}
   \captionof{figure}{
@@ -96,14 +96,14 @@ while get_pH(l3) > 7:
 Microfluidic technology focuses on automatically manipulating small quantities of fluids.
 Laboratories typically use these devices to automate experiments, sample preparation, or other processes.
 
-A more advanced programming platform for microfluidics would have applications far beyond just lab automation in chemistry and biology.
+A more advanced programming platform for microfluidics would have applications far beyond just wetlab automation in chemistry and biology.
 If we could reason about programs that manipulate fluids, we could use techniques from programming languages to write safer medical diagnostics.
 If writing these programs involved less tedium and was more reliable, lab-based courses could take a more interactive and exploratory approach to education.
 
 In the Molecular Information Systems Group at UW, we are excited about using microfluidic technology to build hybrid molecular-electronic systems.
-DNA provides a powerful foundation for data storage \cite{bornholt2016} and computation.
-But before we can build practical computer systems that harness the power of molecules, we need a way to automate the liquid handling steps that these protocols entail.
-Furthermore, we need an integrated solution that can combine liquid handling with general purpose computation to control the molecular components and analyze data.
+DNA provides a powerful foundation for molecular data storage \cite{bornholt2016} and  processing.
+But before we can build practical computer systems that harness the power of molecular data, we need a way to automate the liquid handling steps that these protocols entail.
+Furthermore, we need an integrated solution that can combine liquid handling with general purpose electronic computatiing to control the molecular components and analyze data.
 
 \section*{Droplet-based Microfluidics}
 
