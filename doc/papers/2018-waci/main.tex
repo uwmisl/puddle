@@ -101,9 +101,9 @@ If we could reason about programs that manipulate fluids, we could use technique
 If writing these programs involved less tedium and was more reliable, lab-based courses could take a more interactive and exploratory approach to education.
 
 In the Molecular Information Systems Group at UW, we are excited about using microfluidic technology to build hybrid molecular-electronic systems.
-DNA provides a powerful foundation for molecular data storage \cite{bornholt2016} and  processing.
+DNA provides a powerful foundation for molecular data storage \cite{bornholt2016} and processing.
 But before we can build practical computer systems that harness the power of molecular data, we need a way to automate the liquid handling steps that these protocols entail.
-Furthermore, we need an integrated solution that can combine liquid handling with general purpose electronic computatiing to control the molecular components and analyze data.
+Furthermore, we need an integrated solution that can combine liquid handling with general purpose electronic computing to control the molecular components and analyze data.
 
 \section*{Droplet-based Microfluidics}
 
@@ -224,15 +224,18 @@ As long as the hardware can implement what's in the \textsf{Architecture} box, t
 By building an operating system for fluidics instead of a custom, restricted programming language, we gain the ability to do transparent error correction, and we get all the general purpose programming languages.
 Importantly, this means that users can now mix regular computation and fluidic manipulation: the same program can run an experiment on the device, analyze the data, and take action based on the results.
 
+\vspace{-0.5em}
 \paragraph{Program Analysis}
 With our dynamic approach, we lose the ability to statically determine if we can execute a given program on some hardware without running out of space.
 This (and all reasoning about the program) gets more challenging since a general purpose language is making the system calls.
 However, we hope to apply techniques from programming languages to recover this static reasoning \cite{obt18}.
 
+\vspace{-0.5em}
 \paragraph{Approximate Computing}
 Many of the operations on a DMF device are low-precision: a \texttt{split} operation may yield two droplets of unequal size.
 The error correction system can deal with this to some extent by retrying, but ultimately some level of precision loss will have to be dealt with at the program level.
 
+\vspace{-0.5em}
 \paragraph{Molecular Systems}
 The Puddle system makes it possible to combine computation with fluidic manipulation.
 On top of this, we want to build a library for manipulating and processing synthetic DNA.
