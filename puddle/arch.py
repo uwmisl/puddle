@@ -151,9 +151,9 @@ class Droplet:
         # this is used in mix to unbind the first droplet should
         # binding the second fail. Another way to do this is to move
         # binding checks to commands, but that's more code duplication
-
+        #
         # but it does kind of violate the state machine...
-
+        #
         # asserts okay, this is not user facing
         assert self._is_bound
         self._state = self._State.REAL if self._is_real else self._State.VIRTUAL
@@ -161,6 +161,7 @@ class Droplet:
     def _soft_bind(self):
         # used by non consuming commands like move and input, checks the same stuff
         # as _bind, but doesn't actually bind the droplet
+        assert not self._is_bound
         assert not self._is_consumed
         self._soft_bind_counter += 1
 
@@ -178,6 +179,7 @@ class Droplet:
         # constraints
         assert not self._is_consumed
         assert self._is_bound
+        assert not self._is_soft_bound
         assert self._is_real
         self._state = self._State.CONSUMED
 
