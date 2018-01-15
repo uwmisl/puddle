@@ -3,6 +3,7 @@
 [![Build Status](https://travis-ci.org/uwmisl/puddle.svg?branch=master)](https://travis-ci.org/uwmisl/puddle)
 
 Puddle is a system for high-level, reliable programming of microfluidic devices.
+Check out the [project page] on the [MISL] website.
 
 ## Installation
 
@@ -66,3 +67,5 @@ Check out the [Code of Conduct][cc] and the [Contributing Guidelines][contrib].
 [pipsi]: https://github.com/mitsuhiko/pipsi
 [fancy-pipenv]: https://docs.pipenv.org/install.html#fancy-installation-of-pipenv
 [lfs]: https://git-lfs.github.com/
+[project page]: http://misl.cs.washington.edu/projects/puddle.html
+[misl]: http://misl.cs.washington.edu/
