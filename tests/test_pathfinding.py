@@ -128,7 +128,7 @@ def test_random_move(grid):
     chars = cycle(alphanum)
 
     droplets = [
-        Droplet(info=char, location=start)
+        Droplet(_info=char, _location=start)
         for start, char in zip(grid.starts, chars)
     ]
 

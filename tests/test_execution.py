@@ -37,15 +37,15 @@ def test_simple_execution(arch01):
     arch = arch01
     execution = Execution(arch)
 
-    a = Droplet(info='a', location=(0,0))
-    b = Droplet(info='b', location=(2,0))
+    a = Droplet(_info='a', _location=(0,0))
+    b = Droplet(_info='b', _location=(2,0))
 
     arch.add_droplet(a)
     arch.add_droplet(b)
 
     # hack to manually add droplets
-    a._state = Droplet.State.REAL
-    b._state = Droplet.State.REAL
+    a._state = Droplet._State.REAL
+    b._state = Droplet._State.REAL
 
     mix = Mix(arch, a, b)
     execution.go(mix)
@@ -53,7 +53,7 @@ def test_simple_execution(arch01):
     assert len(arch.droplets) == 1
     (d,) = arch.droplets
 
-    assert d.info == '(a, b)'
+    assert d._info == '(a, b)'
 
 
 def test_lots_of_movement(session01):
@@ -62,7 +62,7 @@ def test_lots_of_movement(session01):
     n = 5
 
     droplets = [
-        session.input_droplet(location=(0, 2*i))
+        session.input_droplet(_location=(0, 2*i))
         for i in range(n)
     ]
 
@@ -103,8 +103,8 @@ def lollipop_board_session():
 def test_same_collision_group_mix(lollipop_board_session):
     s = lollipop_board_session
 
-    a = s.input_droplet(location=(1,0), info='a')
-    b = s.input_droplet(location=(1,3), info='b')
+    a = s.input_droplet(_location=(1,0), _info='a')
+    b = s.input_droplet(_location=(1,3), _info='b')
 
     a.collision_group = 1
     b.collision_group = 1
@@ -117,8 +117,8 @@ def test_same_collision_group_mix(lollipop_board_session):
 def test_lazy_mix(session01):
     s = session01
 
-    a = s.input_droplet(location=(1,1), info='a')
-    b = s.input_droplet(location=(1,3), info='b')
+    a = s.input_droplet(_location=(1,1), _info='a')
+    b = s.input_droplet(_location=(1,3), _info='b')
 
     s.flush()
 
@@ -134,7 +134,7 @@ def test_lazy_mix(session01):
 @pytest.mark.xfail
 def test_lazy_move(session01):
     s = session01
-    a = s.input_droplet(location=(1,1), info='a')
+    a = s.input_droplet(_location=(1,1), _info='a')
 
     s.move(a, (3,3))
 
@@ -144,8 +144,8 @@ def test_lazy_move(session01):
 @pytest.mark.xfail(reason="Droplet a should be consumed by the mix.")
 def test_lazy_mix_consumed(session01):
     s = session01
-    a = s.input_droplet(location=(1,1), info='a')
-    b = s.input_droplet(location=(1,3), info='b')
+    a = s.input_droplet(_location=(1,1), _info='a')
+    b = s.input_droplet(_location=(1,3), _info='b')
 
     s.mix(a,b)
 
@@ -158,9 +158,9 @@ def test_lazy_mix_consumed(session01):
 @pytest.mark.xfail(reason="Consumption error not implemented")
 def test_double_consume(session01):
     s = session01
-    a = s.input_droplet(location=(1,1), info='a')
-    b = s.input_droplet(location=(1,3), info='b')
-    c = s.input_droplet(location=(1,5), info='c')
+    a = s.input_droplet(_location=(1,1), _info='a')
+    b = s.input_droplet(_location=(1,3), _info='b')
+    c = s.input_droplet(_location=(1,5), _info='c')
 
     s.mix(a,b)
 
@@ -174,9 +174,9 @@ def test_double_consume(session01):
 def test_lazy_double_dependency(session01):
     s = session01
 
-    a = s.input_droplet(location=(1,1), info='a')
-    b = s.input_droplet(location=(1,3), info='b')
-    c = s.input_droplet(location=(1,5), info='c')
+    a = s.input_droplet(_location=(1,1), _info='a')
+    b = s.input_droplet(_location=(1,3), _info='b')
+    c = s.input_droplet(_location=(1,5), _info='c')
 
     s.flush()
 
