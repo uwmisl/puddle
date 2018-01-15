@@ -281,24 +281,27 @@ class Input(Command):
             self.droplet._location = placement[(0,0)]
 
         self.droplet._realize()
+        self.droplet._soft_unbind()
 
 
 class Move(Command):
 
     locations_given: ClassVar = True
 
-    def __init__(self, arch, droplets, locations):
+    def __init__(self, arch, droplet, location):
 
-        for d in droplets:
-            try:
-                d._soft_bind()
-            except DropletStateError as e:
-                raise e
+        try:
+            droplet._soft_bind()
+        except DropletStateError as e:
+            raise e
 
         self.arch = arch
-        self.input_droplets = droplets
-        self.input_locations = locations
-        self.output_droplets = [droplets[0]]
+        self.input_droplets = [droplet]
+        self.input_location = location
+        self.output_droplets = [droplet]
+
+    # def run(self, mapping):
+    #     self.droplet._soft_unbind()
 
 
 class Mix(Command):
