@@ -44,8 +44,8 @@ class Droplet:
         # REAL_BOUND    -> CONSUMED
         # CONSUMED      -> x
         #
-        # the first four states can all be soft bound
-        # 0 or more times
+        # droplets in the first four states can all
+        # be soft bound 0 or more times
 
     _location: Optional[Location] = None
     _info: Any = None
@@ -71,6 +71,7 @@ class Droplet:
 
     # todo(@michalp): rn this is very non-idiomatic. Either remove decorators
     # and keep get_ prefixes or remove prefixes and keep decorators...
+    # same for the state helpers below
     @property
     def get_info(self):
         if self._is_virtual:
@@ -107,14 +108,14 @@ class Droplet:
         return self._soft_bind_counter > 0
 
     @property
-    def _is_real(self):
-        return self._state == self._State.REAL or \
-            self._state == self._State.REAL_BOUND
-
-    @property
     def _is_virtual(self):
         return self._state == self._State.VIRTUAL or \
             self._state == self._State.VIRTUAL_BOUND
+
+    @property
+    def _is_real(self):
+        return self._state == self._State.REAL or \
+            self._state == self._State.REAL_BOUND
 
     @property
     def _is_consumed(self):
@@ -164,6 +165,7 @@ class Droplet:
         self._soft_bind_counter += 1
 
     def _soft_unbind(self):
+        # run methods of non-consuming commands should call this
         assert self._is_soft_bound
         assert not self._is_consumed
         self._soft_bind_counter -= 1
@@ -258,10 +260,7 @@ class Input(Command):
 
     def __init__(self, arch, droplet):
 
-        try:
-            droplet._soft_bind()
-        except DropletStateError as e:
-            raise e
+        droplet._soft_bind()
 
         self.arch = arch
         self.droplet = droplet
@@ -293,10 +292,7 @@ class Move(Command):
     def __init__(self, arch, droplets, locations):
 
         for d in droplets:
-            try:
-                d._soft_bind()
-            except DropletStateError as e:
-                raise e
+            d._soft_bind()
 
         self.arch = arch
         self.input_droplets = droplets
@@ -316,10 +312,7 @@ class Mix(Command):
 
     def __init__(self, arch, droplet1, droplet2):
 
-        try:
-            droplet1._bind()
-        except DropletStateError as e:
-            raise e
+        droplet1._bind()
 
         try:
             droplet2._bind()
@@ -369,10 +362,7 @@ class Split(Command):
 
     def __init__(self, arch, droplet):
 
-        try:
-            droplet._bind()
-        except DropletStateError as e:
-            raise e
+        droplet._bind()
 
         self.arch = arch
         self.droplet = droplet

@@ -132,7 +132,6 @@ def test_lazy_mix(session01):
     assert s.arch.droplets == set([ab])
 
 
-@pytest.mark.xfail
 def test_lazy_move(session01):
     s = session01
     a = s.input_droplet(location=(1,1), info='a')

@@ -62,44 +62,23 @@ class Session(AbstractContextManager):
 
     def input_droplet(self, **kwargs) -> Droplet:
         """bind location to new droplet"""
-
         d = Droplet(**kwargs)
-
-        try:
-            cmd = puddle.arch.Input(self.arch, d)
-        except DropletStateError as e:
-            raise e
-
+        cmd = puddle.arch.Input(self.arch, d)
         droplet, = self.engine.virtualize(cmd)
         return droplet
 
     def mix(self, droplet1: Droplet, droplet2: Droplet) -> Droplet:
-
-        try:
-            mix_cmd = puddle.arch.Mix(self.arch, droplet1, droplet2)
-        except DropletStateError as e:
-            raise e
-
+        mix_cmd = puddle.arch.Mix(self.arch, droplet1, droplet2)
         droplet, = self.engine.virtualize(mix_cmd)
         return droplet
 
     def split(self, droplet: Droplet) -> Tuple[Droplet, Droplet]:
-
-        try:
-            split_cmd = puddle.arch.Split(self.arch, droplet)
-        except DropletStateError as e:
-            raise e
-
+        split_cmd = puddle.arch.Split(self.arch, droplet)
         droplet1, droplet2 = self.engine.virtualize(split_cmd)
         return droplet1, droplet2
 
     def move(self, droplet: Droplet, location: Tuple):
-
-        try:
-            move_cmd = puddle.arch.Move(self.arch, [droplet], [location])
-        except DropletStateError as e:
-            raise e
-
+        move_cmd = puddle.arch.Move(self.arch, [droplet], [location])
         self.engine.virtualize(move_cmd)
 
     def heat(self, droplet, temp, time):

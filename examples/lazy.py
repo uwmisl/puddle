@@ -39,14 +39,6 @@ with Session(arch) as session:
     else:
         # These commands force evaluation of...
 
-        # ...all queued commands.
-        def input(x, y):
-            return session.input_droplet(location = (x, y))
-
-        # ...all queued commands.
-        def move(a, location):
-            return session.move(a, location)
-
         # all queued commands, OR all commands on which the
         # given droplet depends
         def flush(droplet=None):
@@ -61,6 +53,14 @@ with Session(arch) as session:
 
         def split(a):
             return session.split(a)
+
+        # ...all queued commands.
+        def input(x, y):
+            return session.input_droplet(location = (x, y))
+
+        # ...all queued commands.
+        def move(a, location):
+            return session.move(a, location)
 
         import code
         code.InteractiveConsole(locals=globals()).interact()
