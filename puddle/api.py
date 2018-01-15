@@ -87,7 +87,6 @@ class Session(AbstractContextManager):
             droplets = [droplet],
             locations = [location]
         )
-
         self.engine.flush()
         self.engine.realize(move_cmd)
 

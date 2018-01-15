@@ -32,7 +32,7 @@ class Execution:
         for droplet, input_loc in zip(command.input_droplets,
                                       command.input_locations):
             # only works for single location droplets right now
-            droplet.destination = placement[input_loc]
+            droplet._destination = placement[input_loc]
 
         try:
             paths = self.router.route(self.arch.droplets)
@@ -45,7 +45,7 @@ class Execution:
         for i in range(longest):
             for droplet, path in paths.items():
                 j = min(len(path)-1, i)
-                droplet.location = path[j]
+                droplet._location = path[j]
             self.arch.wait()
 
         # execute the command
@@ -54,9 +54,9 @@ class Execution:
 
         # clear the destinations, as no one has anywhere to go now
         for d in self.arch.droplets:
-            if d.destination:
-                assert d.destination == d.location
-            d.destination = None
+            if d._destination:
+                assert d._destination == d._location
+            d._destination = None
 
         return result
 
@@ -82,7 +82,7 @@ class Placer:
 
         # NOTE this assumption of only one collision group allows us to place
         # over droplets that are to be used in the reaction
-        c_groups = set(d.collision_group for d in command.input_droplets)
+        c_groups = set(d._collision_group for d in command.input_droplets)
         assert len(c_groups) == 1
         (c_group,) = c_groups
 
@@ -99,7 +99,7 @@ class Placer:
         return result
 
     def place_shape(self, shape, collision_group=-62824, strict=False, raise_if_fail=True):
-
+        pass
         # copy the architecture graph so we can modify it
         graph = nx.DiGraph(self.arch.graph)
 
@@ -109,9 +109,9 @@ class Placer:
         too_close = set()
 
         for droplet in self.arch.droplets:
-            if droplet.collision_group == collision_group:
+            if droplet._collision_group == collision_group:
                 continue
-            for loc2 in neighborhood(droplet.location):
+            for loc2 in neighborhood(droplet._location):
                 if loc2 in graph:
                     too_close.add(loc2)
 

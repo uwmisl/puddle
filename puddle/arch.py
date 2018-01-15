@@ -51,6 +51,16 @@ class Droplet:
     _collision_group: int = Factory(_next_collision_group.__next__)
     _destination: Optional[Location] = None
 
+    # horrible hack for hidden members
+    def __init__(self, location=None, info=None, volume=None, state=None, collision_group=None,
+        destination=None):
+        self._location = location
+        self._info = info
+        self._volume = volume
+        self._state = state
+        self._collision_group = collision_group
+        self._destination = destination
+
     @property
     def _bound(self):
         return self._state == self._State.VIRTUAL_BOUND or self._state == self._State.REAL_BOUND
@@ -84,8 +94,8 @@ class Droplet:
 
     def copy(self, **kwargs):
         return self.__class__(
-            info=self.info,
-            location=self.location,
+            info=self._info,
+            location=self._location,
             **kwargs
         )
 
@@ -95,16 +105,16 @@ class Droplet:
         assert self._bound
         assert not self._consumed
 
-        volume = self.volume / 2
+        volume = self._volume / 2
 
-        result1.volume = volume
-        result1.info = self.info
-        result1.location = self.location
+        result1._volume = volume
+        result1._info = self._info
+        result1._location = self._location
         result1._realize()
 
-        result2.volume = volume
-        result2.info = self.info
-        result2.location = self.location
+        result2._volume = volume
+        result2._info = self._info
+        result2._location = self._location
         result2._realize()
 
         self._consume()
