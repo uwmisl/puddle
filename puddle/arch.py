@@ -26,7 +26,7 @@ _next_droplet_id = count()
 class Droplet:
 
     # Describes valid droplet states
-    class State(Enum):
+    class _State(Enum):
         VIRTUAL = 1
         REAL = 2
         VIRTUAL_BOUND = 3
@@ -41,90 +41,46 @@ class Droplet:
         # REAL_BOUND    -> CONSUMED
         # CONSUMED      -> X
 
-    location: Optional[Location] = None
-    info: Any = None
-    volume: float = 1.0
+    _location: Optional[Location] = None
+    _info: Any = None
+    _volume: float = 1.0
 
-    _state = State.VIRTUAL
+    _state = _State.VIRTUAL
 
-    id: int = Factory(_next_droplet_id.__next__)
-    collision_group: int = Factory(_next_collision_group.__next__)
-    destination: Optional[Location] = None
-
-    @property
-    def bound(self):
-        return self._state == self.State.VIRTUAL_BOUND or self._state == self.State.REAL_BOUND
+    _id: int = Factory(_next_droplet_id.__next__)
+    _collision_group: int = Factory(_next_collision_group.__next__)
+    _destination: Optional[Location] = None
 
     @property
-    def real(self):
-       return self._state == self.State.REAL or self._state == self.State.REAL_BOUND
+    def _bound(self):
+        return self._state == self._State.VIRTUAL_BOUND or self._state == self._State.REAL_BOUND
 
     @property
-    def virtual(self):
-        return self._state == self.State.VIRTUAL or self._state == self.State.VIRTUAL_BOUND
+    def _real(self):
+       return self._state == self._State.REAL or self._state == self._State.REAL_BOUND
 
     @property
-    def consumed(self):
-        return self._state == self.State.CONSUMED
+    def _virtual(self):
+        return self._state == self._State.VIRTUAL or self._state == self._State.VIRTUAL_BOUND
 
-    # @property
-    # def state(self):
-    #     return self._state
-
-    # @property
-    # def info(self):
-    #    # assert self.real
-    #     return self._info
-
-    # @property
-    # def location(self):
-    #    # assert self.real
-    #     return self._location
-
-    # @location.setter
-    # def location(self, value):
-    #     self._location = value
-
-    # @property
-    # def volume(self):
-    #    # assert self.real
-    #     return self._volume
-
-    # @property
-    # def id(self):
-    #     return self._id
-
-    # @property
-    # def collision_group(self):
-    #     return self._collision_group
-
-    # @collision_group.setter
-    # def collision_group(self, value):
-    #     self._collision_group = value
-
-    # @property
-    # def destination(self):
-    #     return self._destination
-
-    # @destination.setter
-    # def destination(self, value):
-    #     self._desitnation = value
-
+    @property
+    def _consumed(self):
+        return self._state == self._State.CONSUMED
 
     def _realize(self):
-        if self._state == self.State.VIRTUAL:
-            self._state = self.State.REAL
+        if self._state == self._State.VIRTUAL:
+            self._state = self._State.REAL
         else:
-            self._state = self.State.REAL_BOUND
+            self._state = self._State.REAL_BOUND
 
     def _bind(self):
-        if self._state == self.State.VIRTUAL:
-            self._state = self.State.VIRTUAL_BOUND
+        if self._state == self._State.VIRTUAL:
+            self._state = self._State.VIRTUAL_BOUND
         else:
-            self._state = self.State.REAL_BOUND
+            self._state = self._State.REAL_BOUND
 
     def _consume(self):
-        self._state == self.State.CONSUMED
+        self._state == self._State.CONSUMED
 
     def copy(self, **kwargs):
         return self.__class__(
@@ -135,9 +91,9 @@ class Droplet:
 
     def split(self, result1, result2, ratio=0.5):
 
-        assert self.real
-        # assert self.bound
-        assert not self.consumed
+        assert self._real
+        assert self._bound
+        assert not self._consumed
 
         volume = self.volume / 2
 
@@ -158,13 +114,13 @@ class Droplet:
     def mix(self, other: 'Droplet', result):
         log.debug(f'mixing {self} with {other}')
 
-        assert self.real
-        # assert self.bound
-        assert not self.consumed
+        assert self._real
+        assert self._bound
+        assert not self._consumed
 
-        assert other.real
-        # assert other.bound
-        assert not other.consumed
+        assert other._real
+        assert other._bound
+        assert not other._consumed
 
         # for now, they much be in the same place
         # assert self.cell is other.cell
@@ -173,14 +129,14 @@ class Droplet:
         self._consume()
         other._consume()
 
-        info = f'({self.info}, {other.info})'
+        info = f'({self._info}, {other._info})'
 
         # TODO this logic definitely won't work when droplets are larger
         # it should give back the "union" of both shapes
 
-        result.info = info
-        result.location = self.location
-        result.volume = self.volume + other.volume
+        result._info = info
+        result._location = self._location
+        result._volume = self._volume + other._volume
         result._realize()
 
         return result
@@ -203,7 +159,7 @@ class Command:
 
     def run(self, mapping: Dict[Location, Location]):
         for d,l in zip(self.input_droplets, self.input_locations):
-            assert d.location == mapping[l]
+            assert d._location == mapping[l]
 
 
 class Input(Command):
@@ -219,7 +175,7 @@ class Input(Command):
         self.input_droplets = []
         self.output_droplets = [droplet]
 
-        loc = self.droplet.location
+        loc = self.droplet._location
         if loc and loc not in self.arch.graph:
             raise KeyError("Location {} is not in the architecture".format(loc))
 
@@ -228,11 +184,11 @@ class Input(Command):
     def run(self, mapping):
 
         # this is a bit of a hack to do manual placement here
-        if self.droplet.location is None:
+        if self.droplet._location is None:
             shape = nx.DiGraph()
             shape.add_node((0,0))
             placement = self.arch.session.execution.placer.place_shape(shape)
-            self.droplet.location = placement[(0,0)]
+            self.droplet._location = placement[(0,0)]
 
         self.droplet._realize()
 
@@ -270,9 +226,9 @@ class Mix(Command):
         droplet2._bind()
 
         # we are going to mix, so set them all to the same collision group.
-        collision_group = min(d.collision_group for d in self.input_droplets)
+        collision_group = min(d._collision_group for d in self.input_droplets)
         for d in self.input_droplets:
-            d.collision_group = collision_group
+            d._collision_group = collision_group
 
     def run(self, mapping):
 
@@ -281,7 +237,7 @@ class Mix(Command):
         # use the mapping to get the edges in the architecture we have to take
         arch_loop_edges = list(pairs(mapping[node] for node in self.loop))
 
-        assert self.droplet1.location == self.droplet2.location
+        assert self.droplet1._location == self.droplet2._location
 
         self.arch.remove_droplet(self.droplet1)
         self.arch.remove_droplet(self.droplet2)
@@ -291,7 +247,7 @@ class Mix(Command):
         self.arch.wait()
         for _ in range(self.n_mix_loops):
             for src, dst in arch_loop_edges:
-                result.location = dst
+                result._location = dst
                 self.arch.wait()
 
         return result
@@ -323,8 +279,8 @@ class Split(Command):
         d1, d2 = self.droplet.split(*self.output_droplets)
 
         # allow collisions
-        cg2 = d2.collision_group
-        d2.collision_group = d1.collision_group
+        cg2 = d2._collision_group
+        d2._collision_group = d1._collision_group
 
         # For these adds we are okay with adjacent droplets
         self.arch.add_droplet(d1)
@@ -332,12 +288,12 @@ class Split(Command):
         self.arch.wait()
 
         for n1, n2 in zip(nodes1, nodes2):
-            d1.location = mapping[n1]
-            d2.location = mapping[n2]
+            d1._location = mapping[n1]
+            d2._location = mapping[n2]
             self.arch.wait()
 
         # don't allow collisions
-        d2.collision_group = cg2
+        d2._collision_group = cg2
 
         return d1, d2
 
@@ -390,15 +346,15 @@ class Architecture:
 
     def get_droplet(self, location):
         for droplet in self.droplets:
-            if location == droplet.location:
+            if location == droplet._location:
                 return droplet
         return None
 
     def add_droplet(self, droplet: Droplet):
 
-        if droplet.real and droplet.location not in self.graph:
+        if droplet._real and droplet._location not in self.graph:
             raise KeyError("Location {} is not in the architecture"
-                            .format(droplet.location))
+                            .format(droplet._location))
 
         assert droplet not in self.droplets
         self.droplets.add(droplet)
@@ -420,10 +376,10 @@ class Architecture:
         as a collision.
         Throws a CollisionError if there is collision on the board.
         """
-        real_droplets = (d for d in self.droplets if d.real)
+        real_droplets = (d for d in self.droplets if d._real)
         for d1, d2 in combinations(real_droplets, 2):
-            if d1.collision_group != d2.collision_group and \
-               manhattan_distance(d1.location, d2.location) <= 1:
+            if d1._collision_group != d2._collision_group and \
+               manhattan_distance(d1._location, d2._location) <= 1:
                 raise CollisionError('Multiple droplets colliding')
                 log.debug('colliding')
 

@@ -58,11 +58,11 @@ class Router:
         paths = {}
 
         def difficulty(a):
-            return manhattan_distance(a.location, a.destination)
+            return manhattan_distance(a._location, a._destination)
 
         # do the easiest paths first, followed by those without a dest
-        droplets_with_dest = [d for d in droplets if d.destination]
-        droplets_without_dest = [d for d in droplets if not d.destination]
+        droplets_with_dest = [d for d in droplets if d._destination]
+        droplets_without_dest = [d for d in droplets if not d._destination]
         if shuffle:
             random.shuffle(droplets_without_dest)
             random.shuffle(droplets_with_dest)
@@ -73,7 +73,7 @@ class Router:
         # to, but we can't do that yet without potentially ruining prior
         # placement of commands.
         for d in droplets_without_dest:
-            d.destination = d.location
+            d._destination = d._location
 
         droplets = droplets_with_dest + droplets_without_dest
 
@@ -81,7 +81,7 @@ class Router:
         # of the previous paths
         goal_time = 0
         for d in droplets:
-            log.debug(f'Routing {d}: {d.location} -> {d.destination}')
+            log.debug(f'Routing {d}: {d._location} -> {d._destination}')
             path = self.a_star(d, goal_time)
             paths[d] = path
 
@@ -92,7 +92,7 @@ class Router:
             # the path to avoid collisions
             for time, node in enumerate(path):
                 for t in (-1, 0, 1):
-                    self.avoid.update(((nbr, time + t), d.collision_group)
+                    self.avoid.update(((nbr, time + t), d._collision_group)
                                       for nbr in neighborhood(node))
 
             # add the end points of the path
@@ -119,7 +119,7 @@ class Router:
         return path
 
     def is_legal(self, droplet, pos, time):
-        g = droplet.collision_group
+        g = droplet._collision_group
 
         # if this space is finally occupied, lookup at that last time instead
         time = self.final_places.get(pos, time)
@@ -146,7 +146,7 @@ class Router:
         # Heap elements are (priority, count, node, distance, time, parent).
         # A counter is to break ties in a stable way.
         count = itertools.count()
-        todo = [(0, next(count), droplet.location, 0, 0, None)]
+        todo = [(0, next(count), droplet._location, 0, 0, None)]
 
         # Maps enqueued nodes to distance of discovered paths and the
         # computed heuristics to destination. Saves recomputing heuristics.
@@ -160,7 +160,7 @@ class Router:
             _, _, current, distance, time, parent = item
             n_popped += 1
 
-            if (droplet.destination is None or current == droplet.destination) \
+            if (droplet._destination is None or current == droplet._destination) \
                and time >= goal_time:
                 # explored[(current, time)] = parent
                 log.info("Explored {} of {} nodes ({})"
@@ -186,8 +186,8 @@ class Router:
                     if q_cost <= nbr_cost:
                         continue
                 else:
-                    if droplet.destination:
-                        h = manhattan_distance(nbr, droplet.destination)
+                    if droplet._destination:
+                        h = manhattan_distance(nbr, droplet._destination)
                     else:
                         assert False # FIXME we aren't doing anywhere nodes right now
                         h = 0
@@ -199,4 +199,4 @@ class Router:
             explored[(current, time)] = parent
 
 
-        raise RouteFailure(f'No path between {droplet.location} and {droplet.destination}')
+        raise RouteFailure(f'No path between {droplet._location} and {droplet._destination}')

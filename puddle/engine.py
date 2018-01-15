@@ -29,7 +29,7 @@ class Engine:
     def virtualize(self, command: Command) -> Any:
 
         for droplet in command.output_droplets:
-            self.dependencies[droplet.id] = command
+            self.dependencies[droplet._id] = command
 
         return command.output_droplets
 
@@ -41,8 +41,8 @@ class Engine:
 
         for cmd in visited:
             for droplet in cmd.input_droplets:
-                if droplet.virtual and droplet.id in self.dependencies:
-                        dependency = self.dependencies[droplet.id]
+                if droplet._virtual and droplet._id in self.dependencies:
+                        dependency = self.dependencies[droplet._id]
                         visited.append(dependency)
 
         # make sure visited is unique so we don't do anything twice
@@ -50,7 +50,7 @@ class Engine:
 
         for cmd in reversed(visited):
             # Only execute commands with non-virtual outputs.
-            if all(d.virtual for d in cmd.output_droplets):
+            if all(d._virtual for d in cmd.output_droplets):
                 self.execution.go(cmd)
 
         return command.output_droplets
@@ -60,10 +60,10 @@ class Engine:
             # flush all
             for droplet_id in self.dependencies:
                 cmd = self.dependencies[droplet_id]
-                if all(d.virtual for d in cmd.output_droplets):
+                if all(d._virtual for d in cmd.output_droplets):
                     self.realize(cmd)
         else:
             # only evaluate dependencies for given droplet
-            cmd = self.dependencies[droplet.id]
-            if all(d.virtual for d in cmd.output_droplets):
+            cmd = self.dependencies[droplet._id]
+            if all(d._virtual for d in cmd.output_droplets):
                 self.realize(cmd)
