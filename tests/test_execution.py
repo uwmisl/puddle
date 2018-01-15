@@ -140,7 +140,6 @@ def test_lazy_move(session01):
     assert a._location == (1,1)
 
 
-@pytest.mark.xfail(reason="Droplet a should be consumed by the mix.")
 def test_lazy_mix_consumed(session01):
     s = session01
     a = s.input_droplet(location=(1,1), info='a')
@@ -148,10 +147,8 @@ def test_lazy_mix_consumed(session01):
 
     s.mix(a,b)
 
-    # the location should be invalid (from the user's perspective)
-    assert a._location is None
-    # the droplet should be consumed at this point
-    assert not a._consumed
+    # the droplet should be bound at this point
+    assert a._bound
 
 
 @pytest.mark.xfail(reason="Consumption error not implemented")

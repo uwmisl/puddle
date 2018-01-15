@@ -9,5 +9,6 @@ with Session(arch) as session:
     target = 4,4
 
     session.move(a, target)
+    session.flush()
 
     assert a._location == target

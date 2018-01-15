@@ -51,9 +51,10 @@ class Droplet:
     _collision_group: int = Factory(_next_collision_group.__next__)
     _destination: Optional[Location] = None
 
-    # horrible hack for hidden members
-    def __init__(self, location=None, info=None, volume=None, state=None, collision_group=None,
-        destination=None):
+    # horrible hack so that constructor can be called without
+    # underscored members
+    def __init__(self, location=None, info=None, volume=None,
+        state=None, collision_group=None, destination=None):
         self._location = location
         self._info = info
         self._volume = volume
@@ -61,35 +62,47 @@ class Droplet:
         self._collision_group = collision_group
         self._destination = destination
 
+    # state helpers
+
     @property
     def _bound(self):
-        return self._state == self._State.VIRTUAL_BOUND or self._state == self._State.REAL_BOUND
+        return self._state == self._State.VIRTUAL_BOUND or \
+            self._state == self._State.REAL_BOUND
 
     @property
     def _real(self):
-       return self._state == self._State.REAL or self._state == self._State.REAL_BOUND
+        return self._state == self._State.REAL or \
+            self._state == self._State.REAL_BOUND
 
     @property
     def _virtual(self):
-        return self._state == self._State.VIRTUAL or self._state == self._State.VIRTUAL_BOUND
+        return self._state == self._State.VIRTUAL or \
+            self._state == self._State.VIRTUAL_BOUND
 
     @property
     def _consumed(self):
         return self._state == self._State.CONSUMED
 
+    # transition functions
+
     def _realize(self):
-        if self._state == self._State.VIRTUAL:
-            self._state = self._State.REAL
-        else:
-            self._state = self._State.REAL_BOUND
+        assert self._virtual
+        self._state = self._State.REAL_BOUND if self._bound \
+            else self._State.REAL
 
     def _bind(self):
-        if self._state == self._State.VIRTUAL:
-            self._state = self._State.VIRTUAL_BOUND
-        else:
-            self._state = self._State.REAL_BOUND
+        # move should be able to double bind
+        # assert not self._bound
+        self._state = self._State.VIRTUAL_BOUND if self._virtual \
+            else self._State.REAL_BOUND
+
 
     def _consume(self):
+
+        assert not self._consumed
+        assert self._bound
+        assert self._real
+
         self._state == self._State.CONSUMED
 
     def copy(self, **kwargs):
@@ -101,43 +114,28 @@ class Droplet:
 
     def split(self, result1, result2, ratio=0.5):
 
-        assert self._real
-        assert self._bound
-        assert not self._consumed
-
         volume = self._volume / 2
 
         result1._volume = volume
         result1._info = self._info
         result1._location = self._location
-        result1._realize()
 
         result2._volume = volume
         result2._info = self._info
         result2._location = self._location
-        result2._realize()
 
         self._consume()
+        result1._realize()
+        result2._realize()
 
         return result1, result2
 
     def mix(self, other: 'Droplet', result):
         log.debug(f'mixing {self} with {other}')
 
-        assert self._real
-        assert self._bound
-        assert not self._consumed
-
-        assert other._real
-        assert other._bound
-        assert not other._consumed
-
         # for now, they much be in the same place
         # assert self.cell is other.cell
         # FIXME right now we assume cells only have one droplet
-
-        self._consume()
-        other._consume()
 
         info = f'({self._info}, {other._info})'
 
@@ -147,6 +145,9 @@ class Droplet:
         result._info = info
         result._location = self._location
         result._volume = self._volume + other._volume
+
+        self._consume()
+        other._consume()
         result._realize()
 
         return result
@@ -211,7 +212,7 @@ class Move(Command):
         self.arch = arch
         self.input_droplets = droplets
         self.input_locations = locations
-        self.output_droplets = []
+        self.output_droplets = [droplets[0]]
 
         for d in droplets:
             d._bind()
