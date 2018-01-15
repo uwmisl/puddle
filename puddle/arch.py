@@ -21,6 +21,9 @@ _next_collision_group = count()
 _next_droplet_id = count()
 
 
+class DropletStateError(Exception):
+    pass
+
 # disable generation of cmp so it uses id-based hashing
 @dataclass(cmp=False)
 class Droplet:
@@ -39,13 +42,14 @@ class Droplet:
         # REAL          -> REAL_BOUND
         # VIRTUAL_BOUND -> REAL_BOUND | CONSUMED
         # REAL_BOUND    -> CONSUMED
-        # CONSUMED      -> X
+        # CONSUMED      -> x
 
     _location: Optional[Location] = None
     _info: Any = None
     _volume: float = 1.0
 
     _state = _State.VIRTUAL
+    _soft_bind_counter = 0
 
     _id: int = Factory(_next_droplet_id.__next__)
     _collision_group: int = Factory(_next_collision_group.__next__)
@@ -62,47 +66,114 @@ class Droplet:
         self._collision_group = collision_group
         self._destination = destination
 
+    # todo(@michalp): rn this is very non-idiomatic. Either remove decorators
+    # and keep get_ prefixes or remove prefixes and keep decorators...
+    @property
+    def get_info(self):
+        if self._is_virtual:
+            raise DropletStateError("Cannot get info of virtual droplet")
+        if self._is_consumed:
+            raise DropletStateError("Cannot get info of consumed droplet")
+        return self._info
+
+    @property
+    def get_volume(self):
+        if self._is_virtual:
+            raise DropletStateError("Cannot get volume of virtual droplet")
+        if self._is_consumed:
+            raise DropletStateError("Cannot get volume of consumed droplet")
+        return self._volume
+
+    @property
+    def get_location(self):
+        if self._is_virtual:
+            raise DropletStateError("Cannot get location of virtual droplet")
+        if self._is_consumed:
+            raise DropletStateError("Cannot get location of consumed droplet")
+        return self._location
+
     # state helpers
 
     @property
-    def _bound(self):
+    def _is_bound(self):
         return self._state == self._State.VIRTUAL_BOUND or \
             self._state == self._State.REAL_BOUND
 
     @property
-    def _real(self):
+    def _is_soft_bound(self):
+        return self._soft_bind_counter > 0
+
+    @property
+    def _is_real(self):
         return self._state == self._State.REAL or \
             self._state == self._State.REAL_BOUND
 
     @property
-    def _virtual(self):
+    def _is_virtual(self):
         return self._state == self._State.VIRTUAL or \
             self._state == self._State.VIRTUAL_BOUND
 
     @property
-    def _consumed(self):
+    def _is_consumed(self):
         return self._state == self._State.CONSUMED
 
     # transition functions
 
     def _realize(self):
-        assert self._virtual
-        self._state = self._State.REAL_BOUND if self._bound \
+        # An assert is okay here. This lives outside the user's concern
+        # I think the promise is that engine will never make a call
+        # that realizes an already realized droplet
+        # and the user is prevented from making such a situation occur
+        # via binding constraints
+        assert self._is_virtual
+        self._state = self._State.REAL_BOUND if self._is_bound \
             else self._State.REAL
 
     def _bind(self):
         # move should be able to double bind
-        # assert not self._bound
-        self._state = self._State.VIRTUAL_BOUND if self._virtual \
+        # so should input and heat...
+        # todo(@michalp): this requires engine changes
+
+        # here we except, because we don't want the user to bind bound droplets...
+        # command initializers should elevate these errors, and the api should as well.
+        if self._is_bound:
+            raise DropletStateError("This droplet is already bound to a command!")
+        if self._is_consumed:
+            raise DropletStateError("This droplet has already been consumed!")
+        self._state = self._State.VIRTUAL_BOUND if self._is_virtual \
             else self._State.REAL_BOUND
 
+    def _unbind(self):
+        # this is used in mix to unbind the first droplet should
+        # binding the second fail. Another way to do this is to move
+        # binding checks to commands, but that's more code duplication
+
+        # but it does kind of violate the state machine...
+
+        # asserts okay, this is not user facing
+        assert self._is_bound
+        self._state = self._State.REAL if self._is_real else self._State.VIRTUAL
+
+    def _soft_bind(self):
+        # used by non consuming commands like move and input, checks the same stuff
+        # as _bind, but doesn't actually bind the droplet
+        assert not self._is_consumed
+        self._soft_bind_counter += 1
+
+    def _soft_unbind(self):
+        assert self._is_soft_bound
+        assert not self._is_consumed
+        self._soft_bind_counter -= 1
 
     def _consume(self):
-
-        assert not self._consumed
-        assert self._bound
-        assert self._real
-
+        # Asserts are okay here. This lives outside the user's concern
+        # I think the promise here is that engine will never make
+        # a call that attempts to consume a consumed droplet
+        # The user is already prevented from doing this via binding
+        # constraints
+        assert not self._is_consumed
+        assert self._is_bound
+        assert self._is_real
         self._state == self._State.CONSUMED
 
     def copy(self, **kwargs):
@@ -168,6 +239,8 @@ class Command:
     strict: ClassVar[bool] = False
     locations_given: ClassVar[bool] = False
 
+    #todo(@michalp): move binding checks to super constructor?
+
     def run(self, mapping: Dict[Location, Location]):
         for d,l in zip(self.input_droplets, self.input_locations):
             assert d._location == mapping[l]
@@ -181,9 +254,15 @@ class Input(Command):
     input_locations: ClassVar = []
 
     def __init__(self, arch, droplet):
+
+        try:
+            droplet._soft_bind()
+        except DropletStateError as e:
+            raise e
+
         self.arch = arch
         self.droplet = droplet
-        self.input_droplets = []
+        self.input_droplets = [droplet]
         self.output_droplets = [droplet]
 
         loc = self.droplet._location
@@ -209,13 +288,17 @@ class Move(Command):
     locations_given: ClassVar = True
 
     def __init__(self, arch, droplets, locations):
+
+        for d in droplets:
+            try:
+                d._soft_bind()
+            except DropletStateError as e:
+                raise e
+
         self.arch = arch
         self.input_droplets = droplets
         self.input_locations = locations
         self.output_droplets = [droplets[0]]
-
-        for d in droplets:
-            d._bind()
 
 
 class Mix(Command):
@@ -227,14 +310,23 @@ class Mix(Command):
     loop = [(0,0), (1,0), (1,1), (1,2), (0,2), (0,1), (0,0)]
 
     def __init__(self, arch, droplet1, droplet2):
+
+        try:
+            droplet1._bind()
+        except DropletStateError as e:
+            raise e
+
+        try:
+            droplet2._bind()
+        except DropletStateError as e:
+            droplet1._unbind()
+            raise e
+
         self.arch = arch
         self.droplet1 = droplet1
         self.droplet2 = droplet2
         self.input_droplets = [droplet1, droplet2]
         self.output_droplets = [Droplet(None)]
-
-        droplet1._bind()
-        droplet2._bind()
 
         # we are going to mix, so set them all to the same collision group.
         collision_group = min(d._collision_group for d in self.input_droplets)
@@ -271,12 +363,16 @@ class Split(Command):
     strict: ClassVar = True
 
     def __init__(self, arch, droplet):
+
+        try:
+            droplet._bind()
+        except DropletStateError as e:
+            raise e
+
         self.arch = arch
         self.droplet = droplet
         self.input_droplets = [droplet]
         self.output_droplets = [Droplet(None), Droplet(None)]
-
-        droplet._bind()
 
     def run(self, mapping):
 
@@ -363,7 +459,7 @@ class Architecture:
 
     def add_droplet(self, droplet: Droplet):
 
-        if droplet._real and droplet._location not in self.graph:
+        if droplet._is_real and droplet._location not in self.graph:
             raise KeyError("Location {} is not in the architecture"
                             .format(droplet._location))
 
@@ -387,7 +483,7 @@ class Architecture:
         as a collision.
         Throws a CollisionError if there is collision on the board.
         """
-        real_droplets = (d for d in self.droplets if d._real)
+        real_droplets = (d for d in self.droplets if d._is_real)
         for d1, d2 in combinations(real_droplets, 2):
             if d1._collision_group != d2._collision_group and \
                manhattan_distance(d1._location, d2._location) <= 1:

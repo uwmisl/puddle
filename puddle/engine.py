@@ -41,7 +41,7 @@ class Engine:
 
         for cmd in visited:
             for droplet in cmd.input_droplets:
-                if droplet._virtual and droplet._id in self.dependencies:
+                if droplet._is_virtual and droplet._id in self.dependencies:
                         dependency = self.dependencies[droplet._id]
                         visited.append(dependency)
 
@@ -50,7 +50,7 @@ class Engine:
 
         for cmd in reversed(visited):
             # Only execute commands with non-virtual outputs.
-            if all(d._virtual for d in cmd.output_droplets):
+            if all(d._is_virtual for d in cmd.output_droplets):
                 self.execution.go(cmd)
 
         return command.output_droplets
@@ -60,10 +60,10 @@ class Engine:
             # flush all
             for droplet_id in self.dependencies:
                 cmd = self.dependencies[droplet_id]
-                if all(d._virtual for d in cmd.output_droplets):
+                if all(d._is_virtual for d in cmd.output_droplets):
                     self.realize(cmd)
         else:
             # only evaluate dependencies for given droplet
             cmd = self.dependencies[droplet._id]
-            if all(d._virtual for d in cmd.output_droplets):
+            if all(d._is_virtual for d in cmd.output_droplets):
                 self.realize(cmd)

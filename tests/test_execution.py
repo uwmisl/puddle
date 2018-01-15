@@ -148,7 +148,7 @@ def test_lazy_mix_consumed(session01):
     s.mix(a,b)
 
     # the droplet should be bound at this point
-    assert a._bound
+    assert a._is_bound
 
 
 @pytest.mark.xfail(reason="Consumption error not implemented")

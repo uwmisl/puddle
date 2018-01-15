@@ -5,7 +5,7 @@ from ast import literal_eval
 from typing import Tuple
 
 import puddle.arch
-from puddle.arch import Architecture, Droplet
+from puddle.arch import Architecture, Droplet, DropletStateError
 
 from puddle.execution import Execution
 from puddle.engine import Engine
@@ -64,31 +64,50 @@ class Session(AbstractContextManager):
         """bind location to new droplet"""
 
         d = Droplet(**kwargs)
-        cmd = puddle.arch.Input(self.arch, d)
+
+        try:
+            cmd = puddle.arch.Input(self.arch, d)
+        except DropletStateError as e:
+            raise e
+
         droplet, = self.engine.virtualize(cmd)
         return droplet
 
     def mix(self, droplet1: Droplet, droplet2: Droplet) -> Droplet:
 
-        mix_cmd = puddle.arch.Mix(self.arch, droplet1, droplet2)
+        # Prevents double binding
+        try:
+            mix_cmd = puddle.arch.Mix(self.arch, droplet1, droplet2)
+        except DropletStateError as e:
+            raise e
+
         droplet, = self.engine.virtualize(mix_cmd)
         return droplet
 
     def split(self, droplet: Droplet) -> Tuple[Droplet, Droplet]:
 
-        split_cmd = puddle.arch.Split(self.arch, droplet)
+        # Prevents double binding
+        try:
+            split_cmd = puddle.arch.Split(self.arch, droplet)
+        except DropletStateError as e:
+            raise e
+
         droplet1, droplet2 = self.engine.virtualize(split_cmd)
         return droplet1, droplet2
 
     def move(self, droplet: Droplet, location: Tuple):
 
-        move_cmd = puddle.arch.Move(
-            self.arch,
-            droplets = [droplet],
-            locations = [location]
-        )
-        self.engine.flush()
-        self.engine.realize(move_cmd)
+        # Prevents double binding
+        try:
+            move_cmd = puddle.arch.Move(
+                self.arch,
+                droplets = [droplet],
+                locations = [location]
+            )
+        except DropletStateError as e:
+            raise e
+
+        self.engine.virtualize(move_cmd)
 
     def heat(self, droplet, temp, time):
         # route droplet to heater
