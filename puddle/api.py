@@ -75,7 +75,6 @@ class Session(AbstractContextManager):
 
     def mix(self, droplet1: Droplet, droplet2: Droplet) -> Droplet:
 
-        # Prevents double binding
         try:
             mix_cmd = puddle.arch.Mix(self.arch, droplet1, droplet2)
         except DropletStateError as e:
@@ -86,7 +85,6 @@ class Session(AbstractContextManager):
 
     def split(self, droplet: Droplet) -> Tuple[Droplet, Droplet]:
 
-        # Prevents double binding
         try:
             split_cmd = puddle.arch.Split(self.arch, droplet)
         except DropletStateError as e:
@@ -97,13 +95,8 @@ class Session(AbstractContextManager):
 
     def move(self, droplet: Droplet, location: Tuple):
 
-        # Prevents double binding
         try:
-            move_cmd = puddle.arch.Move(
-                self.arch,
-                droplets = [droplet],
-                locations = [location]
-            )
+            move_cmd = puddle.arch.Move(self.arch, [droplet], [location])
         except DropletStateError as e:
             raise e
 

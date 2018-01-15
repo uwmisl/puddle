@@ -43,6 +43,9 @@ class Droplet:
         # VIRTUAL_BOUND -> REAL_BOUND | CONSUMED
         # REAL_BOUND    -> CONSUMED
         # CONSUMED      -> x
+        #
+        # the first four states can all be soft bound
+        # 0 or more times
 
     _location: Optional[Location] = None
     _info: Any = None
@@ -174,7 +177,7 @@ class Droplet:
         assert not self._is_consumed
         assert self._is_bound
         assert self._is_real
-        self._state == self._State.CONSUMED
+        self._state = self._State.CONSUMED
 
     def copy(self, **kwargs):
         return self.__class__(
@@ -272,7 +275,6 @@ class Input(Command):
         self.arch.add_droplet(self.droplet)
 
     def run(self, mapping):
-
         # this is a bit of a hack to do manual placement here
         if self.droplet._location is None:
             shape = nx.DiGraph()
@@ -281,7 +283,7 @@ class Input(Command):
             self.droplet._location = placement[(0,0)]
 
         self.droplet._realize()
-        self.droplet._soft_unbind
+        self.droplet._soft_unbind()
 
 
 class Move(Command):
