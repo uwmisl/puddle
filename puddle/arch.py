@@ -51,23 +51,12 @@ class Droplet:
     _info: Any = None
     _volume: float = 1.0
 
-    _state = _State.VIRTUAL
-    _soft_bind_counter = 0
+    _state: _State = _State.VIRTUAL
+    _soft_bind_counter: int = 0
 
     _id: int = Factory(_next_droplet_id.__next__)
     _collision_group: int = Factory(_next_collision_group.__next__)
     _destination: Optional[Location] = None
-
-    # horrible hack so that constructor can be called without
-    # underscored members
-    def __init__(self, location=None, info=None, volume=None,
-        state=None, collision_group=None, destination=None):
-        self._location = location
-        self._info = info
-        self._volume = volume
-        self._state = state
-        self._collision_group = collision_group
-        self._destination = destination
 
     # todo(@michalp): rn this is very non-idiomatic. Either remove decorators
     # and keep get_ prefixes or remove prefixes and keep decorators...
