@@ -94,3 +94,14 @@ def test_multi_location_droplet_routing(session01):
     b = session01.input_droplet(location=(3,3))
 
     session01.move(a, (5,1))
+
+def test_multi_location_droplet_routing_complex(session01):
+    """ This should cause the droplets to move out of the way """
+    drops = [session01.input_droplet(location=(3, 2*x+1)) for x in range(3)]
+    a = session01.input_droplet(location=(1,2), shape={(0,0), (0,1)})
+
+    session01.move(a, (5,2))
+
+    # Droplets should return to original positions
+    for i in range(3):
+        assert drops[i].location == (3, 2*i + 1)
