@@ -21,9 +21,6 @@ class RouteFailure(Exception):
     pass
 
 
-_next_collision_group = itertools.count()
-
-
 # TODO make droplets move out of the way sooner rather than later by adding
 # distance to others as a secondary minimization goal
 
