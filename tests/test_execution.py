@@ -8,30 +8,25 @@ from puddle.execution import Execution, Placer
 
 # NOTE this does a little bit of badness by creating droplets
 # where the location doesn't matter. It works fine for now.
-@pytest.mark.parametrize('command_cls, droplets', [
-    (Mix,   [Droplet('a', (0,0)), Droplet('b', (0,0))]),
-    (Split, [Droplet('a', (0,0))]),
+@pytest.mark.parametrize('shape', [
+    Mix.shape,
+    Split.shape,
 ])
-
-@pytest.mark.xfail(reason="This no longer works with the new droplet binding")
-def test_place_command(arch, command_cls, droplets):
+def test_place_command(arch, shape):
 
     placer = Placer(arch)
-
-    command = command_cls(arch, *droplets)
-
-    placement = placer.place_command(command)
+    placement = placer.place_shape(shape)
 
     assert placement
 
     # placement maps command to architecture
     command_nodes, arch_nodes = zip(*placement.items())
-    assert all(n in command.shape for n in command_nodes)
+    assert all(n in shape for n in command_nodes)
     assert all(n in arch.graph for n in arch_nodes)
 
     # make sure the placement is actually isomorphic
     placement_target = arch.graph.subgraph(arch_nodes)
-    assert nx.is_isomorphic(placement_target, command.shape)
+    assert nx.is_isomorphic(placement_target, shape)
 
 
 def test_simple_execution(arch01):
