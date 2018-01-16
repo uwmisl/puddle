@@ -29,7 +29,7 @@ class DropletStateError(Exception):
 class Droplet:
 
     # Describes valid droplet states
-    class _State(Enum):
+    class State(Enum):
         VIRTUAL = 1
         REAL = 2
         VIRTUAL_BOUND = 3
@@ -51,7 +51,7 @@ class Droplet:
     _info: Any = None
     _volume: float = 1.0
 
-    _state: _State = _State.VIRTUAL
+    _state: State = State.VIRTUAL
     _soft_bind_counter: int = 0
 
     _id: int = Factory(_next_droplet_id.__next__)
@@ -89,8 +89,8 @@ class Droplet:
 
     @property
     def _is_bound(self):
-        return self._state == self._State.VIRTUAL_BOUND or \
-            self._state == self._State.REAL_BOUND
+        return self._state == self.State.VIRTUAL_BOUND or \
+            self._state == self.State.REAL_BOUND
 
     @property
     def _is_soft_bound(self):
@@ -98,17 +98,17 @@ class Droplet:
 
     @property
     def _is_virtual(self):
-        return self._state == self._State.VIRTUAL or \
-            self._state == self._State.VIRTUAL_BOUND
+        return self._state == self.State.VIRTUAL or \
+            self._state == self.State.VIRTUAL_BOUND
 
     @property
     def _is_real(self):
-        return self._state == self._State.REAL or \
-            self._state == self._State.REAL_BOUND
+        return self._state == self.State.REAL or \
+            self._state == self.State.REAL_BOUND
 
     @property
     def _is_consumed(self):
-        return self._state == self._State.CONSUMED
+        return self._state == self.State.CONSUMED
 
     # transition functions
 
@@ -119,8 +119,8 @@ class Droplet:
         # and the user is prevented from making such a situation occur
         # via binding constraints
         assert self._is_virtual
-        self._state = self._State.REAL_BOUND if self._is_bound \
-            else self._State.REAL
+        self._state = self.State.REAL_BOUND if self._is_bound \
+            else self.State.REAL
 
     def _bind(self):
         # move should be able to double bind
@@ -133,8 +133,8 @@ class Droplet:
             raise DropletStateError("This droplet is already bound to a command!")
         if self._is_consumed:
             raise DropletStateError("This droplet has already been consumed!")
-        self._state = self._State.VIRTUAL_BOUND if self._is_virtual \
-            else self._State.REAL_BOUND
+        self._state = self.State.VIRTUAL_BOUND if self._is_virtual \
+            else self.State.REAL_BOUND
 
     def _unbind(self):
         # this is used in mix to unbind the first droplet should
@@ -145,7 +145,7 @@ class Droplet:
         #
         # asserts okay, this is not user facing
         assert self._is_bound
-        self._state = self._State.REAL if self._is_real else self._State.VIRTUAL
+        self._state = self.State.REAL if self._is_real else self.State.VIRTUAL
 
     def _soft_bind(self):
         # used by non consuming commands like move and input, checks the same stuff
@@ -170,7 +170,7 @@ class Droplet:
         assert self._is_bound
         assert not self._is_soft_bound
         assert self._is_real
-        self._state = self._State.CONSUMED
+        self._state = self.State.CONSUMED
 
     def copy(self, **kwargs):
         return self.__class__(

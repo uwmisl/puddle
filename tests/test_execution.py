@@ -41,8 +41,8 @@ def test_simple_execution(arch01):
     arch.add_droplet(b)
 
     # hack to manually add droplets
-    a._state = Droplet._State.REAL
-    b._state = Droplet._State.REAL
+    a._state = Droplet.State.REAL
+    b._state = Droplet.State.REAL
 
     mix = Mix(arch, a, b)
     execution.go(mix)

@@ -36,12 +36,12 @@ def test_add_droplet(arch01):
     b_ok._collision_group = b._collision_group
 
     # hack to manually add droplets
-    a._state = Droplet._State.REAL
-    b._state = Droplet._State.REAL
-    c._state = Droplet._State.REAL
-    b2._state = Droplet._State.REAL
-    c2._state = Droplet._State.REAL
-    b_ok._state = Droplet._State.REAL
+    a._state = Droplet.State.REAL
+    b._state = Droplet.State.REAL
+    c._state = Droplet.State.REAL
+    b2._state = Droplet.State.REAL
+    c2._state = Droplet.State.REAL
+    b_ok._state = Droplet.State.REAL
 
     arch.add_droplet(a)
     arch.add_droplet(b)
