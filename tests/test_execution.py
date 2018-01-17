@@ -144,7 +144,8 @@ def test_lazy_mix_consumed(session01):
     s.mix(a,b)
 
     # the droplet should be bound at this point
-    assert a._is_bound
+    assert a.consumer
+    assert b.consumer
 
 
 def test_double_consume(session01):

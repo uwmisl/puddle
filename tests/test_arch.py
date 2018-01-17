@@ -1,6 +1,6 @@
 import pytest
 
-from puddle.arch import Architecture, CollisionError, Droplet
+from puddle.arch import Architecture, CollisionError, Droplet, Command
 
 
 def test_arch_parse(arch_path):
@@ -36,12 +36,15 @@ def test_add_droplet(arch01):
     b_ok._collision_group = b._collision_group
 
     # hack to manually add droplets
-    a._state = Droplet.State.REAL
-    b._state = Droplet.State.REAL
-    c._state = Droplet.State.REAL
-    b2._state = Droplet.State.REAL
-    c2._state = Droplet.State.REAL
-    b_ok._state = Droplet.State.REAL
+    done_cmd = Command()
+    done_cmd.done = True
+
+    a._produced_by(done_cmd)
+    b._produced_by(done_cmd)
+    c._produced_by(done_cmd)
+    b2._produced_by(done_cmd)
+    c2._produced_by(done_cmd)
+    b_ok._produced_by(done_cmd)
 
     arch.add_droplet(a)
     arch.add_droplet(b)
