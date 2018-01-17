@@ -27,6 +27,21 @@ window.onload = function() {
         preload: function() {},
 
         create: function() {
+            
+        this.game.onPause.add(function() {
+               if (ready) {
+                    ready = false; 
+                    ready_pause = true;
+                }   
+            }, this);
+
+            this.game.onResume.add(function() {
+                if (ready_pause) {
+                    ready = true;
+                    ready_pause = false;
+                }
+            }, this);            
+
             game.stage.backgroundColor = "#ffffff";
             game.physics.startSystem(Phaser.Physics.ARCADE);
 
