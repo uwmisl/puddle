@@ -3,6 +3,7 @@ let game;
 let droplets = [];
 
 let ready = false;
+let ready_pause = false;
 
 const CELL_SIZE = 50;
 const Y_OFFSET = 100; // downward offset to leave room for 'step' btn
@@ -26,6 +27,20 @@ window.onload = function() {
         preload: function() {},
 
         create: function() {
+            this.game.onPause.add(function() {
+               if (ready) {
+                    ready = false; 
+                    ready_pause = true;
+                }   
+            }, this);
+
+            this.game.onResume.add(function() {
+                if (ready_pause) {
+                    ready = true;
+                    ready_pause = false;
+                }
+            }, this);
+
             game.stage.backgroundColor = "#ffffff";
             game.physics.startSystem(Phaser.Physics.ARCADE);
 
@@ -136,13 +151,15 @@ function add_drop(json) {
     let s = game.add.sprite((json.location[1] * CELL_SIZE), (json.location[0] * CELL_SIZE) + Y_OFFSET);
     let graphics = game.add.graphics(0, 0);
     graphics.beginFill(0x006699)
-        .drawCircle(CELL_SIZE / 2, CELL_SIZE / 2, Math.sqrt(json.volume) * CELL_SIZE)
+        .drawCircle(CELL_SIZE / 2, CELL_SIZE / 2, CELL_SIZE)
         .endFill();
-    s.addChild(graphics);
-    let tween = game.add.tween(s).to({radius: (Math.sqrt(json.volume) * CELL_SIZE)}, 500).start();
+    let child = s.addChild(graphics);
+    game.add.tween(child).to({width: (Math.sqrt(json.volume) * CELL_SIZE), 
+        height: (Math.sqrt(json.volume) * CELL_SIZE)}, 500).start();
+    let tween = game.add.tween(s);
     let drop = {
         sprite: s,
-        last_added_tween: tween,
+        last_added_tween: tween.start(),
         last_run_tween: tween,
         to_delete: false,
         deleted: false,
@@ -168,7 +185,7 @@ function animate(data) {
             add_drop(json);
         }
         let tween = game.add.tween(droplets[json.id].sprite).to({ x: (json.location[1] * CELL_SIZE), 
-                                    y: (json.location[0] * CELL_SIZE)  + 100}, 500 / droplets[json.id].diff);
+            y: (json.location[0] * CELL_SIZE)  + 100}, 500 / droplets[json.id].diff);
         droplets[json.id].last_added_tween.chain(tween);
         if (droplets[json.id].last_run_tween == null) {
             droplets[json.id].last_run_tween = tween;
