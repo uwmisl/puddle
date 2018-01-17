@@ -3,7 +3,6 @@ let game;
 let droplets = [];
 
 let ready = false;
-let ready_pause = false;
 
 const CELL_SIZE = 50;
 const TWEEN_TIME = 200; // in millisec
@@ -29,20 +28,6 @@ window.onload = function() {
         preload: function() {},
 
         create: function() {
-
-        this.game.onPause.add(function() {
-               if (ready) {
-                    ready = false;
-                    ready_pause = true;
-                }
-            }, this);
-
-            this.game.onResume.add(function() {
-                if (ready_pause) {
-                    ready = true;
-                    ready_pause = false;
-                }
-            }, this);
 
             game.stage.backgroundColor = "#ffffff";
             game.physics.startSystem(Phaser.Physics.ARCADE);
@@ -96,7 +81,7 @@ function add_drop(json) {
     let s = game.add.sprite((json.location[1] * CELL_SIZE), (json.location[0] * CELL_SIZE) + Y_OFFSET);
     let graphics = game.add.graphics(0, 0);
     graphics.beginFill(0x006699)
-        .drawCircle(CELL_SIZE / 2, CELL_SIZE / 2, CELL_SIZE)
+        .drawCircle(CELL_SIZE / 2, CELL_SIZE / 2, Math.sqrt(json.volume) * CELL_SIZE)
         .endFill();
     let child = s.addChild(graphics);
     game.add.tween(child).to({width: (Math.sqrt(json.volume) * CELL_SIZE),
@@ -104,7 +89,7 @@ function add_drop(json) {
     let tween = game.add.tween(s);
     let drop = {
         sprite: s,
-        last_added_tween: tween.start(),
+        last_added_tween: tween,
         last_run_tween: tween,
         to_delete: false,
         deleted: false,
