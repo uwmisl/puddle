@@ -8,11 +8,15 @@
              margin-top: 30px;
              position: relative;
          }
-         .ball {
-             background: #c00;
+         .ball-container {
              position: absolute;
              top: 0;
              left: 0;
+             transition: transform 0.15s;
+         }
+         .ball {
+             position: absolute;
+             background: #c00;
              transition: transform 0.15s;
          }
          #slider {

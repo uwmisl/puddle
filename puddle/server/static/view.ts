@@ -6,6 +6,7 @@ interface DropletJSON {
     location: [number, number];
     volume: number;
     info: string;
+    shape: [number, number][];
 }
 
 let droplets = new Map<number, Droplet>();
@@ -29,6 +30,7 @@ class Droplet implements DropletJSON {
         this.location = json.location;
         this.volume = json.volume;
         this.info = json.info;
+        this.shape = json.shape;
     }
 
     // gets the HTML node for this droplet, creating it if necessary
@@ -37,8 +39,30 @@ class Droplet implements DropletJSON {
         if (node.length > 0)
             return node
 
-        node = $(`<div id="${this.id}" class="ball"></div>`);
+        console.log("Creating node for ", this.id)
+
+        node = $(`<div id="${this.id}" class="ball-container"></div>`);
         node.appendTo($('#container'))
+
+        for (let cell of this.shape) {
+            console.log("cell: ", cell)
+            let y = cell[0] * CELL_SIZE;
+            let x = cell[1] * CELL_SIZE;
+
+            let cell_node = $(`<div class="ball"></div>`);
+            cell_node.css('top', y);
+            cell_node.css('left', x);
+
+            let r = CELL_SIZE / 2;
+            cell_node.css('border-radius', r)
+            cell_node.css('height', r * 2)
+            cell_node.css('width', r * 2)
+
+            cell_node.appendTo(node);
+            console.log("cell node ", cell_node)
+            console.log("node ", node)
+        }
+
         let r = Math.sqrt(this.volume) * CELL_SIZE / 2;
         node.css('border-radius', r)
         node.css('height', r * 2)
@@ -47,8 +71,20 @@ class Droplet implements DropletJSON {
         return node
     }
 
+    get text_node() {
+        let id = this.id + '-text'
+        let text_node = $("#" + id);
+        if (text_node.length > 0)
+            return text_node
+
+        text_node = $(`<div id="${id}"></div>`)
+        text_node.appendTo(this.node)
+
+        return text_node;
+    }
+
     render() {
-        this.node.text(this.info)
+        this.text_node.text(this.info)
         let r = Math.sqrt(this.volume) * CELL_SIZE / 2;
         let cr = CELL_SIZE / 2;
         let y = this.location[0] * CELL_SIZE + cr - r;

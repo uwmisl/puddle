@@ -33,7 +33,16 @@ def state():
     if not session:
         return jsonify([])
 
-    droplets = [d.__dict__ for d in session.arch.droplets]
+    droplets = [
+        {
+            "id": d.id,
+            "location": d.location,
+            "volume": d.volume,
+            "info": d.info,
+            "shape": list(d.shape),
+        }
+        for d in session.arch.droplets
+    ]
 
     session.rendered.set()
 
