@@ -136,6 +136,17 @@ def test_lazy_move(session01):
     assert a._location == (1,1)
 
 
+def test_functional_move(session01):
+    s = session01
+    a = s.input_droplet(location=(1,1), info='a')
+
+    b = s.move(a, (3,3))
+
+    assert type(a) is Droplet
+    assert type(b) is Droplet
+    assert a is not b
+
+
 def test_lazy_mix_consumed(session01):
     s = session01
     a = s.input_droplet(location=(1,1), info='a')

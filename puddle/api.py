@@ -79,7 +79,8 @@ class Session(AbstractContextManager):
 
     def move(self, droplet: Droplet, location: Tuple):
         move_cmd = puddle.arch.Move(self.arch, [droplet], [location])
-        self.engine.virtualize(move_cmd)
+        (new_droplet, ) = self.engine.virtualize(move_cmd)
+        return new_droplet
 
     def heat(self, droplet, temp, time):
         # route droplet to heater
