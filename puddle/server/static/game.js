@@ -6,6 +6,7 @@ let ready = false;
 let ready_pause = false;
 
 const CELL_SIZE = 50;
+const TWEEN_TIME = 200; // in millisec
 const Y_OFFSET = 100; // downward offset to leave room for 'step' btn
 
 /**
@@ -20,7 +21,8 @@ window.onload = function() {
         window.innerHeight * window.devicePixelRatio,
         Phaser.CANVAS,
         'gameArea');
-    let step = function(game) {}
+
+    var step = function(game) {};
 
     step.prototype = {
         // load assets here if we wind up with any
@@ -61,12 +63,12 @@ window.onload = function() {
             game.stage.disableVisibilityChange = true;
         },
 
-        update:function() {},
-    }
+        update: function() {},
+    };
 
     game.state.add("step", step);
     game.state.start("step");
-}
+};
 
 /**
  * Takes information about a set of droplets and either
@@ -111,7 +113,7 @@ function add_drop(json) {
         volume: json.volume,
         info: json.info,
         destination: json.destination
-    }
+    };
     droplets[json.id] = drop;
 }
 
@@ -124,26 +126,34 @@ function add_drop(json) {
 function animate(data) {
     remove_drops(data);
     for (let json of data) {
-        if (droplets[json.id] == null) {
+        let drop = droplets[json.id];
+
+        if (drop == null) {
             add_drop(json);
         }
-        let tween = game.add.tween(droplets[json.id].sprite).to({ x: (json.location[1] * CELL_SIZE),
-            y: (json.location[0] * CELL_SIZE)  + 100}, 500 / droplets[json.id].diff);
-        droplets[json.id].last_added_tween.chain(tween);
-        if (droplets[json.id].last_run_tween == null) {
-            droplets[json.id].last_run_tween = tween;
+
+        let x = json.location[1] * CELL_SIZE;
+        let y = json.location[0] * CELL_SIZE + 100;
+        let tween = game.add.tween(drop.sprite)
+            .to({ x: x, y: y },
+                TWEEN_TIME / drop.diff,
+                Phaser.Easing.Quadratic.InOut);
+
+        drop.last_added_tween.chain(tween);
+        if (drop.last_run_tween == null) {
+            drop.last_run_tween = tween;
         }
-        if (droplets[json.id].last_added_tween == droplets[json.id].last_run_tween) {
+        if (drop.last_added_tween == drop.last_run_tween) {
             tween.start().onComplete.add(onComplete, {
-                'drop': droplets[json.id],
+                'drop': drop,
                 'tween': tween});
         } else {
             tween.onComplete.add(onComplete, {
-                'drop': droplets[json.id],
+                'drop': drop,
                 'tween': tween});
-            droplets[json.id].diff += 1;
+            drop.diff += 1;
         }
-        droplets[json.id].last_added_tween = tween;
+        drop.last_added_tween = tween;
     }
 }
 
@@ -157,7 +167,7 @@ function remove_drops(data) {
     for (let id of data) {
         new_ids.push(id.id);
     }
-    for (droplet of droplets) {
+    for (let droplet of droplets) {
         if (droplet != undefined) {
             if (new_ids.indexOf(droplet.id) == -1) {
                 if (droplets[droplet.id].diff == 1) {
