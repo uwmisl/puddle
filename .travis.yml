@@ -5,7 +5,7 @@ cache: pip
 
 install:
   - "pip install pipenv"
-  - "pipenv install --deploy --system --dev"
+  - "pipenv install --system --dev"
 
 script: pytest
 
