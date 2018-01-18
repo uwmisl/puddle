@@ -1,0 +1,6 @@
+[package]
+name = "puddle"
+version = "0.1.0"
+authors = ["Max Willsey <me@mwillsey.com>"]
+
+[dependencies]
