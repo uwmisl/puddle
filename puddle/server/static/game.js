@@ -16,9 +16,9 @@ const Y_OFFSET = 100; // downward offset to leave room for 'step' btn
  */
 window.onload = function() {
     game = new Phaser.Game(
-        window.innerWidth * window.devicePixelRatio, 
-        window.innerHeight * window.devicePixelRatio, 
-        Phaser.CANVAS, 
+        window.innerWidth * window.devicePixelRatio,
+        window.innerHeight * window.devicePixelRatio,
+        Phaser.CANVAS,
         'gameArea');
     let step = function(game) {}
 
@@ -27,12 +27,12 @@ window.onload = function() {
         preload: function() {},
 
         create: function() {
-            
+
         this.game.onPause.add(function() {
                if (ready) {
-                    ready = false; 
+                    ready = false;
                     ready_pause = true;
-                }   
+                }
             }, this);
 
             this.game.onResume.add(function() {
@@ -40,81 +40,23 @@ window.onload = function() {
                     ready = true;
                     ready_pause = false;
                 }
-            }, this);            
+            }, this);
 
             game.stage.backgroundColor = "#ffffff";
             game.physics.startSystem(Phaser.Physics.ARCADE);
 
             fetch_data();
 
-            let button = new Phaser.Graphics(game)
-                .beginFill(0x00, .5)
-                .drawRoundedRect(10, 50, 100, 40, 10)
-                .endFill()
-                .generateTexture();
-
-            let button_hover = new Phaser.Graphics(game)
-                .beginFill(0x00, .8)
-                .drawRoundedRect(10, 50, 100, 40, 10)
-                .endFill()
-                .generateTexture();
-
-            let text = this.game.add.text(25, 8, "STEP",
-                {font: "20px Arial", fill: "#ffffff"});
-
-            this.step_button = this.add.image(0, 0, button);
-            this.step_button.addChild(text);
-
-            this.step_button.inputEnabled = true;
-            this.step_button.input.useHandCursor = true;
-
-            this.step_button.events.onInputDown.add(function() {
+            document.getElementById("step").onclick = function() {
                 fetch_data();
-            }, this);
+            }
 
-            this.step_button.events.onInputOver.add(function() {
-                this.step_button.setTexture(button_hover);
-            } , this);
-
-            this.step_button.events.onInputOut.add(function() {
-                this.step_button.setTexture(button);
-            } , this);
-
-            let box = new Phaser.Graphics(game)
-                .drawRect(10, 50, 100, 40)
-                .generateTexture();
-
-            // TODO: make these buttons a little nicer looking
-            let check_text = this.game.add.text(10, 8, "READY: [  ]",
-                {font: "20px Arial", fill: "#000000"});
-
-            let checked_text = this.game.add.text(93, 10, "",
-                            {font: "20px Arial", fill: "#000000"});
-
-            this.rapid_box = this.add.image(110, 0, box);
-            this.rapid_box.addChild(check_text);
-
-            this.rapid_box.inputEnabled = true;
-            this.rapid_box.input.useHandCursor = true;
-            this.rapid_box.addChild(checked_text);
-
-
-            this.rapid_box.events.onInputDown.add(function() {
-                if (!ready) {
-                    checked_text.text = "X";
-                    ready = true;
+            document.getElementById("ready").onclick = function() {
+                if (this.checked) {
                     run_animation();
-                } else {
-                    checked_text.text = "";
-                    ready = false;
                 }
-            }, this);
-
-            this.rapid_box.events.onInputOver.add(function() {
-            } , this);
-
-            this.rapid_box.events.onInputOut.add(function() {
-            } , this);
+                ready = this.checked;
+            }
 
             game.stage.disableVisibilityChange = true;
         },
@@ -155,7 +97,7 @@ function add_drop(json) {
         .drawCircle(CELL_SIZE / 2, CELL_SIZE / 2, CELL_SIZE)
         .endFill();
     let child = s.addChild(graphics);
-    game.add.tween(child).to({width: (Math.sqrt(json.volume) * CELL_SIZE), 
+    game.add.tween(child).to({width: (Math.sqrt(json.volume) * CELL_SIZE),
         height: (Math.sqrt(json.volume) * CELL_SIZE)}, 500).start();
     let tween = game.add.tween(s);
     let drop = {
@@ -185,7 +127,7 @@ function animate(data) {
         if (droplets[json.id] == null) {
             add_drop(json);
         }
-        let tween = game.add.tween(droplets[json.id].sprite).to({ x: (json.location[1] * CELL_SIZE), 
+        let tween = game.add.tween(droplets[json.id].sprite).to({ x: (json.location[1] * CELL_SIZE),
             y: (json.location[0] * CELL_SIZE)  + 100}, 500 / droplets[json.id].diff);
         droplets[json.id].last_added_tween.chain(tween);
         if (droplets[json.id].last_run_tween == null) {
@@ -193,11 +135,11 @@ function animate(data) {
         }
         if (droplets[json.id].last_added_tween == droplets[json.id].last_run_tween) {
             tween.start().onComplete.add(onComplete, {
-                'drop': droplets[json.id], 
+                'drop': droplets[json.id],
                 'tween': tween});
         } else {
             tween.onComplete.add(onComplete, {
-                'drop': droplets[json.id], 
+                'drop': droplets[json.id],
                 'tween': tween});
             droplets[json.id].diff += 1;
         }
@@ -226,7 +168,7 @@ function remove_drops(data) {
                 }
             }
         }
-    }    
+    }
 }
 
 /**
@@ -248,8 +190,8 @@ function onComplete() {
 /**
  * Begins execution whenever the 'ready' button is clicked
  * and runs continuously on a 500 ms interval until it's
- * clicked again. 
- * TODO: Figure out how to prevent interval from continuing 
+ * clicked again.
+ * TODO: Figure out how to prevent interval from continuing
  * once GET runs out of data to fetch.
  */
 function run_animation() {
