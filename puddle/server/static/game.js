@@ -1,6 +1,7 @@
 let fetch_data = null;
 let game;
 let droplets = [];
+let drops_to_add = [];
 
 let ready = false;
 
@@ -85,8 +86,6 @@ function add_drop(json) {
         .drawCircle(CELL_SIZE / 2, CELL_SIZE / 2, Math.sqrt(json.volume) * CELL_SIZE)
         .endFill();
     let child = s.addChild(graphics);
-    game.add.tween(child).to({width: (Math.sqrt(json.volume) * CELL_SIZE),
-        height: (Math.sqrt(json.volume) * CELL_SIZE)}, 500).start();
     let tween = game.add.tween(s);
     let drop = {
         sprite: s,
@@ -115,31 +114,33 @@ function animate(data) {
         let drop = droplets[json.id];
 
         if (drop == null) {
-            add_drop(json);
-        }
-
-        let x = json.location[1] * CELL_SIZE;
-        let y = json.location[0] * CELL_SIZE + Y_OFFSET;
-        let tween = game.add.tween(drop.sprite)
-            .to({ x: x, y: y },
-                TWEEN_TIME / drop.diff,
-                Phaser.Easing.Quadratic.InOut);
-
-        drop.last_added_tween.chain(tween);
-        if (drop.last_run_tween == null) {
-            drop.last_run_tween = tween;
-        }
-        if (drop.last_added_tween == drop.last_run_tween) {
-            tween.start().onComplete.add(onComplete, {
-                'drop': drop,
-                'tween': tween});
+            drops_to_add.push(json);
         } else {
-            tween.onComplete.add(onComplete, {
-                'drop': drop,
-                'tween': tween});
-            drop.diff += 1;
+
+            let x = json.location[1] * CELL_SIZE;
+            let y = json.location[0] * CELL_SIZE + Y_OFFSET;
+            let tween = game.add.tween(drop.sprite)
+                .to({ x: x, y: y },
+                    TWEEN_TIME / drop.diff,
+                    Phaser.Easing.Quadratic.InOut);
+
+            drop.last_added_tween.chain(tween);
+            if (drop.last_run_tween == null) {
+                drop.last_run_tween = tween;
+            }
+            if (drop.last_added_tween == drop.last_run_tween) {
+                tween.start().onComplete.add(onComplete, {
+                    'drop': drop,
+                    'tween': tween});
+                add_drops();
+            } else {
+                tween.onComplete.add(onComplete, {
+                    'drop': drop,
+                    'tween': tween});
+                drop.diff += 1;
+            }
+            drop.last_added_tween = tween;
         }
-        drop.last_added_tween = tween;
     }
 }
 
@@ -174,6 +175,7 @@ function remove_drops(data) {
  */
 function onComplete() {
     this.drop.last_run_tween = this.tween;
+    add_drops();
     if (this.drop.diff > 1) {
         this.drop.diff--;
     } else if (this.drop.to_delete) {
@@ -181,6 +183,17 @@ function onComplete() {
         this.drop.to_delete = false;
         this.drop.deleted = true;
     }
+}
+
+/**
+ * Function to add a group of drops, specifically
+ * after an animation frame has completed.
+ */
+function add_drops() {
+    for (let json of drops_to_add) {
+        add_drop(json);
+    }
+    drops_to_add.length = 0;
 }
 
 /**
