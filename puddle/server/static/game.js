@@ -6,6 +6,8 @@ let ready = false;
 
 const CELL_SIZE = 50;
 const TWEEN_TIME = 200; // in millisec
+// TODO: remove when volume is no longer used
+const Y_OFFSET = 50; // downward offset to leave room for volume droplets
 
 /**
  * Loads all of the necessary Phaser stuff and initializes
@@ -77,7 +79,7 @@ function parse_data(data) {
  */
 function add_drop(json) {
     console.log(`creating`, json);
-    let s = game.add.sprite((json.location[1] * CELL_SIZE), (json.location[0] * CELL_SIZE));
+    let s = game.add.sprite((json.location[1] * CELL_SIZE), (json.location[0] * CELL_SIZE) + Y_OFFSET);
     let graphics = game.add.graphics(0, 0);
     graphics.beginFill(0x006699)
         .drawCircle(CELL_SIZE / 2, CELL_SIZE / 2, Math.sqrt(json.volume) * CELL_SIZE)
@@ -117,7 +119,7 @@ function animate(data) {
         }
 
         let x = json.location[1] * CELL_SIZE;
-        let y = json.location[0] * CELL_SIZE;
+        let y = json.location[0] * CELL_SIZE + Y_OFFSET;
         let tween = game.add.tween(drop.sprite)
             .to({ x: x, y: y },
                 TWEEN_TIME / drop.diff,
