@@ -115,32 +115,31 @@ function animate(data) {
 
         if (drop == null) {
             drops_to_add.push(json);
-        } else {
-
-            let x = json.location[1] * CELL_SIZE;
-            let y = json.location[0] * CELL_SIZE + Y_OFFSET;
-            let tween = game.add.tween(drop.sprite)
-                .to({ x: x, y: y },
-                    TWEEN_TIME / drop.diff,
-                    Phaser.Easing.Quadratic.InOut);
-
-            drop.last_added_tween.chain(tween);
-            if (drop.last_run_tween == null) {
-                drop.last_run_tween = tween;
-            }
-            if (drop.last_added_tween == drop.last_run_tween) {
-                tween.start().onComplete.add(onComplete, {
-                    'drop': drop,
-                    'tween': tween});
-                add_drops();
-            } else {
-                tween.onComplete.add(onComplete, {
-                    'drop': drop,
-                    'tween': tween});
-                drop.diff += 1;
-            }
-            drop.last_added_tween = tween;
         }
+
+        let x = json.location[1] * CELL_SIZE;
+        let y = json.location[0] * CELL_SIZE + Y_OFFSET;
+        let tween = game.add.tween(drop.sprite)
+            .to({ x: x, y: y },
+                TWEEN_TIME / drop.diff,
+                Phaser.Easing.Quadratic.InOut);
+
+        drop.last_added_tween.chain(tween);
+        if (drop.last_run_tween == null) {
+            drop.last_run_tween = tween;
+        }
+        if (drop.last_added_tween == drop.last_run_tween) {
+            tween.start().onComplete.add(onComplete, {
+                'drop': drop,
+                'tween': tween});
+            add_drops();
+        } else {
+            tween.onComplete.add(onComplete, {
+                'drop': drop,
+                'tween': tween});
+            drop.diff += 1;
+        }
+        drop.last_added_tween = tween;
     }
 }
 
