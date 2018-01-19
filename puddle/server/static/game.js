@@ -117,7 +117,7 @@ function animate(data) {
         }
 
         let x = json.location[1] * CELL_SIZE;
-        let y = json.location[0] * CELL_SIZE + 100;
+        let y = json.location[0] * CELL_SIZE;
         let tween = game.add.tween(drop.sprite)
             .to({ x: x, y: y },
                 TWEEN_TIME / drop.diff,
