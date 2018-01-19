@@ -6,7 +6,6 @@ let ready = false;
 
 const CELL_SIZE = 50;
 const TWEEN_TIME = 200; // in millisec
-const Y_OFFSET = 100; // downward offset to leave room for 'step' btn
 
 /**
  * Loads all of the necessary Phaser stuff and initializes
@@ -78,7 +77,7 @@ function parse_data(data) {
  */
 function add_drop(json) {
     console.log(`creating`, json);
-    let s = game.add.sprite((json.location[1] * CELL_SIZE), (json.location[0] * CELL_SIZE) + Y_OFFSET);
+    let s = game.add.sprite((json.location[1] * CELL_SIZE), (json.location[0] * CELL_SIZE));
     let graphics = game.add.graphics(0, 0);
     graphics.beginFill(0x006699)
         .drawCircle(CELL_SIZE / 2, CELL_SIZE / 2, Math.sqrt(json.volume) * CELL_SIZE)
