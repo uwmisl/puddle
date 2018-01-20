@@ -129,7 +129,6 @@ pub fn route_one(droplet: &Droplet, arch: &Architecture) -> Option<Path> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use util::pairs;
     use std::collections::HashSet;
 
     #[test]
@@ -155,8 +154,8 @@ mod tests {
         assert_eq!(droplet.location, path[0]);
         assert_eq!(droplet.destination, path[path.len() - 1]);
 
-        for (u, v) in pairs(path.iter()) {
-            assert!(u.distance_to(v) == 1)
+        for win in path.windows(2) {
+            assert!(win[0].distance_to(&win[1]) == 1)
         }
     }
 }
