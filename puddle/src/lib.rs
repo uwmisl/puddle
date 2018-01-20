@@ -7,6 +7,11 @@ extern crate serde_yaml;
 #[cfg(test)]
 extern crate glob;
 
+#[cfg(test)]
+#[macro_use]
+extern crate proptest;
+
+
 mod minheap;
 mod util;
 

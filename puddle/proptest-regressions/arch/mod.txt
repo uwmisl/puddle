@@ -1,0 +1,7 @@
+# Seeds for failure cases proptest has generated in the past. It is
+# automatically read and these particular cases re-run before any
+# novel cases are generated.
+#
+# It is recommended to check this file in to source control so that
+# everyone who runs the test benefits from these saved cases.
+xs 1759942278 440595453 2278164314 1754493824 # shrinks to ref grid = Grid { vec: [None, None, None, None, None], height: 1, width: 5 }

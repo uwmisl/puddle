@@ -47,7 +47,7 @@ impl<'a> Sub for &'a Location {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, Copy)]
+#[derive(Debug, PartialEq, Eq, Hash, Serialize, Deserialize, Clone, Copy)]
 pub struct Cell {
     pin: u32,
 }
@@ -139,11 +139,16 @@ impl Grid {
         }
     }
 
-    fn locations<'a>(&'a self) -> Box<Iterator<Item = (Location, Cell)> + 'a> {
+    fn locations<'a>(&'a self) -> Box<Iterator<Item = Location> + 'a> {
         // TODO this is a little ugly, maybe a custom iterator could be better
         let size = self.vec.len();
         let iter = (0..size)
-            .map(move |i| Location::from_index(i as u32, self.width))
+            .map(move |i| Location::from_index(i as u32, self.width));
+        Box::new(iter)
+    }
+
+    fn locations_with_cells<'a>(&'a self) -> Box<Iterator<Item = (Location, Cell)> + 'a> {
+        let iter = self.locations()
             .filter_map(move |loc| {
                 self.get_cell(&loc)
                     .map(|cell| (loc, *cell))
@@ -155,7 +160,7 @@ impl Grid {
     /// Tests if this grid is compatible within `bigger` when `offset` is applied
     /// to `self`
     fn is_compatible_within(&self, offset: Location, bigger: &Self) -> bool {
-        self.locations()
+        self.locations_with_cells()
             .all(|(loc, my_cell)| {
                 let their_loc = &loc + &offset;
                 bigger.get_cell(&their_loc)
@@ -171,7 +176,7 @@ impl Grid {
 
         let mut map = HashMap::new();
 
-        for (loc, _) in self.locations() {
+        for (loc, _) in self.locations_with_cells() {
             map.insert(loc, &loc + &offset);
         }
 
@@ -180,7 +185,6 @@ impl Grid {
 
     fn place(&self, smaller: &Self) -> Option<HashMap<Location, Location>> {
         self.locations()
-            .map(|(loc, _)| loc)
             .find(|&offset| smaller.is_compatible_within(offset, self))
             .map(|offset| smaller.mapping_into_other_from_offset(offset, self))
     }
@@ -242,5 +246,76 @@ pub struct Architecture {
 
 #[cfg(test)]
 mod tests {
+
+    use super::*;
+
+    use proptest::prelude::*;
+    use proptest::collection::vec;
+    use proptest::option::weighted;
+
+    use std::iter::FromIterator;
+
+    prop_compose! {
+        fn arb_cell()(pin in prop::num::u32::ANY) -> Cell {
+            Cell { pin: pin }
+        }
+    }
+
+    prop_compose! {
+        fn arb_grid (max_size: usize)
+            (v in vec(weighted(0.9, arb_cell()), (5..max_size)))
+            (h in 1..v.len(), v in Just(v))
+             -> Grid
+        {
+            let height = h as u32;
+            let width = v.len() as u32 / height;
+            Grid {
+                vec: v,
+                height: height,
+                width: width
+            }
+        }
+    }
+
+    #[test]
+    fn grid_self_place_small() {
+
+        let cell = Some(Cell {pin:0});
+        let grid = Grid {
+            vec: vec![None, None, None, None, None],
+            height: 1,
+            width: 5
+        };
+
+        let map = grid.place(&grid).unwrap();
+    }
+
+    proptest! {
+        #[test]
+        fn grid_self_compatible(ref grid in arb_grid(100)) {
+            let zero = Location {x: 0, y: 0};
+            prop_assert!(grid.is_compatible_within(zero, &grid))
+        }
+
+        #[test]
+        fn grid_self_place(ref grid in arb_grid(100)) {
+            let num_cells = grid.locations_with_cells().count();
+            prop_assume!( num_cells > 5 );
+
+            let map = grid.place(&grid).unwrap();
+
+
+            let my_locs: HashSet<Location> = HashSet::from_iter(
+                grid.locations_with_cells()
+                    .map(|(loc, _)| loc)
+            );
+            let k_locs: HashSet<Location> = HashSet::from_iter(map.keys().cloned());
+            let v_locs = HashSet::from_iter(map.values().cloned());
+
+            prop_assert_eq!(&my_locs, &k_locs);
+            prop_assert_eq!(&my_locs, &v_locs);
+
+        }
+    }
 
 }
