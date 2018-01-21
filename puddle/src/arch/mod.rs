@@ -59,11 +59,11 @@ impl Cell {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Grid {
-    vec: Vec<Option<Cell>>,
-    height: u32,
-    width: u32,
+    pub vec: Vec<Option<Cell>>,
+    pub height: u32,
+    pub width: u32,
 }
 
 #[cfg_attr(rustfmt, rustfmt_skip)]
@@ -147,7 +147,7 @@ impl Grid {
         Box::new(iter)
     }
 
-    fn locations_with_cells<'a>(&'a self) -> Box<Iterator<Item = (Location, Cell)> + 'a> {
+    pub fn locations_with_cells<'a>(&'a self) -> Box<Iterator<Item = (Location, Cell)> + 'a> {
         let iter = self.locations()
             .filter_map(move |loc| {
                 self.get_cell(&loc)
@@ -207,7 +207,7 @@ impl Grid {
 
     pub fn get_cell(&self, loc: &Location) -> Option<&Cell> {
         let w = self.width as i32;
-        if loc.x < 0 || loc.y < 0 {
+        if loc.x < 0 || loc.y < 0 || loc.x >= w {
             return None;
         }
         let i = (loc.y * w + loc.x) as usize;
@@ -231,6 +231,44 @@ impl Grid {
     }
 }
 
+
+#[cfg(test)]
+impl Grid {
+
+    pub fn is_connected(&self) -> bool {
+
+        let first = self.locations_with_cells().next();
+
+        if first.is_none() {
+            // no cells, it's vacuously connected
+            return true
+        }
+
+        let mut todo = vec![ first.unwrap().0 ];
+        let mut seen = HashSet::new();
+
+        while let Some(loc) = todo.pop() {
+            // insert returns false if it was already there
+            if seen.insert(loc) {
+                for next in self.neighbors(&loc) {
+                    if !seen.contains(&next) {
+                        todo.push(next)
+                    }
+                }
+            }
+        }
+
+        let s = seen.len();
+        let t = self.locations_with_cells().count();
+
+        for x in seen.iter() {
+            assert!(self.get_cell(x).is_some())
+        }
+        s == t
+    }
+
+}
+
 #[derive(PartialEq, Eq, Hash, Debug)]
 pub struct Droplet {
     pub location: Location,
@@ -245,7 +283,7 @@ pub struct Architecture {
 
 
 #[cfg(test)]
-mod tests {
+pub mod tests {
 
     use super::*;
 
@@ -255,6 +293,31 @@ mod tests {
 
     use std::iter::FromIterator;
 
+    #[test]
+    fn test_connected () {
+
+        let cell = Some(Cell{ pin: 0 });
+        let grid1 = Grid {
+            width: 2,
+            height: 2,
+            vec: vec![
+                None, cell,
+                cell, None
+            ]
+        };
+        let grid2 = Grid {
+            width: 2,
+            height: 2,
+            vec: vec![
+                cell, cell,
+                None, None
+            ]
+        };
+
+        assert!(!grid1.is_connected());
+        assert!(grid2.is_connected())
+    }
+
     prop_compose! {
         fn arb_cell()(pin in prop::num::u32::ANY) -> Cell {
             Cell { pin: pin }
@@ -262,13 +325,26 @@ mod tests {
     }
 
     prop_compose! {
-        fn arb_grid (max_size: usize)
-            (v in vec(weighted(0.9, arb_cell()), (5..max_size)))
-            (h in 1..v.len(), v in Just(v))
+        [pub] fn arb_location(grid: Grid)
+            (i in (0..grid.vec.len()), w in Just(grid.width))
+            -> Location {
+            Location::from_index(i as u32, w)
+        }
+    }
+
+    prop_compose! {
+        [pub] fn arb_grid (min_size: usize, max_size: usize, density: f64)
+            (v in vec(weighted(density, arb_cell()), (min_size..max_size)))
+            (h in 1..v.len()+1, mut v in Just(v))
              -> Grid
         {
             let height = h as u32;
-            let width = v.len() as u32 / height;
+            let width = 1 + (v.len() as u32 / height);
+
+            while (v.len() as u32) < (height * width) {
+                v.push(None);
+            }
+
             Grid {
                 vec: v,
                 height: height,
@@ -277,28 +353,15 @@ mod tests {
         }
     }
 
-    #[test]
-    fn grid_self_place_small() {
-
-        let cell = Some(Cell {pin:0});
-        let grid = Grid {
-            vec: vec![None, None, None, None, None],
-            height: 1,
-            width: 5
-        };
-
-        let map = grid.place(&grid).unwrap();
-    }
-
     proptest! {
         #[test]
-        fn grid_self_compatible(ref grid in arb_grid(100)) {
+        fn grid_self_compatible(ref grid in arb_grid(1, 100, 0.5)) {
             let zero = Location {x: 0, y: 0};
             prop_assert!(grid.is_compatible_within(zero, &grid))
         }
 
         #[test]
-        fn grid_self_place(ref grid in arb_grid(100)) {
+        fn grid_self_place(ref grid in arb_grid(1, 100, 0.5)) {
             let num_cells = grid.locations_with_cells().count();
             prop_assume!( num_cells > 5 );
 

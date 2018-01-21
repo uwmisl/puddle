@@ -47,7 +47,6 @@ impl Node {
             time: self.time + 1,
         }));
 
-        // println!("Expanding vec: {:?}", vec);
         vec
     }
 }
@@ -82,8 +81,6 @@ pub fn route_one(droplet: &Droplet, arch: &Architecture) -> Option<Path> {
             continue;
         }
 
-        println!("Popping: {:?}, {:?}", node, est_cost);
-
         // node must be in best_so_far because it was inserted when we put it in
         // the minheap
         let node_cost: Cost = *best_so_far.get(&node).unwrap();
@@ -98,7 +95,6 @@ pub fn route_one(droplet: &Droplet, arch: &Architecture) -> Option<Path> {
 
             match best_so_far.entry(next) {
                 Occupied(entry) => {
-                    // println!("FOUND IN MAP");
                     let old_cost = *entry.get();
                     if next_cost < old_cost {
                         *entry.into_mut() = next_cost;
@@ -114,10 +110,6 @@ pub fn route_one(droplet: &Droplet, arch: &Architecture) -> Option<Path> {
             };
 
             let next_cost_est = next_cost + heuristic(next);
-            println!("  Pushing: {:?}, {:?}, h{:?}",
-                     next,
-                     next_cost_est,
-                     heuristic(next));
             todo.push(next_cost_est, next)
         }
 
@@ -131,31 +123,46 @@ mod tests {
     use super::*;
     use std::collections::HashSet;
 
-    #[test]
-    fn it_works() {
-        let grid = Grid::rectangle(10, 10);
-        let arch = Architecture {
-            grid: grid,
-            droplets: HashSet::new(),
-        };
+    use proptest::prelude::*;
+    use proptest::sample::select;
+    use proptest::collection::vec;
+    use proptest::option::weighted;
 
-        let start = Location { y: 5, x: 0 };
-        let end = Location { y: 9, x: 9 };
+    use arch::tests::{arb_grid, arb_location};
 
-        let droplet = Droplet {
-            location: start,
-            destination: end,
-        };
+    fn locs_from_grid(grid: Grid) -> BoxedStrategy<(Grid, Location, Location)> {
+        let locs: Vec<Location> = grid.locations_with_cells()
+            .map(|(loc, _)| loc)
+            .collect();
+        let strat = (Just(grid), select(locs.clone()), select(locs));
+        strat.boxed()
+    }
 
-        let path = route_one(&droplet, &arch).unwrap();
+    proptest! {
 
-        println!("{:?}", path);
+        #[test]
+        fn route_on_connected(ref input in
+                    arb_grid(5, 10, 0.95).prop_flat_map(locs_from_grid)) {
 
-        assert_eq!(droplet.location, path[0]);
-        assert_eq!(droplet.destination, path[path.len() - 1]);
+            let (grid, start, end) = input.clone();
 
-        for win in path.windows(2) {
-            assert!(win[0].distance_to(&win[1]) == 1)
+            prop_assume!(grid.is_connected());
+
+            let arch = Architecture {
+                grid: grid.clone(),
+                droplets: HashSet::new(),
+            };
+
+            let droplet = Droplet {
+                location: start,
+                destination: end,
+            };
+
+            let path = route_one(&droplet, &arch).unwrap();
+
+            for win in path.windows(2) {
+                assert!(win[0].distance_to(&win[1]) == 1)
+            }
         }
     }
 }

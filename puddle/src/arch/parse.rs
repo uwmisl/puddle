@@ -58,8 +58,6 @@ mod tests {
     #[test]
     fn test_parse() {
         let grid = ParsedGrid::from_yaml_string("board: [[a, a, a], [a, a, a]]");
-
-        println!("{:?}", grid);
     }
 
     #[test]
@@ -71,8 +69,6 @@ mod tests {
                 vec![ Marked(Auto), Marked(Auto), Marked(Auto) ],
             ],
         };
-
-        println!("{}", ParsedGrid::to_yaml_string(&grid).unwrap());
     }
 
     fn check_round_trip(grid: ParsedGrid) {
@@ -85,7 +81,6 @@ mod tests {
     fn test_parse_files() {
         for entry in glob("../tests/arches/**/*.yaml").unwrap() {
             let path = entry.unwrap();
-            println!("Parsing file {}", path.to_str().unwrap());
             let reader = File::open(path).expect("file not found");
             let grid = ParsedGrid::from_yaml_reader(reader).unwrap();
             check_round_trip(grid);
