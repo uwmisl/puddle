@@ -52,7 +52,7 @@ impl Node {
 }
 
 
-pub fn route_one(droplet: &Droplet, arch: &Architecture) -> Option<Path> {
+pub fn route_one(droplet: &Droplet, grid: &Grid) -> Option<Path> {
     let mut todo: MinHeap<Cost, Node> = MinHeap::new();
     let mut best_so_far: HashMap<Node, Cost> = HashMap::new();
     let mut came_from: HashMap<Node, Node> = HashMap::new();
@@ -85,7 +85,7 @@ pub fn route_one(droplet: &Droplet, arch: &Architecture) -> Option<Path> {
         // the minheap
         let node_cost: Cost = *best_so_far.get(&node).unwrap();
 
-        for (edge_cost, next) in node.expand(&arch.grid) {
+        for (edge_cost, next) in node.expand(&grid) {
 
             if done.contains(&next) {
                 continue;
@@ -138,31 +138,32 @@ mod tests {
         strat.boxed()
     }
 
+
+    /// assumes grid is routable
+    fn check_contiguous_route(grid: Grid, start: Location, end: Location) {
+        let droplet = Droplet {
+            location: start,
+            destination: Some(end),
+        };
+
+        let path = route_one(&droplet, &grid).unwrap();
+
+        for win in path.windows(2) {
+            assert!(win[0].distance_to(&win[1]) == 1)
+        }
+    }
+
     proptest! {
 
         #[test]
-        fn route_on_connected(ref input in
-                    arb_grid(5, 10, 0.95).prop_flat_map(locs_from_grid)) {
+        fn route_on_connected(ref input in arb_grid(5, 10, 0.95)
+                                           .prop_flat_map(locs_from_grid)) {
 
             let (grid, start, end) = input.clone();
 
             prop_assume!(grid.is_connected());
+            check_contiguous_route(grid.clone(), start, end)
 
-            let arch = Architecture {
-                grid: grid.clone(),
-                droplets: HashSet::new(),
-            };
-
-            let droplet = Droplet {
-                location: start,
-                destination: end,
-            };
-
-            let path = route_one(&droplet, &arch).unwrap();
-
-            for win in path.windows(2) {
-                assert!(win[0].distance_to(&win[1]) == 1)
-            }
         }
     }
 }
