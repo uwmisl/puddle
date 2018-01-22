@@ -3,10 +3,10 @@ use std::collections::{HashSet, HashMap};
 use std::collections::hash_map::Entry::{Occupied, Vacant};
 
 use minheap::MinHeap;
-use arch::{Location, Grid, Droplet, Architecture};
+use arch::{Location, Grid, Droplet, DropletId, Architecture};
 
 
-type Path = Vec<Location>;
+pub type Path = Vec<Location>;
 
 fn build_path(mut came_from: HashMap<Node, Node>, end_node: Node) -> Path {
     let mut path = Vec::new();
@@ -27,10 +27,77 @@ struct Node {
 }
 
 type Cost = u32;
+type NextVec = Vec<(Cost, Node)>;
+
+#[derive(Default)]
+struct AvoidanceSet {
+    max_time: u32,
+    set: HashSet<Node>,
+    finals: HashMap<Location, u32>
+}
+
+impl AvoidanceSet {
+    fn filter(&self, vec: NextVec) -> NextVec {
+        vec.into_iter()
+            .filter(|&(_cost, node)|
+                    !self.set.contains(&node) &&
+                    !self.collides_with_final(&node))
+            .collect()
+    }
+
+    fn collides_with_final(&self, node: &Node) -> bool {
+        self.finals
+            .get(&node.location)
+            .map_or(false, |&final_t|
+                    node.time >= final_t)
+    }
+
+    fn would_finally_collide(&self, node: &Node) -> bool {
+        (node.time..self.max_time)
+            .map(|t| Node {time: t, location: node.location})
+            .any(|future_node| self.set.contains(&future_node))
+    }
+
+    fn avoid_path(&mut self, path: &Path, grid: &Grid) {
+        let node_path = path.clone().into_iter()
+            .enumerate()
+            .map(|(i, loc)| {
+                Node {
+                    time: i as u32,
+                    location: loc,
+                }
+            });
+        for node in node_path {
+            self.avoid_node(grid, node);
+        }
+
+        let last = path.len() - 1;
+        for loc in grid.neighbors9(&path[last]) {
+            self.finals.insert(loc, last as u32);
+        }
+
+        self.max_time = self.max_time.max(last as u32)
+    }
+
+    fn avoid_node(&mut self, grid: &Grid, node: Node) {
+        for loc in grid.neighbors9(&node.location) {
+            for t in -1..2 {
+                let time = (node.time as i32) + t;
+                if time < 0 {
+                    continue;
+                }
+                self.set.insert(Node {
+                    location: loc,
+                    time: time as u32,
+                });
+            }
+        }
+    }
+}
 
 impl Node {
-    fn expand(&self, grid: &Grid) -> Vec<(Cost, Node)> {
-        let mut vec: Vec<(u32, Node)> = grid.neighbors(&self.location)
+    fn expand(&self, grid: &Grid) -> NextVec {
+        let mut vec: Vec<(u32, Node)> = grid.neighbors4(&self.location)
             .iter()
             .map(|&location| {
                 (1,
@@ -52,7 +119,42 @@ impl Node {
 }
 
 
-pub fn route_one(droplet: &Droplet, grid: &Grid) -> Option<Path> {
+pub fn route(arch: &Architecture) -> Option<HashMap<DropletId, Path>> {
+    let mut av_set = AvoidanceSet::default();
+    let grid = &arch.grid;
+    let num_cells = arch.grid.locations_with_cells().count() as u32;
+
+    let mut paths = HashMap::new();
+    let mut max_t = 0;
+
+    for (&id, droplet) in arch.droplets.iter() {
+        let result = route_one(
+            droplet,
+            num_cells + max_t,
+            |node| av_set.filter(node.expand(grid)),
+            |node| node.location == droplet.destination.unwrap() && !av_set.would_finally_collide(node)
+        );
+        let path = match result {
+            None => return None,
+            Some(path) => path,
+        };
+
+        av_set.avoid_path(&path, grid);
+        paths.insert(id, path);
+    }
+
+    Some(paths)
+}
+
+
+fn route_one<FNext, FDone>(droplet: &Droplet,
+                           max_time: u32,
+                           mut next_fn: FNext,
+                           mut done_fn: FDone,
+) -> Option<Path>
+where FNext: FnMut(&Node) -> NextVec,
+      FDone: FnMut(&Node) -> bool
+{
     let mut todo: MinHeap<Cost, Node> = MinHeap::new();
     let mut best_so_far: HashMap<Node, Cost> = HashMap::new();
     let mut came_from: HashMap<Node, Node> = HashMap::new();
@@ -66,18 +168,20 @@ pub fn route_one(droplet: &Droplet, grid: &Grid) -> Option<Path> {
     todo.push(0, start_node);
     best_so_far.insert(start_node, 0);
 
+    let dest = droplet.destination.unwrap();
+
     // use manhattan distance from goal as the heuristic
-    let heuristic = |node: Node| -> u32 { droplet.destination.distance_to(&node.location) };
+    let heuristic = |node: Node| -> u32 { dest.distance_to(&node.location) };
 
-    while let Some((est_cost, node)) = todo.pop() {
+    while let Some((_, node)) = todo.pop() {
 
-        if node.location == droplet.destination {
+        if done_fn(&node) {
             let path = build_path(came_from, node);
             return Some(path);
         }
 
         // insert returns false if value was already there
-        if !done.insert(node) {
+        if !done.insert(node) || node.time > max_time {
             continue;
         }
 
@@ -85,7 +189,7 @@ pub fn route_one(droplet: &Droplet, grid: &Grid) -> Option<Path> {
         // the minheap
         let node_cost: Cost = *best_so_far.get(&node).unwrap();
 
-        for (edge_cost, next) in node.expand(&grid) {
+        for (edge_cost, next) in next_fn(&node) {
 
             if done.contains(&next) {
                 continue;
@@ -119,51 +223,68 @@ pub fn route_one(droplet: &Droplet, grid: &Grid) -> Option<Path> {
 }
 
 #[cfg(test)]
-mod tests {
+pub mod tests {
     use super::*;
-    use std::collections::HashSet;
 
     use proptest::prelude::*;
     use proptest::sample::select;
-    use proptest::collection::vec;
-    use proptest::option::weighted;
 
-    use arch::tests::{arb_grid, arb_location};
+    use arch::tests::*;
 
-    fn locs_from_grid(grid: Grid) -> BoxedStrategy<(Grid, Location, Location)> {
-        let locs: Vec<Location> = grid.locations_with_cells()
-            .map(|(loc, _)| loc)
-            .collect();
-        let strat = (Just(grid), select(locs.clone()), select(locs));
-        strat.boxed()
+    pub fn check_path_on_grid(droplet: &Droplet, path: &Path, grid: &Grid) {
+        assert_eq!(droplet.location, path[0]);
+        let dest = droplet.destination.unwrap();
+        assert_eq!(dest, path[path.len() - 1]);
+        for win in path.windows(2) {
+            assert!(grid.get_cell(&win[0]).is_some());
+            assert!(grid.get_cell(&win[1]).is_some());
+            assert!(win[0].distance_to(&win[1]) <= 1);
+        }
     }
 
-
-    /// assumes grid is routable
-    fn check_contiguous_route(grid: Grid, start: Location, end: Location) {
-        let droplet = Droplet {
-            location: start,
-            destination: Some(end),
-        };
-
-        let path = route_one(&droplet, &grid).unwrap();
-
-        for win in path.windows(2) {
-            assert!(win[0].distance_to(&win[1]) == 1)
-        }
+    fn uncrowded_arch_from_grid(grid: Grid) -> BoxedStrategy<Architecture> {
+        let max_dim = grid.height.min(grid.width) / 2;
+        let max_droplets = (max_dim as usize).max(1);
+        arb_arch_from_grid(grid, 0..max_droplets)
     }
 
     proptest! {
 
         #[test]
-        fn route_on_connected(ref input in arb_grid(5, 10, 0.95)
-                                           .prop_flat_map(locs_from_grid)) {
+        fn route_one_connected(
+            ref arch in arb_grid(5, 100, 0.95)
+                .prop_filter("not connected", |ref g| g.is_connected())
+                .prop_flat_map(move |g| arb_arch_from_grid(g, 1..2)))
+        {
+            let droplet = arch.droplets.values().next().unwrap();
+            let num_cells = arch.grid.locations_with_cells().count() as u32;
 
-            let (grid, start, end) = input.clone();
+            let path = route_one(
+                &droplet,
+                num_cells,
+                |node| node.expand(&arch.grid),
+                |node| node.location == droplet.destination.unwrap()
+            )
+                .unwrap();
+            check_path_on_grid(&droplet, &path, &arch.grid)
+        }
 
-            prop_assume!(grid.is_connected());
-            check_contiguous_route(grid.clone(), start, end)
-
+        #[test]
+        fn route_connected(
+            ref rarch in arb_grid(1, 100, 0.95)
+                .prop_filter("not connected", |ref g| g.is_connected())
+                .prop_flat_map(uncrowded_arch_from_grid)
+                .prop_filter("starting collision",
+                             |ref a| a.get_collision().is_none())
+                .prop_filter("ending collision",
+                             |ref a| a.get_destination_collision().is_none())
+        )
+        {
+            let mut arch = rarch.clone();
+            prop_assume!(route(&arch).is_some());
+            let paths = route(&arch).unwrap();
+            prop_assert_eq!(paths.len(), arch.droplets.len());
+            arch.take_paths(paths)
         }
     }
 }
