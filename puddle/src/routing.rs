@@ -3,7 +3,8 @@ use std::collections::{HashSet, HashMap};
 use std::collections::hash_map::Entry::{Occupied, Vacant};
 
 use minheap::MinHeap;
-use arch::{Location, Grid, Droplet, DropletId, Architecture};
+use arch::{Location, Droplet, DropletId, Architecture};
+use arch::grid::Grid;
 
 
 pub type Path = Vec<Location>;
@@ -118,32 +119,37 @@ impl Node {
     }
 }
 
+impl Architecture {
 
-pub fn route(arch: &Architecture) -> Option<HashMap<DropletId, Path>> {
-    let mut av_set = AvoidanceSet::default();
-    let grid = &arch.grid;
-    let num_cells = arch.grid.locations_with_cells().count() as u32;
+    pub fn route(&self) -> Option<HashMap<DropletId, Path>> {
+        let mut av_set = AvoidanceSet::default();
+        let grid = &self.grid;
+        let num_cells = self.grid.locations_with_cells().count() as u32;
 
-    let mut paths = HashMap::new();
-    let mut max_t = 0;
+        let mut paths = HashMap::new();
+        let mut max_t = 0;
 
-    for (&id, droplet) in arch.droplets.iter() {
-        let result = route_one(
-            droplet,
-            num_cells + max_t,
-            |node| av_set.filter(node.expand(grid)),
-            |node| node.location == droplet.destination.unwrap() && !av_set.would_finally_collide(node)
-        );
-        let path = match result {
-            None => return None,
-            Some(path) => path,
-        };
+        for (&id, droplet) in self.droplets.iter() {
+            let result = route_one(
+                droplet,
+                num_cells + max_t,
+                |node| av_set.filter(node.expand(grid)),
+                |node| node.location == droplet.destination.unwrap()
+                    && !av_set.would_finally_collide(node)
+            );
+            let path = match result {
+                None => return None,
+                Some(path) => path,
+            };
 
-        av_set.avoid_path(&path, grid);
-        paths.insert(id, path);
+            max_t = max_t.max(path.len() as u32);
+
+            av_set.avoid_path(&path, grid);
+            paths.insert(id, path);
+        }
+
+        Some(paths)
     }
-
-    Some(paths)
 }
 
 
@@ -227,9 +233,9 @@ pub mod tests {
     use super::*;
 
     use proptest::prelude::*;
-    use proptest::sample::select;
 
     use arch::tests::*;
+    use arch::grid::tests::*;
 
     pub fn check_path_on_grid(droplet: &Droplet, path: &Path, grid: &Grid) {
         assert_eq!(droplet.location, path[0]);
@@ -281,8 +287,8 @@ pub mod tests {
         )
         {
             let mut arch = rarch.clone();
-            prop_assume!(route(&arch).is_some());
-            let paths = route(&arch).unwrap();
+            prop_assume!(arch.route().is_some());
+            let paths = arch.route().unwrap();
             prop_assert_eq!(paths.len(), arch.droplets.len());
             arch.take_paths(paths)
         }
