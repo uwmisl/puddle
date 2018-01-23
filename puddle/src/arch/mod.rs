@@ -123,6 +123,9 @@ impl Architecture {
                 if id1 == id2 {
                     continue;
                 }
+                if droplet1.collision_group == droplet2.collision_group {
+                    continue;
+                }
 
                 let collide = self.grid.neighbors9(&droplet1.location)
                     .into_iter()
@@ -142,6 +145,9 @@ impl Architecture {
         for (id1, droplet1) in self.droplets.iter() {
             for (id2, droplet2) in self.droplets.iter() {
                 if id1 == id2 {
+                    continue;
+                }
+                if droplet1.collision_group == droplet2.collision_group {
                     continue;
                 }
 

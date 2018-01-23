@@ -24,73 +24,87 @@ fn build_path(mut came_from: HashMap<Node, Node>, end_node: Node) -> Path {
 #[derive(PartialEq, Eq, PartialOrd, Ord, Hash, Clone, Copy, Debug)]
 struct Node {
     location: Location,
-    time: u32,
+    time: Time,
 }
 
+type CollisionGroup = usize;
+type Time = u32;
 type Cost = u32;
 type NextVec = Vec<(Cost, Node)>;
 
 #[derive(Default)]
 struct AvoidanceSet {
-    max_time: u32,
-    set: HashSet<Node>,
-    finals: HashMap<Location, u32>
+    max_time: Time,
+    present: HashMap<Node, CollisionGroup>,
+    finals: HashMap<Location, (Time, CollisionGroup)>
 }
 
 impl AvoidanceSet {
-    fn filter(&self, vec: NextVec) -> NextVec {
+    fn filter(&self, vec: NextVec, cg: CollisionGroup) -> NextVec {
         vec.into_iter()
             .filter(|&(_cost, node)|
-                    !self.set.contains(&node) &&
-                    !self.collides_with_final(&node))
+                    // make sure that it's either not in the map, or it's the
+                    // same as the collision group that's there
+                    !self.collides(&node, cg)
+                    && !self.collides_with_final(&node, cg))
             .collect()
     }
 
-    fn collides_with_final(&self, node: &Node) -> bool {
+    fn collides(&self, node: &Node, cg: CollisionGroup) -> bool {
+        // if not present, no collision
+        // if present, collision iff cg not the same
+        self.present
+            .get(&node)
+            .map_or(false, |cg2| *cg2 != cg)
+    }
+
+    fn collides_with_final(&self, node: &Node, cg: CollisionGroup) -> bool {
         self.finals
             .get(&node.location)
-            .map_or(false, |&final_t|
-                    node.time >= final_t)
+            .map_or(false, |&(final_t, final_cg)|
+                    node.time >= final_t
+                    && final_cg != cg
+            )
     }
 
-    fn would_finally_collide(&self, node: &Node) -> bool {
+    fn would_finally_collide(&self, node: &Node, cg: CollisionGroup) -> bool {
         (node.time..self.max_time)
             .map(|t| Node {time: t, location: node.location})
-            .any(|future_node| self.set.contains(&future_node))
+            .any(|future_node| self.collides(&future_node, cg))
     }
 
-    fn avoid_path(&mut self, path: &Path, grid: &Grid) {
+    fn avoid_path(&mut self, path: &Path, cg: CollisionGroup, grid: &Grid) {
         let node_path = path.clone().into_iter()
             .enumerate()
             .map(|(i, loc)| {
                 Node {
-                    time: i as u32,
+                    time: i as Time,
                     location: loc,
                 }
             });
         for node in node_path {
-            self.avoid_node(grid, node);
+            self.avoid_node(grid, node, cg);
         }
 
         let last = path.len() - 1;
         for loc in grid.neighbors9(&path[last]) {
-            self.finals.insert(loc, last as u32);
+            self.finals.insert(loc, (last as Time, cg));
         }
 
-        self.max_time = self.max_time.max(last as u32)
+        self.max_time = self.max_time.max(last as Time)
     }
 
-    fn avoid_node(&mut self, grid: &Grid, node: Node) {
+    fn avoid_node(&mut self, grid: &Grid, node: Node, cg: CollisionGroup) {
         for loc in grid.neighbors9(&node.location) {
             for t in -1..2 {
                 let time = (node.time as i32) + t;
                 if time < 0 {
                     continue;
                 }
-                self.set.insert(Node {
+                self.present.insert(Node {
                     location: loc,
-                    time: time as u32,
-                });
+                    time: time as Time,
+                }, cg);
             }
         }
     }
@@ -98,7 +112,7 @@ impl AvoidanceSet {
 
 impl Node {
     fn expand(&self, grid: &Grid) -> NextVec {
-        let mut vec: Vec<(u32, Node)> = grid.neighbors4(&self.location)
+        let mut vec: Vec<(Cost, Node)> = grid.neighbors4(&self.location)
             .iter()
             .map(|&location| {
                 (1,
@@ -124,27 +138,28 @@ impl Architecture {
     pub fn route(&self) -> Option<HashMap<DropletId, Path>> {
         let mut av_set = AvoidanceSet::default();
         let grid = &self.grid;
-        let num_cells = self.grid.locations_with_cells().count() as u32;
+        let num_cells = self.grid.locations_with_cells().count();
 
         let mut paths = HashMap::new();
         let mut max_t = 0;
 
         for (&id, droplet) in self.droplets.iter() {
+            let cg = droplet.collision_group;
             let result = route_one(
                 droplet,
-                num_cells + max_t,
-                |node| av_set.filter(node.expand(grid)),
+                num_cells as Time + max_t,
+                |node| av_set.filter(node.expand(grid), cg),
                 |node| node.location == droplet.destination.unwrap()
-                    && !av_set.would_finally_collide(node)
+                    && !av_set.would_finally_collide(node, cg)
             );
             let path = match result {
                 None => return None,
                 Some(path) => path,
             };
 
-            max_t = max_t.max(path.len() as u32);
+            max_t = max_t.max(path.len() as Time);
 
-            av_set.avoid_path(&path, grid);
+            av_set.avoid_path(&path, cg, grid);
             paths.insert(id, path);
         }
 
@@ -154,7 +169,7 @@ impl Architecture {
 
 
 fn route_one<FNext, FDone>(droplet: &Droplet,
-                           max_time: u32,
+                           max_time: Time,
                            mut next_fn: FNext,
                            mut done_fn: FDone,
 ) -> Option<Path>
@@ -177,7 +192,7 @@ where FNext: FnMut(&Node) -> NextVec,
     let dest = droplet.destination.unwrap();
 
     // use manhattan distance from goal as the heuristic
-    let heuristic = |node: Node| -> u32 { dest.distance_to(&node.location) };
+    let heuristic = |node: Node| -> Cost { dest.distance_to(&node.location) };
 
     while let Some((_, node)) = todo.pop() {
 
@@ -263,11 +278,11 @@ pub mod tests {
                 .prop_flat_map(move |g| arb_arch_from_grid(g, 1..2)))
         {
             let droplet = arch.droplets.values().next().unwrap();
-            let num_cells = arch.grid.locations_with_cells().count() as u32;
+            let num_cells = arch.grid.locations_with_cells().count();
 
             let path = route_one(
                 &droplet,
-                num_cells,
+                num_cells as Time,
                 |node| node.expand(&arch.grid),
                 |node| node.location == droplet.destination.unwrap()
             )

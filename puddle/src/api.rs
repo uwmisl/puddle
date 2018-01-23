@@ -24,6 +24,8 @@ impl Session {
             Some(m) => m,
         };
 
+        println!("Mapping: {:?}", mapping);
+
         let in_locs = cmd.input_locations();
         let in_ids = cmd.input_droplets();
 
@@ -36,7 +38,9 @@ impl Session {
                 "Command gave back and invalid DropletId"
             );
             assert!(droplet.destination.is_none());
-            droplet.destination = Some(*loc);
+            let mapped_loc = mapping.get(loc)
+                .expect("input location wasn't in mapping");
+            droplet.destination = Some(*mapped_loc);
         }
 
         let paths = match self.arch.route() {
@@ -47,11 +51,15 @@ impl Session {
         self.arch.take_paths(paths);
         cmd.run(&mut self.arch, &mapping);
 
-        // teardown destinations
+        // teardown destinations if the droplets are still there
+        // TODO is this ever going to be true?
         for id in in_ids {
-            let droplet = self.arch.droplets.get_mut(id).unwrap();
-            assert_eq!(Some(droplet.location), droplet.destination);
-            droplet.destination = None;
+            self.arch.droplets.get_mut(id).map(
+                |droplet| {
+                    assert_eq!(Some(droplet.location), droplet.destination);
+                    droplet.destination = None;
+                }
+            );
         }
 
         Ok(())
@@ -59,6 +67,10 @@ impl Session {
 
     pub fn mix(&mut self, d1: DropletId, d2: DropletId) -> DropletId {
         let mix_cmd = Mix::new(&mut self.arch, d1, d2);
+        assert_eq!(
+            self.arch.droplets.get(&d1).unwrap().collision_group,
+            self.arch.droplets.get(&d2).unwrap().collision_group,
+        );
         self.execute(&mix_cmd).expect("can't handle failures in api yet");
         mix_cmd.output_droplets()[0]
     }

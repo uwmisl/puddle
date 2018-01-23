@@ -134,13 +134,23 @@ impl Grid {
             map.insert(loc, &loc + &offset);
         }
 
+        assert_eq!(map.len(), self.locations_with_cells().count());
+        let l: Vec<Location> = self.locations().collect();
+        let locs: Vec<(Location, Cell)> = self.locations_with_cells().collect();
+        println!("locs: {:?}", l);
+        println!("locs_with: {:?}", locs);
+        println!("vec: {:?}", self.vec);
+
         map
     }
 
     pub fn place(&self, smaller: &Self) -> Option<HashMap<Location, Location>> {
-        self.locations()
-            .find(|&offset| smaller.is_compatible_within(offset, self))
-            .map(|offset| smaller.mapping_into_other_from_offset(offset, self))
+        let offset_found = self.locations()
+            .find(|&offset| smaller.is_compatible_within(offset, self));
+        println!("Placing with offset: {:?}", offset_found);
+
+        offset_found.map(|offset|
+                         smaller.mapping_into_other_from_offset(offset, self))
     }
 
     pub fn from_function<F>(f: F, height: u32, width: u32) -> Grid
@@ -165,7 +175,7 @@ impl Grid {
             return None;
         }
         let i = (loc.y * w + loc.x) as usize;
-        if 0 < i && i < self.vec.len() {
+        if i < self.vec.len() {
             self.vec[i].as_ref()
         } else {
             None

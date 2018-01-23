@@ -2,7 +2,7 @@
 use std::collections::HashMap;
 use std::collections::hash_map::Entry::*;
 
-use arch::{Architecture, Location, Droplet, DropletId};
+use arch::{Architecture, Location, DropletId};
 use arch::grid::Grid;
 
 type Mapping = HashMap<Location, Location>;
@@ -28,7 +28,7 @@ lazy_static! {
             Location {y: 0, x: 0},
         ];
     static ref MIX_LOOP: Vec<Location> =
-        vec![(0,0), (1,0), (1,1), (1,2), (0,2), (0,1), (0,0)]
+        vec![(0,0), (0,1), (1,1), (2,1), (2,0), (1,0), (0,0)]
         .iter()
         .map(|&(y,x)| Location {y, x})
         .collect();
@@ -42,11 +42,17 @@ pub struct Mix {
 }
 
 impl Mix {
-    pub fn new(arch: &mut Architecture, d1: DropletId, d2: DropletId) -> Mix {
+    pub fn new(arch: &mut Architecture, id1: DropletId, id2: DropletId) -> Mix {
         let output = arch.new_droplet_id();
 
+        let d1_cg = arch.droplets.get(&id1).unwrap().collision_group;
+        let d2 = arch.droplets.get_mut(&id2).unwrap();
+
+        // make sure their collision groups are the same so we can mix them
+        d2.collision_group = d1_cg;
+
         Mix {
-            inputs: vec![d1, d2],
+            inputs: vec![id1, id2],
             outputs: vec![output]
         }
     }
