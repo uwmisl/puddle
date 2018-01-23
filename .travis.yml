@@ -1,13 +1,9 @@
-language: python
+language: rust
 
-python: 3.6
-cache: pip
+rust: stable
+cache: cargo
 
-install:
-  - "pip install pipenv"
-  - "pipenv install --system --dev"
-
-script: pytest
+before_install: cd puddle
 
 notifications:
   slack:
