@@ -68,7 +68,7 @@ def test_lazy_input(session01):
     s = session01
 
     a = s.input_droplet(location=(1, 1))
-    b = s.input_droplet()
+    b = s.input_droplet(location=(3, 3))
 
     assert s.arch.droplets == {a._droplet, b._droplet}
 
