@@ -1,9 +1,10 @@
 let fetch_data = null;
 let game;
-let droplets = [];
-let drops_to_add = [];
-
-let ready = false;
+let droplets = []; // holds droplets from state-to-state
+let ready = false; // 'ready' continuous animation checkbox
+let running = false; // flag for animation after onComplete
+let json_queue = []; // holds fetched data over time
+let server_closed = false;
 
 const CELL_SIZE = 50;
 const TWEEN_TIME = 200; // in millisec
@@ -37,7 +38,9 @@ window.onload = function() {
             fetch_data();
 
             document.getElementById("step").onclick = function() {
-                fetch_data();
+                if (!server_closed) {
+                    fetch_data();
+                }
             }
 
             document.getElementById("ready").onclick = function() {
@@ -68,7 +71,11 @@ function parse_data(data) {
             add_drop(json);
         }
     } else {
-        animate(data);
+        if (!running) {
+            animate(data);
+        } else {
+            json_queue.push(data);
+        }
     }
 }
 
@@ -89,11 +96,7 @@ function add_drop(json) {
     let tween = game.add.tween(s);
     let drop = {
         sprite: s,
-        last_added_tween: tween,
-        last_run_tween: tween,
-        to_delete: false,
         deleted: false,
-        diff: 1,
         id: json.id,
         volume: json.volume,
         info: json.info,
@@ -103,43 +106,48 @@ function add_drop(json) {
 }
 
 /**
+ * Cycles through the queue of data, which grows
+ * whenever 'step' is called or 'ready' is checked.
+ */
+function animate_queue() {
+    if (json_queue.length == 0) {
+        running = false;
+    } else {
+        animate(json_queue.shift());
+        running = true;
+    }
+}
+
+/**
  * Takes json for a set of droplets and creates a tween
  * from their previous state to the next one, removing
  * drops and creating combinations along the way.
+ * Assigns the onComplete function to the first drop
+ * in every set of droplets.
  * @param {data} array of droplet json
  */
 function animate(data) {
     remove_drops(data);
+    let count = 0;
     for (let json of data) {
         let drop = droplets[json.id];
 
         if (drop == null) {
-            drops_to_add.push(json);
+            add_drop(json);
         }
 
-        let x = json.location[1] * CELL_SIZE;
-        let y = json.location[0] * CELL_SIZE + Y_OFFSET;
-        let tween = game.add.tween(drop.sprite)
-            .to({ x: x, y: y },
-                TWEEN_TIME / drop.diff,
-                Phaser.Easing.Quadratic.InOut);
-
-        drop.last_added_tween.chain(tween);
-        if (drop.last_run_tween == null) {
-            drop.last_run_tween = tween;
+        if (drop != null) {
+            let x = json.location[1] * CELL_SIZE;
+            let y = json.location[0] * CELL_SIZE + Y_OFFSET;
+            let tween = game.add.tween(drop.sprite)
+                .to({ x: x, y: y },
+                    TWEEN_TIME / (json_queue.length + 1),
+                    Phaser.Easing.Quadratic.InOut).start()
+            if (count == 0) {
+                tween.onComplete.add(onComplete, this);
+            }
+            count++;
         }
-        if (drop.last_added_tween == drop.last_run_tween) {
-            tween.start().onComplete.add(onComplete, {
-                'drop': drop,
-                'tween': tween});
-            add_drops();
-        } else {
-            tween.onComplete.add(onComplete, {
-                'drop': drop,
-                'tween': tween});
-            drop.diff += 1;
-        }
-        drop.last_added_tween = tween;
     }
 }
 
@@ -156,55 +164,29 @@ function remove_drops(data) {
     for (let droplet of droplets) {
         if (droplet != undefined) {
             if (new_ids.indexOf(droplet.id) == -1) {
-                if (droplets[droplet.id].diff == 1) {
-                    droplets[droplet.id].sprite.kill();
-                    droplets[droplet.id].deleted = true;
-                } else {
-                    droplets[droplet.id].to_delete = true;
-                }
+                droplets[droplet.id].sprite.kill();
+                droplets[droplet.id].deleted = true;
             }
         }
     }
 }
 
 /**
- * Function used when 'step' is called even though
- * a tween is currenty running. Updates last_run_tween
- * and kills drops that have been combined.
+ * Function that begins operations for the next set of
+ * droplets once the previous set has completed.
  */
 function onComplete() {
-    this.drop.last_run_tween = this.tween;
-    add_drops();
-    if (this.drop.diff > 1) {
-        this.drop.diff--;
-    } else if (this.drop.to_delete) {
-        this.drop.sprite.kill();
-        this.drop.to_delete = false;
-        this.drop.deleted = true;
-    }
-}
-
-/**
- * Function to add a group of drops, specifically
- * after an animation frame has completed.
- */
-function add_drops() {
-    for (let json of drops_to_add) {
-        add_drop(json);
-    }
-    drops_to_add.length = 0;
+    animate_queue();
 }
 
 /**
  * Begins execution whenever the 'ready' button is clicked
  * and runs continuously on a 500 ms interval until it's
  * clicked again.
- * TODO: Figure out how to prevent interval from continuing
- * once GET runs out of data to fetch.
  */
 function run_animation() {
     let interval_id = setInterval(function() {
-        if (ready) {
+        if (ready && !server_closed) {
             fetch_data();
         } else {
             clearInterval(interval_id);
@@ -214,7 +196,10 @@ function run_animation() {
 
 $(function() {
     function jQuery_fetch(){
-        $.getJSON('/state', parse_data);
+        var fetch = $.getJSON('/state', parse_data)
+            .fail(function() {
+                server_closed = true;
+            });
     }
     fetch_data = jQuery_fetch;
 });
