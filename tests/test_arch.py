@@ -70,7 +70,7 @@ def test_lazy_input(session01):
     a = s.input_droplet(location=(1, 1))
     b = s.input_droplet()
 
-    assert s.arch.droplets == {a, b}
+    assert s.arch.droplets == {a._droplet, b._droplet}
 
     with pytest.raises(KeyError):
         s.input_droplet(location=(-1324, 9999))
@@ -87,7 +87,7 @@ def test_mix(session01):
     session.flush()
 
     assert len(session.arch.droplets) == 1
-    assert ab._info == '(a, b)'
+    assert ab.info == '(a, b)'
 
 
 def test_split(session01):
@@ -101,4 +101,4 @@ def test_split(session01):
     session.flush()
 
     assert len(session.arch.droplets) == 3
-    assert a1._info == a2._info == 'a'
+    assert a1.info == a2.info == 'a'

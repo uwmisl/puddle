@@ -28,31 +28,9 @@ class DropletStateError(Exception):
 @dataclass(cmp=False)
 class Droplet:
 
-    # Describes valid droplet states
-    class State(Enum):
-        VIRTUAL = 1
-        REAL = 2
-        VIRTUAL_BOUND = 3
-        REAL_BOUND = 4
-        CONSUMED = 5
-
-        # Valid Transitions
-        #
-        # VIRTUAL       -> REAL | VIRTUAL_BOUND
-        # REAL          -> REAL_BOUND
-        # VIRTUAL_BOUND -> REAL_BOUND | CONSUMED
-        # REAL_BOUND    -> CONSUMED
-        # CONSUMED      -> x
-        #
-        # droplets in the first four states can all
-        # be soft bound 0 or more times
-
     _location: Optional[Location] = None
     _info: Any = None
     _volume: float = 1.0
-
-    _state: State = State.VIRTUAL
-    _soft_bind_counter: int = 0
 
     _id: int = Factory(_next_droplet_id.__next__)
     _collision_group: int = Factory(_next_collision_group.__next__)
@@ -86,35 +64,6 @@ class Droplet:
         cons = self._consumer
         return cons and cons.done
 
-    # todo(@michalp): rn this is very non-idiomatic. Either remove decorators
-    # and keep get_ prefixes or remove prefixes and keep decorators...
-    # same for the state helpers below
-    @property
-    def get_info(self):
-        if self._is_virtual:
-            raise DropletStateError("Cannot get info of virtual droplet")
-        if self._is_consumed:
-            raise DropletStateError("Cannot get info of consumed droplet")
-        return self._info
-
-    @property
-    def get_volume(self):
-        if self._is_virtual:
-            raise DropletStateError("Cannot get volume of virtual droplet")
-        if self._is_consumed:
-            raise DropletStateError("Cannot get volume of consumed droplet")
-        return self._volume
-
-    @property
-    def get_location(self):
-        if self._is_virtual:
-            raise DropletStateError("Cannot get location of virtual droplet")
-        if self._is_consumed:
-            raise DropletStateError("Cannot get location of consumed droplet")
-        return self._location
-
-    # transition functions
-
     def copy(self, **kwargs):
         return self.__class__(
             info=self._info,
@@ -122,37 +71,38 @@ class Droplet:
             **kwargs
         )
 
-    def split(self, result1, result2, ratio=0.5):
 
-        volume = self._volume / 2
+@dataclass(cmp=False)
+class DropletShim:
 
-        result1._volume = volume
-        result1._info = self._info
-        result1._location = self._location
+    _droplet : Droplet = None
 
-        result2._volume = volume
-        result2._info = self._info
-        result2._location = self._location
+    def __init__(self, droplet: Droplet):
+        self._droplet = droplet
 
-        return result1, result2
+    @property
+    def info(self):
+        if self._droplet._is_virtual:
+            raise DropletStateError("Cannot get info of virtual droplet")
+        if self._droplet._is_consumed:
+            raise DropletStateError("Cannot get info of consumed droplet")
+        return self._droplet._info
 
-    def mix(self, other: 'Droplet', result):
-        log.debug(f'mixing {self} with {other}')
+    @property
+    def volume(self):
+        if self._droplet._is_virtual:
+            raise DropletStateError("Cannot get volume of virtual droplet")
+        if self._droplet._is_consumed:
+            raise DropletStateError("Cannot get volume of consumed droplet")
+        return self._droplet._volume
 
-        # for now, they much be in the same place
-        # assert self.cell is other.cell
-        # FIXME right now we assume cells only have one droplet
-
-        info = f'({self._info}, {other._info})'
-
-        # TODO this logic definitely won't work when droplets are larger
-        # it should give back the "union" of both shapes
-
-        result._info = info
-        result._location = self._location
-        result._volume = self._volume + other._volume
-
-        return result
+    @property
+    def location(self):
+        if self._droplet._is_virtual:
+            raise DropletStateError("Cannot get location of virtual droplet")
+        if self._droplet._is_consumed:
+            raise DropletStateError("Cannot get location of consumed droplet")
+        return self._droplet._location
 
 
 @dataclass
@@ -172,14 +122,6 @@ class Command:
     strict: ClassVar[bool] = False
     locations_given: ClassVar[bool] = False
 
-    #TODO mwillsey: a lot of common Command stuff could be lifted to superclass
-    # TODO mwillsey:
-    # it might be easier to not use inheritance here
-    # have an ABC for CommandExtension (or something), and Command can just be
-    # the binding structure or whatever
-
-    #todo(@michalp): move binding checks to super constructor?
-
     # FIXME this isn't running
     def run(self, mapping: Dict[Location, Location]):
         for d,l in zip(self.input_droplets, self.input_locations):
@@ -195,30 +137,30 @@ class Input(Command):
     input_locations: ClassVar = []
 
     def __init__(self, arch, droplet):
-
-        droplet.producer = self
-
         self.arch = arch
-        self.droplet = droplet
-        self.input_droplets = []
+        self.input_droplets = [droplet]
         self.output_droplets = [droplet]
 
-        loc = self.droplet._location
+        loc = droplet._location
         if loc and loc not in self.arch.graph:
             raise KeyError("Location {} is not in the architecture".format(loc))
+        droplet._produced_by(self)
 
-        self.arch.add_droplet(self.droplet)
+        self.arch.add_droplet(droplet)
 
     def run(self, mapping):
         # this is a bit of a hack to do manual placement here
-        if self.droplet._location is None:
+        droplet = self.input_droplets[0]
+
+        if droplet._location is None:
             shape = nx.DiGraph()
             shape.add_node((0,0))
             placement = self.arch.session.execution.placer.place_shape(shape)
-            self.droplet._location = placement[(0,0)]
+            droplet._location = placement[(0,0)]
 
         # do this instead of calling super
         self.done = True
+        # return self.output_droplets[0]
 
 
 class Move(Command):
@@ -226,20 +168,17 @@ class Move(Command):
     locations_given: ClassVar = True
 
     def __init__(self, arch, droplets, locations):
-
-
         self.arch = arch
         self.input_droplets = droplets
         self.input_locations = locations
-        self.output_droplets = [
-            d.copy() for d in droplets
-        ]
+        self.output_droplets = [d.copy() for d in droplets]
 
         for d in self.input_droplets:
             d._consumed_by(self)
         for d, loc in zip(self.output_droplets, locations):
             d._produced_by(self)
             d._location = loc
+
 
 class Mix(Command):
 
@@ -250,13 +189,7 @@ class Mix(Command):
     loop = [(0,0), (1,0), (1,1), (1,2), (0,2), (0,1), (0,0)]
 
     def __init__(self, arch, droplet1, droplet2):
-
-        droplet1.consumer = self
-        droplet2.consumer = self
-
         self.arch = arch
-        self.droplet1 = droplet1
-        self.droplet2 = droplet2
         self.input_droplets = [droplet1, droplet2]
         self.output_droplets = [Droplet(None)]
 
@@ -269,17 +202,22 @@ class Mix(Command):
             d._produced_by(self)
 
     def run(self, mapping):
-
         super().run(mapping)
 
-        # use the mapping to get the edges in the architecture we have to take
+        droplet1, droplet2 = self.input_droplets
+        result = self.output_droplets[0]
+
         arch_loop_edges = list(pairs(mapping[node] for node in self.loop))
 
-        assert self.droplet1._location == self.droplet2._location
+        assert droplet1._location == droplet2._location
 
-        self.arch.remove_droplet(self.droplet1)
-        self.arch.remove_droplet(self.droplet2)
-        result = Droplet.mix(self.droplet1, self.droplet2, *self.output_droplets)
+        self.arch.remove_droplet(droplet1)
+        self.arch.remove_droplet(droplet2)
+
+        result._info = f'({droplet1._info}, {droplet2._info})'
+        result._location = droplet1._location
+        result._volume = droplet1._volume + droplet2._volume
+
         self.arch.add_droplet(result)
 
         self.arch.wait()
@@ -287,8 +225,6 @@ class Mix(Command):
             for src, dst in arch_loop_edges:
                 result._location = dst
                 self.arch.wait()
-
-        return result
 
 
 class Split(Command):
@@ -298,9 +234,7 @@ class Split(Command):
     strict: ClassVar = True
 
     def __init__(self, arch, droplet):
-
         self.arch = arch
-        self.droplet = droplet
         self.input_droplets = [droplet]
         self.output_droplets = [Droplet(None), Droplet(None)]
 
@@ -310,15 +244,23 @@ class Split(Command):
             d._produced_by(self)
 
     def run(self, mapping):
-
         super().run(mapping)
 
         # use the mapping to get the edges in the architecture we have to take
         nodes1 = [(0,1), (0,0)]
         nodes2 = [(0,3), (0,4)]
 
-        self.arch.remove_droplet(self.droplet)
-        d1, d2 = self.droplet.split(*self.output_droplets)
+        droplet = self.input_droplets[0]
+        d1 = self.output_droplets[0]
+        d2 = self.output_droplets[1]
+
+        self.arch.remove_droplet(droplet)
+
+        volume = droplet._volume / 2
+        for d in self.output_droplets:
+            d._volume = volume
+            d._info = droplet._info
+            d._location = droplet._location
 
         # allow collisions
         cg2 = d2._collision_group
@@ -336,8 +278,6 @@ class Split(Command):
 
         # don't allow collisions
         d2._collision_group = cg2
-
-        return d1, d2
 
 
 class CollisionError(Exception):

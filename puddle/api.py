@@ -5,7 +5,7 @@ from ast import literal_eval
 from typing import Tuple
 
 import puddle.arch
-from puddle.arch import Architecture, Droplet, DropletStateError
+from puddle.arch import Architecture, Droplet, DropletStateError, DropletShim
 
 from puddle.execution import Execution
 from puddle.engine import Engine
@@ -60,27 +60,28 @@ class Session(AbstractContextManager):
         self.close()
         return False
 
-    def input_droplet(self, **kwargs) -> Droplet:
+    def input_droplet(self, **kwargs) -> DropletShim:
         """bind location to new droplet"""
         d = Droplet(**kwargs)
         cmd = puddle.arch.Input(self.arch, d)
         droplet, = self.engine.virtualize(cmd)
-        return droplet
+        return DropletShim(droplet)
 
-    def mix(self, droplet1: Droplet, droplet2: Droplet) -> Droplet:
-        mix_cmd = puddle.arch.Mix(self.arch, droplet1, droplet2)
-        droplet, = self.engine.virtualize(mix_cmd)
-        return droplet
-
-    def split(self, droplet: Droplet) -> Tuple[Droplet, Droplet]:
-        split_cmd = puddle.arch.Split(self.arch, droplet)
-        droplet1, droplet2 = self.engine.virtualize(split_cmd)
-        return droplet1, droplet2
-
-    def move(self, droplet: Droplet, location: Tuple):
-        move_cmd = puddle.arch.Move(self.arch, [droplet], [location])
+    def move(self, droplet: DropletShim, location: Tuple):
+        move_cmd = puddle.arch.Move(self.arch, [droplet._droplet], [location])
         (new_droplet, ) = self.engine.virtualize(move_cmd)
-        return new_droplet
+        droplet._droplet = new_droplet
+        return droplet
+
+    def mix(self, droplet1: DropletShim, droplet2: DropletShim) -> DropletShim:
+        mix_cmd = puddle.arch.Mix(self.arch, droplet1._droplet, droplet2._droplet)
+        droplet, = self.engine.virtualize(mix_cmd)
+        return DropletShim(droplet)
+
+    def split(self, droplet: DropletShim) -> Tuple[DropletShim, DropletShim]:
+        split_cmd = puddle.arch.Split(self.arch, droplet._droplet)
+        droplet1, droplet2 = self.engine.virtualize(split_cmd)
+        return DropletShim(droplet1), DropletShim(droplet2)
 
     def heat(self, droplet, temp, time):
         # route droplet to heater
