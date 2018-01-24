@@ -113,9 +113,9 @@ class Droplet:
             _shape = self._shape.union(other_shape),
             _volume = self._volume + other._volume
         )
-        
+
     def locations(self):
-        return {(self._location[0] + offset[0], self._location[1] + offset[1])
+        return {} if not self._location else {(self._location[0] + offset[0], self._location[1] + offset[1])
                 for offset in self._shape}
 
 

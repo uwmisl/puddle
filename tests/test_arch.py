@@ -91,12 +91,15 @@ def test_mix(session01):
 
 
 def test_split(session01):
+
     session = session01
 
     a = session.input_droplet(location=(0,0), info='a')
     session.input_droplet(location=(3,3), info='b')
 
     a1, a2 = session.split(a)
+    session.flush()
+
     assert len(session.arch.droplets) == 3
     assert a1.info == a2.info == 'a'
 
