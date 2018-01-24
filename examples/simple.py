@@ -12,3 +12,5 @@ with Session(arch) as session:
     ab1, ab2 = session.split(ab)
     abc = session.mix(ab1, c)
     ababc = session.mix(abc, ab2)
+
+    session.flush()

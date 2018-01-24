@@ -9,6 +9,6 @@ setup(
     description  = 'A programming system for digital microfluidics',
     author       = 'Max Willsey',
     author_email = 'me@mwillsey.com',
-    url          = 'https://github.com/mwillsey/puddle',
+    url          = 'https://github.com/uwmisl/puddle',
     packages     = find_packages(),
 )

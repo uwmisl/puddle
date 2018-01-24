@@ -1,4 +1,4 @@
-# import logging
+import logging
 from pathlib import Path
 
 from flask import Flask, jsonify, request, send_from_directory
@@ -35,10 +35,10 @@ def state():
 
     droplets = [
         {
-            "id": d.id,
-            "location": d.location,
-            "volume": d.volume,
-            "info": d.info,
+            'id': d._id,
+            'location': d._location,
+            'volume': d._volume,
+            'info': d._info,
             "shape": list(d.shape),
         }
         for d in session.arch.droplets

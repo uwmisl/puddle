@@ -8,6 +8,8 @@ with Session(arch) as session:
 
     target = 4,4
 
-    session.move(a, target)
+    b = session.move(a, target)
+    session.flush()
 
-    assert a.location == target
+    print(b.location, target)
+    assert b.location == target
