@@ -32,10 +32,9 @@ class DropletStateError(Exception):
 @dataclass(cmp=False)
 class Droplet:
 
-    # Require that a new droplet shape must include (0, 0)
-    shape: Set[Location] = ib(default=Factory(_default_shape))
-
     _location: Optional[Location] = None
+    # Require that a new droplet shape must include (0, 0)
+    _shape: Set[Location] = ib(default=Factory(_default_shape))
     _info: Any = None
     _volume: float = 1.0
     _concentration: float = 0.0
@@ -72,9 +71,9 @@ class Droplet:
         cons = self._consumer
         return cons and cons.done
 
-    @shape.validator
+    @_shape.validator
     def _check_shape(self, attr, shape):
-        if (0, 0) not in shape:
+        if (0,0) not in shape:
             raise ValueError("shape must contain (0, 0)")
         # shape should be contiguous
         if len(shape) > 1:
@@ -92,45 +91,32 @@ class Droplet:
         return self.__class__(
             info=self._info,
             location=self._location,
-            shape=self.shape,
+            shape=self._shape,
             **kwargs
         )
 
-    def split(self, ratio=0.5):
-        assert self.valid
-        volume = self.volume / 2
-        a = self.copy(volume=volume)
-        b = self.copy(volume=volume)
-        self.valid = False
-        return a, b
-
     def mix(self, other: 'Droplet'):
+        # TODO: move the shape logic into Mix command
         log.debug(f'mixing {self} with {other}')
-        assert self.valid
-        assert other.valid
 
         # for now, they must be in the same place; use shape with location
-        other_shape = {(offset[0] + other.location[0] - self.location[0],
-                           offset[1] + other.location[1] - self.location[1])
-                          for offset in other.shape}
-        assert self.shape.intersection(other_shape)
+        other_shape = {(offset[0] + other._location[0] - self._location[0],
+            offset[1] + other._location[1] - self._location[1]) for offset in other._shape}
+        assert self._shape.intersection(other_shape)
 
-        self.valid  = False
-        other.valid = False
         info = f'({self.info}, {other.info})'
 
         # it should give back the "union" of both shapes
         return Droplet(
-            info = info,
-            location = self.location,
-            shape = self.shape.union(other_shape),
-            volume = self.volume + other.volume
+            _info = info,
+            _location = self._location,
+            _shape = self._shape.union(other_shape),
+            _volume = self._volume + other._volume
         )
-
-     def locations(self):
-        return {(self.location[0] + offset[0], self.location[1] + offset[1])
-                for offset in self.shape}
-       
+        
+    def locations(self):
+        return {(self._location[0] + offset[0], self._location[1] + offset[1])
+                for offset in self._shape}
 
 
 @dataclass(cmp=False)
@@ -172,6 +158,14 @@ class DropletShim:
         if self._droplet._is_consumed:
             raise DropletStateError("Cannot get location of consumed droplet")
         return self._droplet._location
+
+    @property
+    def shape(self):
+        if self._droplet._is_virtual:
+            raise DropletStateError("Cannot get location of virtual droplet")
+        if self._droplet._is_consumed:
+            raise DropletStateError("Cannot get location of consumed droplet")
+        return self._droplet._shape
 
 
 @dataclass
@@ -317,7 +311,6 @@ class Split(Command):
         for d in self.output_droplets:
             d._produced_by(self)
 
-
     def run(self, mapping):
         super().run(mapping)
 
@@ -435,8 +428,8 @@ class Architecture:
         """
         for d1, d2 in combinations(self.droplets, 2):
             # For each pair of droplets, we don't want adjacency, so we use shape_neighborhood
-            if (d1.collision_group != d2.collision_group and
-                shape_neighborhood(d1.location, d1.shape).intersection(d2.locations())):
+            if (d1._collision_group != d2._collision_group and
+                shape_neighborhood(d1._location, d1._shape).intersection(d2.locations())):
                 log.debug('colliding')
                 raise CollisionError('Multiple droplets colliding')
 
@@ -444,8 +437,8 @@ class Architecture:
         return (data['cell'] for _, data in self.graph.nodes(data=True))
 
     def wait(self):
-        # print(self.spec_string(with_droplets=True))
 
+        # print(self.spec_string(with_droplets=True))
         self.check_collisions()
 
         if self.session and self.session.rendered:

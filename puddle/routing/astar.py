@@ -92,8 +92,8 @@ class Router:
                     # We want to avoid the entire neighborhood of the shape of
                     # each droplet
                     self.avoid.update(
-                        ((nbr, time + t), d.collision_group)
-                        for nbr in shape_neighborhood(node, d.shape)
+                        ((nbr, time + t), d._collision_group)
+                        for nbr in shape_neighborhood(node, d._shape)
                     )
 
             # add the end points of the path
