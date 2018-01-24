@@ -138,7 +138,7 @@ impl Architecture {
     pub fn route(&self) -> Option<HashMap<DropletId, Path>> {
         let mut av_set = AvoidanceSet::default();
         let grid = &self.grid;
-        let num_cells = self.grid.locations_with_cells().count();
+        let num_cells = self.grid.locations().count();
 
         let mut paths = HashMap::new();
         let mut max_t = 0;
@@ -264,7 +264,10 @@ pub mod tests {
     }
 
     fn uncrowded_arch_from_grid(grid: Grid) -> BoxedStrategy<Architecture> {
-        let max_dim = grid.height.min(grid.width) / 2;
+
+        let height = grid.vec.len();
+        let width = grid.vec.iter().map(|row| row.len()).min().unwrap();
+        let max_dim = height.min(width) / 2;
         let max_droplets = (max_dim as usize).max(1);
         arb_arch_from_grid(grid, 0..max_droplets)
     }
@@ -273,12 +276,12 @@ pub mod tests {
 
         #[test]
         fn route_one_connected(
-            ref arch in arb_grid(5, 100, 0.95)
+            ref arch in arb_grid((5..10), (5..10), 0.95)
                 .prop_filter("not connected", |ref g| g.is_connected())
                 .prop_flat_map(move |g| arb_arch_from_grid(g, 1..2)))
         {
             let droplet = arch.droplets.values().next().unwrap();
-            let num_cells = arch.grid.locations_with_cells().count();
+            let num_cells = arch.grid.locations().count();
 
             let path = route_one(
                 &droplet,
@@ -292,7 +295,7 @@ pub mod tests {
 
         #[test]
         fn route_connected(
-            ref rarch in arb_grid(1, 100, 0.95)
+            ref rarch in arb_grid((5..10), (5..10), 0.95)
                 .prop_filter("not connected", |ref g| g.is_connected())
                 .prop_flat_map(uncrowded_arch_from_grid)
                 .prop_filter("starting collision",

@@ -236,7 +236,7 @@ pub mod tests {
          -> BoxedStrategy<Architecture>
     {
         let ht_gen = hash_map(prop::num::usize::ANY,
-                              arb_droplet(grid.locations_with_cells()
+                              arb_droplet(grid.locations()
                                           .map(|(loc, _)| loc).collect()),
                               n_droplets);
         // can't use prop_compose! because we need to move the hash map here
