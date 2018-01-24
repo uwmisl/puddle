@@ -31,6 +31,7 @@ class Droplet:
     _location: Optional[Location] = None
     _info: Any = None
     _volume: float = 1.0
+    _concentration: float = 0.0
 
     _id: int = Factory(_next_droplet_id.__next__)
     _collision_group: int = Factory(_next_collision_group.__next__)
@@ -95,6 +96,14 @@ class DropletShim:
         if self._droplet._is_consumed:
             raise DropletStateError("Cannot get volume of consumed droplet")
         return self._droplet._volume
+
+    @property
+    def concentration(self):
+        if self._droplet._is_virtual:
+            raise DropletStateError("Cannot get concentration of virtual droplet")
+        if self._droplet._is_consumed:
+            raise DropletStateError("Cannot get concentration of consumed droplet")
+        return self._droplet._concentration
 
     @property
     def location(self):
@@ -218,6 +227,11 @@ class Mix(Command):
         result._location = droplet1._location
         result._volume = droplet1._volume + droplet2._volume
 
+        m1 = droplet1._volume * droplet1._concentration
+        m2 = droplet2._volume * droplet2._concentration
+
+        result._concentration = (m1 + m2) / result._volume
+
         self.arch.add_droplet(result)
 
         self.arch.wait()
@@ -259,6 +273,7 @@ class Split(Command):
         volume = droplet._volume / 2
         for d in self.output_droplets:
             d._volume = volume
+            d._concentration = droplet._concentration
             d._info = droplet._info
             d._location = droplet._location
 
