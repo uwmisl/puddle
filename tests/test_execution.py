@@ -2,34 +2,31 @@ import pytest
 import networkx as nx
 
 from puddle.api import Session
-from puddle.arch import Architecture, Droplet, Mix, Split
+from puddle.arch import Architecture, Droplet, Mix, Split, DropletShim
 from puddle.execution import Execution, Placer
 
 
 # NOTE this does a little bit of badness by creating droplets
 # where the location doesn't matter. It works fine for now.
-@pytest.mark.parametrize('command_cls, droplets', [
-    (Mix,   [Droplet('a', (0,0)), Droplet('b', (0,0))]),
-    (Split, [Droplet('a', (0,0))]),
+@pytest.mark.parametrize('shape', [
+    Mix.shape,
+    Split.shape,
 ])
-def test_place_command(arch, command_cls, droplets):
+def test_place_command(arch, shape):
 
     placer = Placer(arch)
-
-    command = command_cls(arch, *droplets)
-
-    placement = placer.place_command(command)
+    placement = placer.place_shape(shape)
 
     assert placement
 
     # placement maps command to architecture
     command_nodes, arch_nodes = zip(*placement.items())
-    assert all(n in command.shape for n in command_nodes)
+    assert all(n in shape for n in command_nodes)
     assert all(n in arch.graph for n in arch_nodes)
 
     # make sure the placement is actually isomorphic
     placement_target = arch.graph.subgraph(arch_nodes)
-    assert nx.is_isomorphic(placement_target, command.shape)
+    assert nx.is_isomorphic(placement_target, shape)
 
 
 def test_simple_execution(arch01):
@@ -49,7 +46,7 @@ def test_simple_execution(arch01):
     assert len(arch.droplets) == 1
     (d,) = arch.droplets
 
-    assert d.info == '(a, b)'
+    assert d._info == '(a, b)'
 
 
 def test_lots_of_movement(session01):
@@ -63,7 +60,6 @@ def test_lots_of_movement(session01):
     ]
 
     for i in range(5):
-
         # mix all of the droplets
         mega_droplet = droplets[0]
         for d in droplets[1:]:
@@ -102,9 +98,98 @@ def test_same_collision_group_mix(lollipop_board_session):
     a = s.input_droplet(location=(1,0), info='a')
     b = s.input_droplet(location=(1,3), info='b')
 
-    a.collision_group = 1
-    b.collision_group = 1
+    a._collision_group = 1
+    b._collision_group = 1
 
     s.move(a, (1,4))
 
     assert len(s.arch.droplets) == 1
+
+
+def test_lazy_mix(session01):
+    s = session01
+
+    a = s.input_droplet(location=(1,1), info='a')
+    b = s.input_droplet(location=(1,3), info='b')
+
+    s.flush()
+
+    # abc will depend on c twice
+    ab = s.mix(a, b)
+
+    # make sure nothing is executed yet
+    assert s.arch.droplets == set([a._droplet,b._droplet])
+    s.flush()
+    assert s.arch.droplets == set([ab._droplet])
+
+
+@pytest.mark.xfail(reason="Unsure of the intended behavior here.")
+def test_lazy_move(session01):
+    s = session01
+    a = s.input_droplet(location=(1,1), info='a')
+
+    b = s.move(a, (3,3))
+
+    assert b._droplet._location == (1,1)
+
+
+def test_functional_move(session01):
+    s = session01
+    a = s.input_droplet(location=(1,1), info='a')
+
+    b = s.move(a, (3,3))
+
+    assert type(a) is DropletShim
+    assert type(b) is DropletShim
+    assert a is b
+    assert a._droplet is b._droplet
+
+
+def test_lazy_mix_consumed(session01):
+    s = session01
+    a = s.input_droplet(location=(1,1), info='a')
+    b = s.input_droplet(location=(1,3), info='b')
+
+    s.mix(a,b)
+
+    # the droplet should be bound at this point
+    assert a._droplet._consumer
+    assert b._droplet._consumer
+
+
+def test_double_consume(session01):
+    s = session01
+    a = s.input_droplet(location=(1,1), info='a')
+    b = s.input_droplet(location=(1,3), info='b')
+    c = s.input_droplet(location=(1,5), info='c')
+
+    s.mix(a,b)
+
+    # TODO make this exception more granular
+    # this should fail because b is consumed, and it should fail even if we are
+    # using lazy execution
+    with pytest.raises(Exception):
+        s.mix(b,c)
+
+
+def test_lazy_double_dependency(session01):
+    s = session01
+
+    a = s.input_droplet(location=(1,1), info='a')
+    b = s.input_droplet(location=(1,3), info='b')
+    c = s.input_droplet(location=(1,5), info='c')
+
+    s.flush()
+
+    c1, c2 = s.split(c)
+
+    ac1 = s.mix(a, c1)
+    bc2 = s.mix(b, c2)
+
+    # abc will depend on c twice
+    abc = s.mix(ac1, bc2)
+
+    # make sure nothing is executed yet
+    assert s.arch.droplets == set([a._droplet,b._droplet,c._droplet])
+    s.flush()
+    assert s.arch.droplets == set([abc._droplet])
