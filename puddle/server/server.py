@@ -6,7 +6,7 @@ from flask import Flask, jsonify, request, send_from_directory
 app = Flask(__name__)
 
 # suppress debug printing from the web server
-logging.getLogger('werkzeug').setLevel(logging.DEBUG)
+# logging.getLogger('werkzeug').setLevel(logging.DEBUG)
 
 # relative where the server is being run from, hopefully the project root
 TEST_DIR = Path('tests').resolve(strict=True)
@@ -33,7 +33,15 @@ def state():
     if not session:
         return jsonify([])
 
-    droplets = [d.__dict__ for d in session.arch.droplets]
+    droplets = [
+        {
+            'id': d._id,
+            'location': d._location,
+            'volume': d._volume,
+            'info': d._info,
+        }
+        for d in session.arch.droplets
+    ]
 
     session.rendered.set()
 
