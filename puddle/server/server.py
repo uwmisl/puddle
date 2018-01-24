@@ -39,7 +39,7 @@ def state():
             'location': d._location,
             'volume': d._volume,
             'info': d._info,
-            "shape": list(d.shape),
+            'shape': list(d._shape),
         }
         for d in session.arch.droplets
     ]
