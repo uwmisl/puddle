@@ -74,6 +74,12 @@ impl Session {
         self.execute(&mix_cmd).expect("can't handle failures in api yet");
         mix_cmd.output_droplets()[0]
     }
+
+    pub fn split(&mut self, d1: DropletId) -> (DropletId, DropletId) {
+        let split_cmd = Split::new(&mut self.arch, d1);
+        self.execute(&split_cmd).expect("can't handle failures in api yet");
+        (split_cmd.output_droplets()[0], split_cmd.output_droplets()[1])
+    }
 }
 
 #[cfg(test)]
@@ -105,5 +111,31 @@ mod tests {
         let id3 = session.mix(id1, id2);
         let ids: Vec<&DropletId> = session.arch.droplets.keys().collect();
         assert_eq!(ids, vec![&id3])
+    }
+
+    #[test]
+    fn execute_split_command() {
+        // @
+        let mut arch = Architecture::from_grid(
+            Grid::rectangle(1,5)
+        );
+
+        let id = arch.new_droplet_id();
+
+        // TODO(@michalp): confirm location is behaving correctly.
+        // Shouldn't this be placed at (0, 2)?
+        let dr = arch.droplet_from_location(Location {x: 0, y: 0});
+        arch.droplets.insert(id, dr);
+
+        let mut session = Session {
+            arch: arch
+        };
+
+        let (id1, id2) = session.split(id);
+        let ids : Vec<&DropletId> = session.arch.droplets.keys().collect();
+
+        assert_eq!(ids.len(), 2);
+        assert!(ids.contains(&&id1));
+        assert!(ids.contains(&&id2));
     }
 }

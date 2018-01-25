@@ -16,6 +16,26 @@ pub trait Command {
     fn run(&self, arch: &mut Architecture, mapping: &Mapping);
 }
 
+
+
+//
+// TODO: Input
+//
+
+//
+// TODO: Move
+//
+
+//
+// TODO: Heat
+//
+
+
+
+//
+//  Mix
+//
+
 lazy_static! {
     static ref MIX_SHAPE: Grid = Grid::rectangle(3,2);
     static ref MIX_INPUT_LOCS: Vec<Location> =
@@ -33,7 +53,6 @@ lazy_static! {
         .map(|&(y,x)| Location {y, x})
         .collect();
 }
-
 
 pub struct Mix {
     // TODO use `FixedSizeArray` when it lands on stable
@@ -87,6 +106,7 @@ impl Command for Mix {
 
         let droplet = arch.droplet_from_location(d0.location);
         let result_id = self.outputs[0];
+
         let result = match arch.droplets.entry(result_id) {
             Occupied(occ) => panic!("Droplet was already here: {:?}", occ.get()),
             Vacant(spot) => spot.insert(droplet)
@@ -97,5 +117,105 @@ impl Command for Mix {
         for loc in MIX_LOOP.iter() {
             result.location = mapping[loc];
         }
+    }
+}
+
+//
+//  Split
+//
+
+lazy_static! {
+    static ref SPLIT_SHAPE: Grid = Grid::rectangle(1,5);
+    static ref SPLIT_INPUT_LOCS: Vec<Location> =
+        vec![
+            Location {y: 0, x: 2},
+        ];
+    static ref SPLIT_OUTPUT_LOCS: Vec<Location> =
+        vec![
+            Location {y: 0, x: 0},
+            Location {y: 0, x: 4},
+        ];
+    static ref SPLIT_PATH1: Vec<Location> =
+        vec![
+            Location {y: 0, x: 1},
+            Location {y: 0, x: 0},
+        ];
+    static ref SPLIT_PATH2: Vec<Location> =
+        vec![
+            Location {y: 0, x: 3},
+            Location {y: 0, x: 4},
+        ];
+}
+
+pub struct Split {
+    // TODO use `FixedSizeArray` when it lands on stable
+    inputs: Vec<DropletId>,
+    outputs: Vec<DropletId>,
+}
+
+impl Split {
+    pub fn new(arch: &mut Architecture, id: DropletId) -> Split {
+        let output1 = arch.new_droplet_id();
+        let output2 = arch.new_droplet_id();
+
+        Split {
+            inputs: vec![id],
+            outputs: vec![output1, output2]
+        }
+    }
+}
+
+impl Command for Split {
+
+    fn input_droplets(&self) -> &[DropletId] {
+        self.inputs.as_slice()
+    }
+
+    fn output_droplets(&self) -> &[DropletId] {
+        self.outputs.as_slice()
+    }
+
+    fn input_locations(&self) -> &[Location] {
+        SPLIT_INPUT_LOCS.as_slice()
+    }
+
+    fn output_locations(&self) -> &[Location] {
+        SPLIT_OUTPUT_LOCS.as_slice()
+    }
+
+    fn shape(&self) -> &Grid {
+        &SPLIT_SHAPE
+    }
+
+fn run(&self, arch: &mut Architecture, mapping: &Mapping) {
+
+        let d = arch.droplets.remove(&self.inputs[0]).unwrap();
+
+        let mut droplet1 = arch.droplet_from_location(d.location);
+        let mut droplet2 = arch.droplet_from_location(d.location);
+
+        let result1_id = self.outputs[0];
+        let result2_id = self.outputs[1];
+
+        let droplet2_cg = droplet2.collision_group;
+        droplet2.collision_group = droplet1.collision_group;
+
+        // TODO(@michalp): can't bind twice here b/c of borrow checker...
+        match arch.droplets.entry(result1_id) {
+            Occupied(occ) => panic!("Droplet was already here: {:?}", occ.get()),
+            Vacant(spot) => spot.insert(droplet1)
+        };
+
+        match arch.droplets.entry(result2_id) {
+            Occupied(occ) => panic!("Droplet was already here: {:?}", occ.get()),
+            Vacant(spot) => spot.insert(droplet2)
+        };
+
+        for (loc1, loc2) in SPLIT_PATH1.iter().zip(SPLIT_PATH2.iter()) {
+            droplet1.location = mapping[loc1];
+            droplet2.location = mapping[loc2];
+        }
+
+        droplet2.collision_group = droplet2_cg;
     }
 }
