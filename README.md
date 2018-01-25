@@ -13,7 +13,7 @@ installed, you can use Git as you usually would.
 
 All the code is written in [Rust][].
 A simple `cargo build` in the project root will build everything,
-and `cargo test** will run the tests.
+and `cargo test**` will run the tests.
 
 ## Running Examples
 
