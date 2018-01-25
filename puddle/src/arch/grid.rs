@@ -14,8 +14,9 @@ impl Cell {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, PartialEq, Eq, Clone, Serialize, Deserialize)]
 pub struct Grid {
+    #[serde(rename = "board")]
     #[serde(with = "super::parse")]
     pub vec: Vec<Vec<Option<Cell>>>,
 }

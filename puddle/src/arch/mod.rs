@@ -3,6 +3,9 @@ pub mod grid;
 
 use std::ops::{Add, Sub};
 use std::collections::HashMap;
+use std::io::Read;
+
+use serde_json;
 
 use arch::grid::Grid;
 
@@ -88,6 +91,11 @@ impl Architecture {
             next_droplet_id: 0,
             next_collision_group: 0,
         }
+    }
+
+    pub fn from_reader<R: Read>(reader: R) -> Architecture {
+        let grid = serde_json::from_reader(reader).expect("parse failed");
+        Architecture::from_grid(grid)
     }
 
     pub fn new_droplet_id(&mut self) -> DropletId {
@@ -251,7 +259,7 @@ pub mod tests {
                 Architecture {
                     grid: grid.clone(),
                     next_droplet_id: next_id,
-                    next_collision_group: next_id,
+                    next_collision_group: next_cg,
                     droplets: ht,
                 }
         }).boxed()

@@ -14,10 +14,6 @@ enum ExecutionError {
 
 impl Session {
 
-    pub fn new_droplet(&mut self) -> DropletId {
-        self.arch.new_droplet_id()
-    }
-
     fn execute<Cmd: Command>(&mut self, cmd: &Cmd) -> Result<(), ExecutionError> {
         let mapping = match self.arch.grid.place(cmd.shape()) {
             None => return Err(ExecutionError::PlaceError),
@@ -81,7 +77,7 @@ mod tests {
 
     use super::*;
 
-    use arch::{Location, Droplet};
+    use arch::{Location};
     use arch::grid::Grid;
 
     #[test]
