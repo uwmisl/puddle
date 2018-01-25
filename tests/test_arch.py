@@ -129,6 +129,8 @@ def test_multi_location_droplet_routing(session01):
 
     session01.move(a, (5,1))
 
+    session01.flush()
+
 
 @pytest.mark.skip("Hangs on some runs (randomly)")
 def test_multi_location_droplet_routing_complex(session01):
