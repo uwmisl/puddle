@@ -2,35 +2,21 @@
 <html lang="en">
     <head>
         <meta charset="UTF-8">
-        <title>Title</title>
+        <title>Puddle Viz</title>
         <style>
-         #container {
-             margin-top: 30px;
-             position: relative;
-         }
-         .ball-container {
-             position: absolute;
-             top: 0;
-             left: 0;
-             transition: transform 0.15s;
-         }
-         .ball {
-             position: absolute;
-             background: #c00;
-             transition: transform 0.15s;
-         }
-         #slider {
-             width: 200px;
-         }
+        body {
+            font-family: sans-serif;
+        }
         </style>
         <link rel="stylesheet" href="https://ajax.googleapis.com/ajax/libs/jqueryui/1.12.1/themes/smoothness/jquery-ui.css">
+        <script src="static/libraries/phaser.js"></script>
+        <script src="static/libraries/phaser.min.js"></script>
         <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
         <script src="https://ajax.googleapis.com/ajax/libs/jqueryui/1.12.1/jquery-ui.min.js"></script>
-        <script src="static/view.js" defer></script>
+        <script src="static/game.js"></script>
     </head>
     <body>
         <input id="ready" type="checkbox">
         <button type="button" id="step">Step</button>
-        <div id="container"></div>
-    </body>
+</body>
 </html>
