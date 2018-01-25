@@ -1,7 +1,0 @@
-{
-   "compileOnSave": true,
-   "compilerOptions": {
-       "noImplicitAny" : true,
-       "target": "es6"
-   }
-}
