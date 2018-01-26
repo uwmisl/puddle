@@ -14,8 +14,9 @@ extern crate proptest;
 #[macro_use]
 extern crate lazy_static;
 
-extern crate iron;
-
+extern crate jsonrpc_core;
+#[macro_use]
+extern crate jsonrpc_macros;
 
 mod minheap;
 

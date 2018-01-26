@@ -5,6 +5,9 @@ use std::collections::hash_map::Entry::*;
 use arch::{Architecture, Location, DropletId};
 use arch::grid::Grid;
 
+use api::PuddleError;
+use api::PuddleError::*;
+
 type Mapping = HashMap<Location, Location>;
 
 pub trait Command {
@@ -42,19 +45,23 @@ pub struct Mix {
 }
 
 impl Mix {
-    pub fn new(arch: &mut Architecture, id1: DropletId, id2: DropletId) -> Mix {
+    pub fn new(arch: &mut Architecture, id1: DropletId, id2: DropletId) -> Result<Mix, PuddleError> {
         let output = arch.new_droplet_id();
 
-        let d1_cg = arch.droplets.get(&id1).unwrap().collision_group;
-        let d2 = arch.droplets.get_mut(&id2).unwrap();
+        // we must validate getting these things out of the hashtable
+        // TODO wrap this in a method of arch
+        let d1_cg = arch.droplets.get(&id1)
+            .ok_or(NonExistentDropletId(id1))?.collision_group;
+        let d2 = arch.droplets.get_mut(&id2)
+            .ok_or(NonExistentDropletId(id1))?;
 
         // make sure their collision groups are the same so we can mix them
         d2.collision_group = d1_cg;
 
-        Mix {
+        Ok( Mix {
             inputs: vec![id1, id2],
             outputs: vec![output]
-        }
+        })
     }
 }
 

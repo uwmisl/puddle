@@ -1,56 +1,88 @@
 extern crate puddle;
 
 extern crate iron;
-extern crate persistent;
+extern crate mount;
+extern crate staticfile;
 
+extern crate jsonrpc_core;
+
+use std::fmt;
 use std::fs::File;
+use std::path::Path;
+use std::io::Read;
 
 use iron::prelude::*;
+use iron::Handler;
 use iron::headers::ContentType;
 use iron::status;
-use iron::typemap::Key;
 
-use persistent::State;
+use mount::Mount;
+use staticfile::Static;
 
-use puddle::api::Session;
+use jsonrpc_core::IoHandler;
+
+use puddle::api::{Session, Rpc};
 use puddle::arch::Architecture;
 
+#[derive(Debug)]
+struct JsonRpcError;
 
-struct SessionHolder;
-
-impl Key for SessionHolder { type Value = puddle::api::Session; }
-
-
-fn do_something(_: &mut Session) {}
-
-
-fn serve(req: &mut Request) -> IronResult<Response> {
-    let lock = req.get::<State<SessionHolder>>().unwrap();
-    let mut session = lock.write().unwrap();
-
-    do_something(&mut session);
-
-    Ok(Response::with((status::Ok, format!("Hits: {}", 0))))
+impl fmt::Display for JsonRpcError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "jsonrpc did not respond")
+    }
 }
 
+impl iron::error::Error for JsonRpcError {
+    fn description(&self) -> &str {
+        "jsonrpc did not respond"
+    }
 
-// fn variant1(_: &mut Request) -> IronResult<Response> {
-//     let json_modifier = ContentType::json().0;
-//     Ok(Response::with((json_modifier, status::Ok, "{}")))
-// }
+    fn cause(&self) -> Option<&iron::error::Error> {
+        None
+    }
+}
 
+// needed so we can implement the Handler trait on IoHandler
+struct IoHandlerWrapper(IoHandler);
+
+impl Handler for IoHandlerWrapper {
+    fn handle(&self, req: &mut Request) -> IronResult<Response> {
+        // read the body into a string
+        let mut body = String::new();
+        req .body
+            .read_to_string(&mut body)
+            .map_err(|e| IronError::new(e, (status::InternalServerError, "Error reading request")))?;
+        println!("body: {}", body);
+
+        // handle the request with jsonrpc, then convert to IronResult
+        self.0.handle_request_sync(&body)
+            .map(|resp| Response::with((ContentType::json().0, status::Ok, resp)))
+            .ok_or(IronError::new(JsonRpcError, (status::InternalServerError, "jsonrpc error")))
+    }
+}
+
+fn status(_: &mut Request) -> IronResult<Response> {
+    Ok(Response::with((status::Ok, "All is good!")))
+}
 
 fn main() {
     let path = "../tests/arches/arch01.json";
     let reader = File::open(path).expect("file not found");
-    let session = Session {
-        arch: Architecture::from_reader(reader)
-    };
+    let session = Session::new(Architecture::from_reader(reader));
 
-    let mut chain = Chain::new(serve);
-    chain.link(State::<SessionHolder>::both(session));
+
+    let mut mount = Mount::new();
+    mount
+        .mount("/status", status)
+        .mount("/static", Static::new(Path::new("target/doc/")))
+        .mount("/", {
+            let mut ioh = IoHandler::new();
+            ioh.extend_with(session.to_delegate());
+            IoHandlerWrapper(ioh)
+        });
 
     let address = "localhost:3000";
     println!("Listening on http://{}", address);
-    Iron::new(chain).http(address).unwrap();
+    Iron::new(mount).http(address).unwrap();
 }
