@@ -20,9 +20,9 @@ const Y_OFFSET = 50; // downward offset to leave room for volume droplets
 window.onload = function() {
     game = new Phaser.Game(
         window.innerWidth * window.devicePixelRatio,
-        window.innerHeight * window.devicePixelRatio,
+        window.innerHeight * window.devicePixelRatio / 2,
         Phaser.CANVAS,
-        'gameArea');
+        'game');
 
     var step = function(game) {};
 

@@ -7,6 +7,35 @@
         body {
             font-family: sans-serif;
         }
+
+        #slider-container {
+            padding-top: 16px;
+            padding-left: 5px;
+            position: absolute;
+            width: 100vw;
+        }
+
+        #slider {
+            -webkit-appearance: none;
+            width: 400px;
+            height: 20px;
+            border-radius: 5px;   
+            background: #a9aa9e;
+            outline: none;
+            -webkit-transition: .2s;
+            transition: opacity .2s;
+        }
+
+        #slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 22px;
+            height: 22px;
+            border-radius: 5px; 
+            background: #4b4559;
+            cursor: pointer;
+        }
+
         </style>
         <link rel="stylesheet" href="https://ajax.googleapis.com/ajax/libs/jqueryui/1.12.1/themes/smoothness/jquery-ui.css">
         <script src="static/libraries/phaser.js"></script>
@@ -16,7 +45,11 @@
         <script src="static/game.js"></script>
     </head>
     <body>
+        <div id="game"></div>
         <input id="ready" type="checkbox">
         <button type="button" id="step">Step</button>
+        <div id="slider-container">
+            <input type="range" min="1" max="100" value="100" id="slider">
+        </div>
 </body>
 </html>
