@@ -40,25 +40,9 @@ window.onload = function() {
 
             fetch_data();
 
-            document.getElementById("back").onclick = function() {
-                frame--;
-                animate(prev_json[frame]);
-            }
+            document.getElementById("back").onclick = step_backward;
 
-            document.getElementById("step").onclick = function() {
-                if (prev_json.length > 0) {
-                    if (frame == prev_json.length - 1) {
-                        if (!server_closed) {
-                            fetch_data();
-                            frame++;
-                        }
-
-                    } else {
-                        frame++;
-                        animate(prev_json[frame]);
-                    }
-                }
-            }
+            document.getElementById("step").onclick = step_forward;
 
             document.getElementById("ready").onclick = function() {
                 if (this.checked) {
@@ -71,11 +55,14 @@ window.onload = function() {
                 console.log(this.value);
                 forward = this.value < last_range;
             }
+
             document.addEventListener('keypress', (event) => {
-              const keyName = event.key;
-              if (keyName == 'l') {
-                console.log('keypress event\n\n' + 'key: ' + keyName);
-            }
+                const keyName = event.key;
+                if (keyName == 'l') {
+                    step_forward();
+                } else if (keyName == 'j') {
+                    step_backward();
+                }
             });
 
             game.stage.disableVisibilityChange = true;
@@ -87,6 +74,26 @@ window.onload = function() {
     game.state.add("step", step);
     game.state.start("step");
 };
+
+function step_forward() {
+    if (prev_json.length > 0) {
+        if (frame == prev_json.length - 1) {
+            if (!server_closed) {
+                fetch_data();
+                frame++;
+            }
+
+        } else {
+            frame++;
+            animate(prev_json[frame]);
+        }
+    }
+}
+
+function step_backward() {
+    frame--;
+    animate(prev_json[frame]);
+}
 
 /**
  * Takes information about a set of droplets and either
@@ -222,7 +229,7 @@ function onComplete() {
 function run_animation() {
     let interval_id = setInterval(function() {
         if (ready && !server_closed) {
-            fetch_data();
+            step_forward();
         } else {
             clearInterval(interval_id);
         }
