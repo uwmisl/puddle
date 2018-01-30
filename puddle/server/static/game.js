@@ -3,9 +3,12 @@ let game;
 let droplets = []; // holds droplets from state-to-state
 let ready = false; // 'ready' continuous animation checkbox
 let running = false; // flag for animation after onComplete
-let json_queue = []; // holds fetched data over time
 let server_closed = false;
-
+let prev_json = [];
+let json_queue = [];
+let frame = 0;
+let forward = true;
+let last_range = 100;
 const CELL_SIZE = 50;
 const TWEEN_TIME = 200; // in millisec
 // TODO: remove when volume is no longer used
@@ -37,9 +40,23 @@ window.onload = function() {
 
             fetch_data();
 
+            document.getElementById("back").onclick = function() {
+                frame--;
+                animate(prev_json[frame]);
+            }
+
             document.getElementById("step").onclick = function() {
-                if (!server_closed) {
-                    fetch_data();
+                if (prev_json.length > 0) {
+                    if (frame == prev_json.length - 1) {
+                        if (!server_closed) {
+                            fetch_data();
+                            frame++;
+                        }
+
+                    } else {
+                        frame++;
+                        animate(prev_json[frame]);
+                    }
                 }
             }
 
@@ -49,6 +66,17 @@ window.onload = function() {
                 }
                 ready = this.checked;
             }
+
+            document.getElementById("slider").oninput = function() {
+                console.log(this.value);
+                forward = this.value < last_range;
+            }
+            document.addEventListener('keypress', (event) => {
+              const keyName = event.key;
+              if (keyName == 'l') {
+                console.log('keypress event\n\n' + 'key: ' + keyName);
+            }
+            });
 
             game.stage.disableVisibilityChange = true;
         },
@@ -66,13 +94,14 @@ window.onload = function() {
  * @param {json} array of droplet json
  */
 function parse_data(data) {
+    prev_json.push(data);
     if (droplets.length == 0) {
         for (let json of data) {
             add_drop(json);
         }
     } else {
         if (!running) {
-            animate(data);
+            animate(prev_json[frame]);
         } else {
             json_queue.push(data);
         }
@@ -139,6 +168,10 @@ function animate(data) {
         }
 
         if (drop != null) {
+            if (drop.deleted) {
+                drop.sprite.revive();
+                drop.deleted = false;
+            }
             let x = json.location[1] * CELL_SIZE;
             let y = json.location[0] * CELL_SIZE + Y_OFFSET;
             let tween = game.add.tween(drop.sprite)
