@@ -7,8 +7,7 @@ let server_closed = false;
 let prev_json = [];
 let json_queue = [];
 let frame = 0;
-let forward = true;
-let last_range = 100;
+let max_frame = Number.MAX_VALUE;
 const CELL_SIZE = 50;
 const TWEEN_TIME = 200; // in millisec
 // TODO: remove when volume is no longer used
@@ -40,9 +39,13 @@ window.onload = function() {
 
             fetch_data();
 
-            document.getElementById("back").onclick = step_backward;
+            document.getElementById("back").onclick = function() {
+                update_frame(parseInt(frame) - 1);
+            };
 
-            document.getElementById("step").onclick = step_forward;
+            document.getElementById("step").onclick  = function() {
+                update_frame(parseInt(frame) + 1);
+            };
 
             document.getElementById("ready").onclick = function() {
                 if (this.checked) {
@@ -52,16 +55,18 @@ window.onload = function() {
             }
 
             document.getElementById("slider").oninput = function() {
-                console.log(this.value);
-                forward = this.value < last_range;
+                let point = this.value;
+                if (point != frame) {
+                    update_frame(point);
+                }
             }
 
             document.addEventListener('keypress', (event) => {
                 const keyName = event.key;
                 if (keyName == 'l') {
-                    step_forward();
+                    update_frame(frame + 1);
                 } else if (keyName == 'j') {
-                    step_backward();
+                    update_frame(frame - 1);
                 }
             });
 
@@ -75,24 +80,57 @@ window.onload = function() {
     game.state.start("step");
 };
 
-function step_forward() {
-    if (prev_json.length > 0) {
-        if (frame == prev_json.length - 1) {
-            if (!server_closed) {
-                fetch_data();
-                frame++;
+function update_frame(updated_frame) {
+    if (updated_frame >= 0 && updated_frame <= max_frame) {
+        let slider = document.getElementById("slider");
+        // most common case; step or back press or increment slider
+        if (Math.abs(frame - updated_frame) == 1) {
+            frame = updated_frame;
+            // fetching new data
+            if (frame == prev_json.length) {
+                if (!server_closed) {
+                    fetch_data();
+                    slider.max = frame;
+                    slider.value = frame;
+                }
+            // data has already been fetched
+            } else {
+                console.log(json_queue);
+                console.log(frame);
+                if (slider.value != frame) {
+                    slider.value = frame;
+                }
+                if (!running) {
+                    running = true;
+                    animate(prev_json[frame]);
+                } else {
+                    json_queue.push(prev_json[frame]);
+                }
             }
-
         } else {
-            frame++;
-            animate(prev_json[frame]);
+            if (updated_frame < frame) {
+                while (frame != updated_frame) {
+                    frame -= 1;
+                    if (!running) {
+                        running = true;
+                        animate(prev_json[frame]);
+                    } else {
+                        json_queue.push(prev_json[frame]);
+                    }
+                }
+            } else if (updated_frame > frame) {
+                while (frame != updated_frame) {
+                    frame += 1;
+                    if (!running) {
+                        running = true;
+                        animate(prev_json[frame]);
+                    } else {
+                        json_queue.push(prev_json[frame]);
+                    }
+                }
+            }
         }
     }
-}
-
-function step_backward() {
-    frame--;
-    animate(prev_json[frame]);
 }
 
 /**
@@ -108,6 +146,7 @@ function parse_data(data) {
         }
     } else {
         if (!running) {
+            running = true;
             animate(prev_json[frame]);
         } else {
             json_queue.push(data);
@@ -200,14 +239,16 @@ function animate(data) {
  */
 function remove_drops(data) {
     let new_ids = [];
-    for (let id of data) {
-        new_ids.push(id.id);
-    }
-    for (let droplet of droplets) {
-        if (droplet != undefined) {
-            if (new_ids.indexOf(droplet.id) == -1) {
-                droplets[droplet.id].sprite.kill();
-                droplets[droplet.id].deleted = true;
+    if (data.length > 0) {
+        for (let id of data) {
+            new_ids.push(id.id);
+        }
+        for (let droplet of droplets) {
+            if (droplet != undefined) {
+                if (new_ids.indexOf(droplet.id) == -1) {
+                    droplets[droplet.id].sprite.kill();
+                    droplets[droplet.id].deleted = true;
+                }
             }
         }
     }
@@ -229,7 +270,7 @@ function onComplete() {
 function run_animation() {
     let interval_id = setInterval(function() {
         if (ready && !server_closed) {
-            step_forward();
+            update_frame(frame + 1);
         } else {
             clearInterval(interval_id);
         }
@@ -241,6 +282,11 @@ $(function() {
         var fetch = $.getJSON('/state', parse_data)
             .fail(function() {
                 server_closed = true;
+                frame = frame - 1;
+                max_frame = frame;
+                animate_queue();
+                document.getElementById("slider").max = frame;
+                console.log("CLOSED" + max_frame);
             });
     }
     fetch_data = jQuery_fetch;
