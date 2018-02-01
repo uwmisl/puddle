@@ -1,23 +1,25 @@
-let fetch_data = null;
 let game;
-let droplets = []; // holds droplets from state-to-state
+let slider;
+
+let fetch_data = null;
+
 let ready = false; // 'ready' continuous animation checkbox
 let running = false; // flag for animation after onComplete
-let server_closed = false;
-let prev_json = [];
-let json_queue = [];
-let frame = 0;
-let max_frame = Number.MAX_VALUE;
+let server_closed = false; // flag that alerts when all data is fetched
+
+let droplets = []; // holds droplets from state-to-state
+let prev_json = [];  // holds json over time
+
+let display_frame = 0; // current frame in visualizer
+let selected_frame = 0; // goal frame per user
+let max_frame = Number.MAX_VALUE; // frame when server is closed
+
 const CELL_SIZE = 50;
 const TWEEN_TIME = 200; // in millisec
-// TODO: remove when volume is no longer used
-const Y_OFFSET = 50; // downward offset to leave room for volume droplets
 
 /**
  * Loads all of the necessary Phaser stuff and initializes
  * the step function.
- * TODO: ensure devicePixelRatio takes care of high-res screens
- * TODO: add tween when volume increases
  */
 window.onload = function() {
     game = new Phaser.Game(
@@ -36,16 +38,13 @@ window.onload = function() {
 
             game.stage.backgroundColor = "#ffffff";
             game.physics.startSystem(Phaser.Physics.ARCADE);
+            slider = document.getElementById("slider");
 
             fetch_data();
 
-            document.getElementById("back").onclick = function() {
-                update_frame(parseInt(frame) - 1);
-            };
+            document.getElementById("back").onclick = backward;
 
-            document.getElementById("step").onclick  = function() {
-                update_frame(parseInt(frame) + 1);
-            };
+            document.getElementById("step").onclick  = forward;
 
             document.getElementById("ready").onclick = function() {
                 if (this.checked) {
@@ -55,18 +54,16 @@ window.onload = function() {
             }
 
             document.getElementById("slider").oninput = function() {
-                let point = this.value;
-                if (point != frame) {
-                    update_frame(point);
-                }
+                selected_frame = slider.value;
+                update_frame();
             }
 
             document.addEventListener('keypress', (event) => {
                 const keyName = event.key;
                 if (keyName == 'l') {
-                    update_frame(frame + 1);
+                    forward();
                 } else if (keyName == 'j') {
-                    update_frame(frame - 1);
+                    backward();
                 }
             });
 
@@ -80,54 +77,62 @@ window.onload = function() {
     game.state.start("step");
 };
 
-function update_frame(updated_frame) {
-    if (updated_frame >= 0 && updated_frame <= max_frame) {
-        let slider = document.getElementById("slider");
-        // most common case; step or back press or increment slider
-        if (Math.abs(frame - updated_frame) == 1) {
-            frame = updated_frame;
-            // fetching new data
-            if (frame == prev_json.length) {
-                if (!server_closed) {
-                    fetch_data();
-                    slider.max = frame;
-                    slider.value = frame;
-                }
-            // data has already been fetched
-            } else {
-                console.log(json_queue);
-                console.log(frame);
-                if (slider.value != frame) {
-                    slider.value = frame;
-                }
-                if (!running) {
-                    running = true;
-                    animate(prev_json[frame]);
-                } else {
-                    json_queue.push(prev_json[frame]);
-                }
+/**
+ * Function to step forward (incrementally) through
+ * animation. Updates the slider position accordingly.
+ */
+function forward() {
+    if (selected_frame < max_frame && display_frame < max_frame) {
+        selected_frame++;
+        slider.value = display_frame + delta();
+        update_frame();
+    }
+}
+
+/**
+ * Function to step backward (incrementally) through
+ * animation. Updates the slider position accordingly.
+ */
+function backward() {
+    if (selected_frame > 0) {
+        selected_frame--;
+        slider.value = display_frame + delta();
+        update_frame();
+    }
+}
+
+/**
+ * Returns the delta between the display frame,
+ * or current state of the board, and the selected,
+ * or goal frame as defined by the user.
+ */
+function delta() {
+    if (selected_frame < display_frame) {
+        return -1;
+    } else if (selected_frame > display_frame) {
+        return 1;
+    }
+    return 0;
+}
+
+/**
+ * Changes the state of the board by incrementing the
+ * frame either forward or backward depending on the delta.
+ */
+function update_frame() {
+    if (selected_frame >= 0 && selected_frame <= max_frame) {
+        let d = delta();
+        if (selected_frame == prev_json.length) {
+            if (!server_closed) {
+                fetch_data();
+                slider.max = display_frame + d;
+                slider.value = display_frame + d;
             }
+        // data has already been fetched
         } else {
-            if (updated_frame < frame) {
-                while (frame != updated_frame) {
-                    frame -= 1;
-                    if (!running) {
-                        running = true;
-                        animate(prev_json[frame]);
-                    } else {
-                        json_queue.push(prev_json[frame]);
-                    }
-                }
-            } else if (updated_frame > frame) {
-                while (frame != updated_frame) {
-                    frame += 1;
-                    if (!running) {
-                        running = true;
-                        animate(prev_json[frame]);
-                    } else {
-                        json_queue.push(prev_json[frame]);
-                    }
-                }
+            if (!running) {
+                running = true;
+                animate(prev_json[display_frame + d]);
             }
         }
     }
@@ -146,10 +151,7 @@ function parse_data(data) {
         }
     } else {
         if (!running) {
-            running = true;
-            animate(prev_json[frame]);
-        } else {
-            json_queue.push(data);
+            animate(prev_json[display_frame]);
         }
     }
 }
@@ -161,7 +163,8 @@ function parse_data(data) {
  * @param {json} single droplet json
  */
 function add_drop(json) {
-    let s = game.add.sprite((json.location[1] * CELL_SIZE), (json.location[0] * CELL_SIZE) + Y_OFFSET);
+    let s = game.add.sprite((json.location[1] * CELL_SIZE) + CELL_SIZE,
+        (json.location[0] * CELL_SIZE) + CELL_SIZE);
     for (let cell of json.shape) {
         let graphics = game.add.graphics(0, 0);
         let y = cell[0] * CELL_SIZE;
@@ -183,19 +186,6 @@ function add_drop(json) {
 }
 
 /**
- * Cycles through the queue of data, which grows
- * whenever 'step' is called or 'ready' is checked.
- */
-function animate_queue() {
-    if (json_queue.length == 0) {
-        running = false;
-    } else {
-        animate(json_queue.shift());
-        running = true;
-    }
-}
-
-/**
  * Takes json for a set of droplets and creates a tween
  * from their previous state to the next one, removing
  * drops and creating combinations along the way.
@@ -204,31 +194,34 @@ function animate_queue() {
  * @param {data} array of droplet json
  */
 function animate(data) {
-    remove_drops(data);
-    let count = 0;
-    for (let json of data) {
-        let drop = droplets[json.id];
+    if (data != undefined) {
+        remove_drops(data);
+        let count = 0;
+        for (let json of data) {
+            let drop = droplets[json.id];
 
-        if (drop == null) {
-            add_drop(json);
-        }
+            if (drop == null) {
+                add_drop(json);
+            }
 
-        if (drop != null) {
-            if (drop.deleted) {
-                drop.sprite.revive();
-                drop.deleted = false;
+            if (drop != null) {
+                if (drop.deleted) {
+                    drop.sprite.revive();
+                    drop.deleted = false;
+                }
+                let x = json.location[1] * CELL_SIZE + CELL_SIZE;
+                let y = json.location[0] * CELL_SIZE + CELL_SIZE;
+                let tween = game.add.tween(drop.sprite)
+                    .to({ x: x, y: y },
+                        TWEEN_TIME / (Math.abs(selected_frame - display_frame) + 1),
+                        Phaser.Easing.Quadratic.InOut).start()
+                if (count == 0) {
+                    tween.onComplete.add(onComplete, this);
+                }
+                count++;
             }
-            let x = json.location[1] * CELL_SIZE;
-            let y = json.location[0] * CELL_SIZE + Y_OFFSET;
-            let tween = game.add.tween(drop.sprite)
-                .to({ x: x, y: y },
-                    TWEEN_TIME / (json_queue.length + 1),
-                    Phaser.Easing.Quadratic.InOut).start()
-            if (count == 0) {
-                tween.onComplete.add(onComplete, this);
-            }
-            count++;
         }
+        display_frame += delta();
     }
 }
 
@@ -239,7 +232,7 @@ function animate(data) {
  */
 function remove_drops(data) {
     let new_ids = [];
-    if (data.length > 0) {
+    if (data != undefined && data.length > 0) {
         for (let id of data) {
             new_ids.push(id.id);
         }
@@ -259,7 +252,12 @@ function remove_drops(data) {
  * droplets once the previous set has completed.
  */
 function onComplete() {
-    animate_queue();
+    if (selected_frame == display_frame) {
+        running = false;
+    } else {
+        running = true;
+        animate(prev_json[display_frame + delta()])
+    }
 }
 
 /**
@@ -270,7 +268,7 @@ function onComplete() {
 function run_animation() {
     let interval_id = setInterval(function() {
         if (ready && !server_closed) {
-            update_frame(frame + 1);
+            update_frame(display_frame + 1);
         } else {
             clearInterval(interval_id);
         }
@@ -282,11 +280,11 @@ $(function() {
         var fetch = $.getJSON('/state', parse_data)
             .fail(function() {
                 server_closed = true;
-                frame = frame - 1;
-                max_frame = frame;
-                animate_queue();
-                document.getElementById("slider").max = frame;
-                console.log("CLOSED" + max_frame);
+                max_frame = display_frame;
+                selected_frame = max_frame;
+                display_frame = max_frame;
+                running = false;
+                slider.max = display_frame;
             });
     }
     fetch_data = jQuery_fetch;
