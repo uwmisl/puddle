@@ -268,7 +268,7 @@ function onComplete() {
 function run_animation() {
     let interval_id = setInterval(function() {
         if (ready && !server_closed) {
-            update_frame(display_frame + 1);
+            forward();
         } else {
             clearInterval(interval_id);
         }
