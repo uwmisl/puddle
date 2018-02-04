@@ -13,24 +13,160 @@ pub trait Command {
     fn output_droplets(&self) -> &[DropletId];
     fn output_locations(&self) -> &[Location];
     fn shape(&self) -> &Grid;
+    fn trust_placement(&self) -> bool;
+    fn pre_run(&self, arch: &mut Architecture);
     fn run(&self, arch: &mut Architecture, mapping: &Mapping);
 }
 
-
-
 //
-// TODO: Input
+//  Input
 //
 
-//
-// TODO: Move
-//
+lazy_static! {
+    static ref INPUT_SHAPE: Grid = Grid::rectangle(0,0);
+    static ref INPUT_INPUT_LOCS: Vec<Location> = vec![];
+    static ref INPUT_OUTPUT_LOCS: Vec<Location> =
+        vec![
+            Location {y: 0, x: 0},
+        ];
+}
+
+pub struct Input {
+    inputs: Vec<DropletId>,
+    outputs: Vec<DropletId>,
+    destination: Location,
+}
+
+impl Input {
+    pub fn new(arch: &mut Architecture, loc: Location) -> Input {
+        let output = arch.new_droplet_id();
+
+        Input {
+            inputs: vec![],
+            outputs: vec![output],
+            destination: loc
+        }
+    }
+}
+
+impl Command for Input {
+
+    fn input_droplets(&self) -> &[DropletId] {
+        self.inputs.as_slice()
+    }
+
+    fn output_droplets(&self) -> &[DropletId] {
+        self.outputs.as_slice()
+    }
+
+    fn input_locations(&self) -> &[Location] {
+        INPUT_INPUT_LOCS.as_slice()
+    }
+
+    fn output_locations(&self) -> &[Location] {
+        INPUT_OUTPUT_LOCS.as_slice()
+    }
+
+    fn shape(&self) -> &Grid {
+        &INPUT_SHAPE
+    }
+
+    fn trust_placement(&self) -> bool {
+        false
+    }
+
+    fn pre_run(&self, arch: &mut Architecture) {
+        // possibly move creating output droplets here
+    }
+
+    fn run(&self, arch: &mut Architecture, mapping: &Mapping) {
+        let droplet = arch.droplet_from_location(self.destination);
+        let result_id = self.outputs[0];
+
+        let result = match arch.droplets.entry(result_id) {
+            Occupied(occ) => panic!("Droplet was already here: {:?}", occ.get()),
+            Vacant(spot) => spot.insert(droplet)
+        };
+
+        assert!(result.location == self.destination);
+    }
+}
 
 //
-// TODO: Heat
+//  Move
 //
 
+lazy_static! {
+    static ref MOVE_SHAPE: Grid = Grid::rectangle(0,0);
+    static ref MOVE_INPUT_LOCS: Vec<Location> =
+        vec![
+            Location {y: 0, x: 0},
+        ];
+    static ref MOVE_OUTPUT_LOCS: Vec<Location> =
+        vec![
+            Location {y: 0, x: 0},
+        ];
+}
 
+pub struct Move {
+    inputs: Vec<DropletId>,
+    outputs: Vec<DropletId>,
+}
+
+impl Move {
+    pub fn new(arch: &mut Architecture, id: DropletId, loc: Location) -> Move {
+        let output = arch.new_droplet_id();
+
+        Move {
+            inputs: vec![id],
+            outputs: vec![output]
+        }
+    }
+}
+
+impl Command for Move {
+
+    fn input_droplets(&self) -> &[DropletId] {
+        self.inputs.as_slice()
+    }
+
+    fn output_droplets(&self) -> &[DropletId] {
+        self.outputs.as_slice()
+    }
+
+    fn input_locations(&self) -> &[Location] {
+        MOVE_INPUT_LOCS.as_slice()
+    }
+
+    fn output_locations(&self) -> &[Location] {
+        MOVE_OUTPUT_LOCS.as_slice()
+    }
+
+    fn shape(&self) -> &Grid {
+        &MOVE_SHAPE
+    }
+
+    fn trust_placement(&self) -> bool {
+        true
+    }
+
+    fn pre_run(&self, arch: &mut Architecture) {
+        // possibly move creating output droplets here
+    }
+
+    fn run(&self, arch: &mut Architecture, mapping: &Mapping) {
+
+        let d0 = arch.droplets.remove(&self.inputs[0]).unwrap();
+
+        let droplet = arch.droplet_from_location(d0.location);
+        let result_id = self.outputs[0];
+
+        let result = match arch.droplets.entry(result_id) {
+            Occupied(occ) => panic!("Droplet was already here: {:?}", occ.get()),
+            Vacant(spot) => spot.insert(droplet)
+        };
+    }
+}
 
 //
 //  Mix
@@ -55,7 +191,6 @@ lazy_static! {
 }
 
 pub struct Mix {
-    // TODO use `FixedSizeArray` when it lands on stable
     inputs: Vec<DropletId>,
     outputs: Vec<DropletId>,
 }
@@ -63,12 +198,6 @@ pub struct Mix {
 impl Mix {
     pub fn new(arch: &mut Architecture, id1: DropletId, id2: DropletId) -> Mix {
         let output = arch.new_droplet_id();
-
-        let d1_cg = arch.droplets.get(&id1).unwrap().collision_group;
-        let d2 = arch.droplets.get_mut(&id2).unwrap();
-
-        // make sure their collision groups are the same so we can mix them
-        d2.collision_group = d1_cg;
 
         Mix {
             inputs: vec![id1, id2],
@@ -97,6 +226,20 @@ impl Command for Mix {
 
     fn shape(&self) -> &Grid {
         &MIX_SHAPE
+    }
+
+    fn trust_placement(&self) -> bool {
+        false
+    }
+
+    fn pre_run(&self, arch: &mut Architecture) {
+
+        let d0_cg = arch.droplets.get(&self.inputs[0]).unwrap().collision_group;
+        let mut d1 = arch.droplets.get_mut(&self.inputs[1]).unwrap();
+
+        d1.collision_group = d0_cg;
+
+        // possibly move creating output droplets here
     }
 
     fn run(&self, arch: &mut Architecture, mapping: &Mapping) {
@@ -148,7 +291,6 @@ lazy_static! {
 }
 
 pub struct Split {
-    // TODO use `FixedSizeArray` when it lands on stable
     inputs: Vec<DropletId>,
     outputs: Vec<DropletId>,
 }
@@ -187,7 +329,15 @@ impl Command for Split {
         &SPLIT_SHAPE
     }
 
-fn run(&self, arch: &mut Architecture, mapping: &Mapping) {
+    fn trust_placement(&self) -> bool {
+        false
+    }
+
+    fn pre_run(&self, arch: &mut Architecture) {
+        // possibly move creating output droplets here
+    }
+
+    fn run(&self, arch: &mut Architecture, mapping: &Mapping) {
 
         let d = arch.droplets.remove(&self.inputs[0]).unwrap();
 
@@ -200,7 +350,6 @@ fn run(&self, arch: &mut Architecture, mapping: &Mapping) {
         let droplet2_cg = droplet2.collision_group;
         droplet2.collision_group = droplet1.collision_group;
 
-        // TODO(@michalp): can't bind twice here b/c of borrow checker...
         match arch.droplets.entry(result1_id) {
             Occupied(occ) => panic!("Droplet was already here: {:?}", occ.get()),
             Vacant(spot) => spot.insert(droplet1)
