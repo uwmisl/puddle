@@ -46,11 +46,6 @@ impl Session {
             }
         }
 
-        // let mapping = match self.arch.grid.place(cmd.shape()) {
-        //     None => return Err(ExecutionError::PlaceError),
-        //     Some(m) => m,
-        // };
-
         println!("Mapping: {:?}", mapping);
 
         let in_locs = cmd.input_locations();
