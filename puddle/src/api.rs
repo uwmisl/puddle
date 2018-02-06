@@ -53,7 +53,6 @@ impl Session {
 
         assert_eq!(in_locs.len(), in_ids.len());
 
-        // TODO: this needs to go over all droplets...
         for (loc, id) in in_locs.iter().zip(in_ids) {
             // this should have been put to none last time
             let droplet = self.arch.droplets.get_mut(id).expect(
@@ -159,24 +158,24 @@ mod tests {
 
     #[test]
     fn execute_move_command() {
-        // let mut arch = Architecture::from_grid(
-        //     Grid::rectangle(2,2)
-        // );
+        let mut arch = Architecture::from_grid(
+            Grid::rectangle(2,2)
+        );
 
-        // let mut session = Session::new(arch);
+        let mut session = Session::new(arch);
 
-        // let loc = Location {y: 1, x: 1};
+        let loc = Location {y: 1, x: 1};
 
-        // let id = session.input(loc);
-        // let id1 = session.move_droplet(id, loc);
-        // session.flush();
+        let id = session.input(loc);
+        let id1 = session.move_droplet(id, loc);
+        session.flush();
 
-        // let ids: Vec<&DropletId> = session.arch.droplets.keys().collect();
+        let ids: Vec<&DropletId> = session.arch.droplets.keys().collect();
 
-        // assert_eq!(ids, vec![&id1]);
+        assert_eq!(ids, vec![&id1]);
 
-        // let dr = session.arch.droplets.get(&id1).unwrap();
-        // assert_eq!(loc, dr.location)
+        let dr = session.arch.droplets.get(&id1).unwrap();
+        assert_eq!(loc, dr.location)
     }
 
     #[test]
@@ -226,12 +225,13 @@ mod tests {
 
         let mut session = Session::new(arch);
         // todo: add move into here.
-        let id1 = session.input(Location{y: 2, x: 2});
-        let id2 = session.input(Location{y: 0, x: 0});
+        let id1 = session.input(Location {y: 2, x: 2});
+        let id2 = session.input(Location {y: 0, x: 0});
         let id3 = session.mix(id1, id2);
         let (id4, id5) = session.split(id3);
-        let id6 = session.input(Location{y: 7, x: 7});
-        let id7 = session.mix(id4, id6);
+        let id6 = session.input(Location {y: 7, x: 7});
+        let id7 = session.move_droplet(id6, Location {y: 5, x: 5});
+        let id8 = session.mix(id4, id7);
 
         session.flush();
 
@@ -239,7 +239,7 @@ mod tests {
 
         assert_eq!(ids.len(), 2);
         assert!(ids.contains(&&id5));
-        assert!(ids.contains(&&id7))
+        assert!(ids.contains(&&id8))
     }
 
     //
@@ -254,7 +254,7 @@ mod tests {
 
         let mut session = Session::new(arch);
 
-        // todo: this shouldn't work
+        // TODO: this shouldn't work?
         let loc = Location {y: 3, x: 3};
         let id = session.input(loc);
 
@@ -264,22 +264,23 @@ mod tests {
 
     #[test]
     fn lazy_move_command() {
-        // let mut arch = Architecture::from_grid(
-        //     Grid::rectangle(1,1)
-        // );
+        let mut arch = Architecture::from_grid(
+            Grid::rectangle(2,2)
+        );
 
-        // let mut session = Session::new(arch);
+        let mut session = Session::new(arch);
 
-        // // todo: this shouldn't work
-        // let loc = Location {y: 3, x: 3};
-        // let id = session.input(loc);
-        // session.flush();
+        let loc = Location {y: 1, x: 1};
 
-        // let ids: Vec<&DropletId> = session.arch.droplets.keys().collect();
-        // assert_eq!(ids, vec![&id]);
+        let id = session.input(loc);
 
-        // let dr = session.arch.droplets.get(&id).unwrap();
-        // assert_eq!(loc, dr.location)
+        session.flush();
+
+        let id1 = session.move_droplet(id, loc);
+
+        let ids: Vec<&DropletId> = session.arch.droplets.keys().collect();
+
+        assert_eq!(ids, vec![&id]);
     }
 
     #[test]
@@ -290,7 +291,6 @@ mod tests {
 
         let mut session = Session::new(arch);
 
-        // todo: this shouldn't work
         let id1 = session.input(Location {y: 1, x: 1});
         let id2 = session.input(Location {y: 4, x: 4});
 
@@ -313,9 +313,10 @@ mod tests {
 
         let mut session = Session::new(arch);
 
-        // todo: this shouldn't work
         let id = session.input(Location {y: 1, x: 1});
+
         session.flush();
+
         let (id1, id2) = session.split(id);
 
         let ids: Vec<&DropletId> = session.arch.droplets.keys().collect();

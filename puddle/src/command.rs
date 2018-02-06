@@ -111,6 +111,7 @@ lazy_static! {
 pub struct Move {
     inputs: Vec<DropletId>,
     outputs: Vec<DropletId>,
+    destination: Location,
 }
 
 impl Move {
@@ -119,7 +120,8 @@ impl Move {
 
         Move {
             inputs: vec![id],
-            outputs: vec![output]
+            outputs: vec![output],
+            destination: loc,
         }
     }
 }
@@ -156,15 +158,17 @@ impl Command for Move {
 
     fn run(&self, arch: &mut Architecture, mapping: &Mapping) {
 
-        let d0 = arch.droplets.remove(&self.inputs[0]).unwrap();
+        let droplet = arch.droplets.remove(&self.inputs[0]).unwrap();
 
-        let droplet = arch.droplet_from_location(d0.location);
         let result_id = self.outputs[0];
 
         let result = match arch.droplets.entry(result_id) {
             Occupied(occ) => panic!("Droplet was already here: {:?}", occ.get()),
             Vacant(spot) => spot.insert(droplet)
         };
+
+        // TODO: is this enough?
+        result.location = self.destination;
     }
 }
 
