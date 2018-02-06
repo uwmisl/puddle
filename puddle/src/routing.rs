@@ -149,7 +149,10 @@ impl Architecture {
                 droplet,
                 num_cells as Time + max_t,
                 |node| av_set.filter(node.expand(grid), cg),
-                |node| node.location == droplet.destination.unwrap()
+                |node| node.location == match droplet.destination {
+                        Some(x) => x,
+                        None => droplet.location
+                    }
                     && !av_set.would_finally_collide(node, cg)
             );
             let path = match result {
@@ -189,7 +192,10 @@ where FNext: FnMut(&Node) -> NextVec,
     todo.push(0, start_node);
     best_so_far.insert(start_node, 0);
 
-    let dest = droplet.destination.unwrap();
+    let dest = match droplet.destination {
+        Some(x) => x,
+        None => droplet.location
+    };
 
     // use manhattan distance from goal as the heuristic
     let heuristic = |node: Node| -> Cost { dest.distance_to(&node.location) };
@@ -254,7 +260,10 @@ pub mod tests {
 
     pub fn check_path_on_grid(droplet: &Droplet, path: &Path, grid: &Grid) {
         assert_eq!(droplet.location, path[0]);
-        let dest = droplet.destination.unwrap();
+        let dest = match droplet.destination {
+            Some(x) => x,
+            None => droplet.location
+        };
         assert_eq!(dest, path[path.len() - 1]);
         for win in path.windows(2) {
             assert!(grid.get_cell(&win[0]).is_some());
@@ -287,7 +296,10 @@ pub mod tests {
                 &droplet,
                 num_cells as Time,
                 |node| node.expand(&arch.grid),
-                |node| node.location == droplet.destination.unwrap()
+                |node| node.location == match droplet.destination {
+                        Some(x) => x,
+                        None => droplet.location
+                    }
             )
                 .unwrap();
             check_path_on_grid(&droplet, &path, &arch.grid)

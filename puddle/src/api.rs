@@ -1,14 +1,17 @@
-use std::sync::{RwLock};
+use std::sync::{RwLock, Mutex};
 use std::convert::From;
 
 use jsonrpc_core as rpc;
 
-use arch::{DropletId, Architecture};
+use std::collections::HashMap;
+use arch::{DropletId, Architecture, Location};
 use command::*;
 
 
 pub struct Session {
-    lock: RwLock<Architecture>
+    // TODO is fine grained locking the right thing there?
+    arch: RwLock<Architecture>,
+    commands: Mutex<Vec<Box<Command>>>,
 }
 
 #[derive(Debug)]
@@ -23,14 +26,26 @@ pub enum PuddleError {
     NonExistentDropletId(DropletId),
 }
 
-pub type PResult<T> = Result<T, PuddleError>;
+pub type PuddleResult<T> = Result<T, PuddleError>;
 
 
 build_rpc_trait! {
 	  pub trait Rpc {
+		    #[rpc(name = "flush")]
+        fn flush(&self) -> PuddleResult<()>;
+
+		    #[rpc(name = "input")]
+        fn input(&self, Location) -> PuddleResult<DropletId>;
+
+		    #[rpc(name = "move")]
+        fn move_droplet(&self, DropletId, Location) -> PuddleResult<DropletId>;
+
 		    #[rpc(name = "mix")]
-		    fn mix(&self, DropletId, DropletId) -> PResult<DropletId>;
-	  }
+        fn mix(&self, DropletId, DropletId) -> PuddleResult<DropletId>;
+
+		    #[rpc(name = "split")]
+        fn split(&self, DropletId) -> PuddleResult<(DropletId, DropletId)>;
+    }
 }
 
 impl From<PuddleError> for rpc::Error {
@@ -44,18 +59,38 @@ impl From<PuddleError> for rpc::Error {
 
 impl Session {
 
-    pub fn new(arch: Architecture) -> Self {
+    pub fn new(arch: Architecture) -> Session {
         Session {
-            lock: RwLock::new(arch),
+            arch: RwLock::new(arch),
+            commands: Mutex::new(Vec::new()),
         }
     }
 
-    fn execute<Cmd: Command>(&self, cmd: &Cmd) -> Result<(), ExecutionError> {
-        let mut arch = self.lock.write().unwrap();
-        let mapping = match arch.grid.place(cmd.shape()) {
-            None => return Err(ExecutionError::PlaceError),
-            Some(m) => m,
-        };
+    fn register<Cmd>(&self, cmd: Cmd)
+        where Cmd: Command
+    {
+        let mut commands = self.commands.lock().unwrap();
+        commands.push(Box::new(cmd));
+    }
+
+    fn execute(&self, cmd: Box<Command>) -> Result<(), ExecutionError> {
+
+        let mut arch = self.arch.write().unwrap();
+
+        cmd.pre_run(&mut arch);
+
+        let mapping: HashMap<Location, Location> =
+            if cmd.trust_placement() {
+                // if we are trusting placement, just use an identity map
+                cmd.shape()
+                    .locations()
+                    .map(|(loc, _cell)| (loc, loc)).collect()
+            } else {
+                match arch.grid.place(cmd.shape()) {
+                    None => return Err(ExecutionError::PlaceError),
+                    Some(m) => m,
+                }
+            };
 
         println!("Mapping: {:?}", mapping);
 
@@ -64,7 +99,6 @@ impl Session {
 
         assert_eq!(in_locs.len(), in_ids.len());
 
-        // set up destinations
         for (loc, id) in in_locs.iter().zip(in_ids) {
             // this should have been put to none last time
             let droplet = arch.droplets.get_mut(id).expect(
@@ -101,23 +135,47 @@ impl Session {
 }
 
 impl Rpc for Session {
-    fn mix(&self, d1: DropletId, d2: DropletId) -> PResult<DropletId> {
-        // have to pattern match here so the lock use is properly scoped
-        // TODO think of a better pattern
-        let mix_cmd = match self.lock.write() {
-            Err(e) => panic!("Lock failed with: {}", e),
-            Ok(mut arch) => {
-                let mix_cmd = Mix::new(&mut arch, d1, d2)?;
-                // safe to unwrap here because Mix::new checked them
-                assert_eq!(
-                    arch.droplets.get(&d1).unwrap().collision_group,
-                    arch.droplets.get(&d2).unwrap().collision_group,
-                );
-                mix_cmd
-            }
-        };
-        self.execute(&mix_cmd).expect("can't handle failures in api yet");
-        Ok(mix_cmd.output_droplets()[0])
+
+    fn flush(&self) -> PuddleResult<()> {
+        let mut commands = self.commands.lock().unwrap();
+
+        for cmd in commands.drain((0..)) {
+            self.execute(cmd).expect("can't handle api failures yet");
+        }
+        Ok(())
+    }
+
+    fn input(&self, loc: Location) -> PuddleResult<DropletId> {
+        let mut arch = self.arch.write().unwrap();
+        let input_cmd = Input::new(&mut arch, loc)?;
+        let out = input_cmd.output_droplets()[0];
+        self.register(input_cmd);
+        Ok(out)
+    }
+
+    fn move_droplet(&self, d1: DropletId, loc: Location) -> PuddleResult<DropletId> {
+        let mut arch = self.arch.write().unwrap();
+        let move_cmd = Move::new(&mut arch, d1, loc)?;
+        let out = move_cmd.output_droplets()[0];
+        self.register(move_cmd);
+        Ok(out)
+    }
+
+    fn mix(&self, d1: DropletId, d2: DropletId) -> PuddleResult<DropletId> {
+        let mut arch = self.arch.write().unwrap();
+        let mix_cmd = Mix::new(&mut arch, d1, d2)?;
+        let out = mix_cmd.output_droplets()[0];
+        self.register(mix_cmd);
+        Ok(out)
+    }
+
+    fn split(&self, d1: DropletId) -> PuddleResult<(DropletId, DropletId)> {
+        let mut arch = self.arch.write().unwrap();
+        let split_cmd = Split::new(&mut arch, d1)?;
+        let out0 = split_cmd.output_droplets()[0];
+        let out1 = split_cmd.output_droplets()[1];
+        self.register(split_cmd);
+        Ok((out0, out1))
     }
 }
 
@@ -130,25 +188,198 @@ mod tests {
     use arch::{Location};
     use arch::grid::Grid;
 
+    //
+    //  Non-Lazy Tests
+    //
+
+    #[test]
+    fn execute_input_command() {
+        let mut arch = Architecture::from_grid(
+            Grid::rectangle(1,1)
+        );
+
+        let mut session = Session::new(arch);
+
+        // todo: this shouldn't work
+        let loc = Location {y: 3, x: 3};
+        let id = session.input(loc);
+        session.flush();
+
+        let ids: Vec<&DropletId> = session.arch.droplets.keys().collect();
+        assert_eq!(ids, vec![&id]);
+
+        let dr = session.arch.droplets.get(&id).unwrap();
+        assert_eq!(loc, dr.location)
+    }
+
+    #[test]
+    fn execute_move_command() {
+        let mut arch = Architecture::from_grid(
+            Grid::rectangle(2,2)
+        );
+
+        let mut session = Session::new(arch);
+
+        let loc = Location {y: 1, x: 1};
+
+        let id = session.input(loc);
+        let id1 = session.move_droplet(id, loc);
+        session.flush();
+
+        let ids: Vec<&DropletId> = session.arch.droplets.keys().collect();
+
+        assert_eq!(ids, vec![&id1]);
+
+        let dr = session.arch.droplets.get(&id1).unwrap();
+        assert_eq!(loc, dr.location)
+    }
+
     #[test]
     fn execute_mix_command() {
         let mut arch = Architecture::from_grid(
             Grid::rectangle(4,3)
         );
 
-        let id1 = arch.new_droplet_id();
-        let id2 = arch.new_droplet_id();
+        let mut session = Session::new(arch);
 
-        let dr1 = arch.droplet_from_location(Location {x: 2, y: 3});
-        arch.droplets.insert(id1, dr1);
-        let dr2 = arch.droplet_from_location(Location {x: 1, y: 1});
-        arch.droplets.insert(id2, dr2);
+        let id1 = session.input(Location {x: 2, y: 3});
+        let id2 = session.input(Location {x: 1, y: 1});
+        let id3 = session.mix(id1, id2);
 
         let session = Session::new(arch);
 
         let id3 = session.mix(id1, id2).expect("Mix failed");
+        session.flush();
+
         let arch = session.lock.read().unwrap();
         let ids: Vec<&DropletId> = arch.droplets.keys().collect();
+
         assert_eq!(ids, vec![&id3])
+    }
+
+    #[test]
+    fn execute_split_command() {
+        let mut arch = Architecture::from_grid(
+            Grid::rectangle(1,5)
+        );
+
+        let mut session = Session::new(arch);
+
+        let id = session.input(Location {x: 2, y: 0});
+        let (id1, id2) = session.split(id);
+
+        session.flush();
+
+        let ids : Vec<&DropletId> = session.arch.droplets.keys().collect();
+
+        assert_eq!(ids.len(), 2);
+        assert!(ids.contains(&&id1));
+        assert!(ids.contains(&&id2))
+    }
+
+    #[test]
+    fn execute_all_commands() {
+        let mut arch = Architecture::from_grid(
+            Grid::rectangle(10,10)
+        );
+
+        let mut session = Session::new(arch);
+        // todo: add move into here.
+        let id1 = session.input(Location {y: 2, x: 2});
+        let id2 = session.input(Location {y: 0, x: 0});
+        let id3 = session.mix(id1, id2);
+        let (id4, id5) = session.split(id3);
+        let id6 = session.input(Location {y: 7, x: 7});
+        let id7 = session.move_droplet(id6, Location {y: 5, x: 5});
+        let id8 = session.mix(id4, id7);
+
+        session.flush();
+
+        let ids : Vec<&DropletId> = session.arch.droplets.keys().collect();
+
+        assert_eq!(ids.len(), 2);
+        assert!(ids.contains(&&id5));
+        assert!(ids.contains(&&id8))
+    }
+
+    //
+    //  Laziness Tests
+    //
+
+    #[test]
+    fn lazy_input_command() {
+        let mut arch = Architecture::from_grid(
+            Grid::rectangle(1,1)
+        );
+
+        let mut session = Session::new(arch);
+
+        // TODO: this shouldn't work?
+        let loc = Location {y: 3, x: 3};
+        let id = session.input(loc);
+
+        let ids: Vec<&DropletId> = session.arch.droplets.keys().collect();
+        assert_eq!(ids.len(), 0);
+    }
+
+    #[test]
+    fn lazy_move_command() {
+        let mut arch = Architecture::from_grid(
+            Grid::rectangle(2,2)
+        );
+
+        let mut session = Session::new(arch);
+
+        let loc = Location {y: 1, x: 1};
+
+        let id = session.input(loc);
+
+        session.flush();
+
+        let id1 = session.move_droplet(id, loc);
+
+        let ids: Vec<&DropletId> = session.arch.droplets.keys().collect();
+
+        assert_eq!(ids, vec![&id]);
+    }
+
+    #[test]
+    fn lazy_mix_command() {
+        let mut arch = Architecture::from_grid(
+            Grid::rectangle(8,8)
+        );
+
+        let mut session = Session::new(arch);
+
+        let id1 = session.input(Location {y: 1, x: 1});
+        let id2 = session.input(Location {y: 4, x: 4});
+
+        session.flush();
+
+        let id3 = session.mix(id1, id2);
+
+        let ids : Vec<&DropletId> = session.arch.droplets.keys().collect();
+
+        assert_eq!(ids.len(), 2);
+        assert!(ids.contains(&&id1));
+        assert!(ids.contains(&&id2))
+    }
+
+    #[test]
+    fn lazy_split_command() {
+        let mut arch = Architecture::from_grid(
+            Grid::rectangle(1,1)
+        );
+
+        let mut session = Session::new(arch);
+
+        let id = session.input(Location {y: 1, x: 1});
+
+        session.flush();
+
+        let (id1, id2) = session.split(id);
+
+        let ids: Vec<&DropletId> = session.arch.droplets.keys().collect();
+        assert_eq!(ids, vec![&id]);
     }
 }

@@ -14,8 +14,8 @@ use routing::Path;
 #[derive(PartialEq, Eq, PartialOrd, Ord, Hash, Clone,
          Copy, Debug, Serialize, Deserialize)]
 pub struct Location {
-    pub x: i32,
     pub y: i32,
+    pub x: i32,
 }
 
 impl Location {
