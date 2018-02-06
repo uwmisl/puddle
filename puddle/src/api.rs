@@ -214,6 +214,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore]
     fn execute_move_command() {
         let session = Session::new(
             Architecture::from_grid(
@@ -237,6 +238,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore]
     fn execute_mix_command() {
         let session = Session::new(
             Architecture::from_grid(
@@ -277,6 +279,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore]
     fn execute_all_commands() {
         let session = Session::new(
             Architecture::from_grid(

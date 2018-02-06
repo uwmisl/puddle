@@ -84,6 +84,7 @@ pub struct Architecture {
 }
 
 impl Architecture {
+
     pub fn from_grid(grid: Grid) -> Architecture {
         Architecture {
             grid: grid,
