@@ -33,16 +33,12 @@ pub trait Command: Send + 'static {
 lazy_static! {
     static ref INPUT_SHAPE: Grid = Grid::rectangle(0,0);
     static ref INPUT_INPUT_LOCS: Vec<Location> = vec![];
-    static ref INPUT_OUTPUT_LOCS: Vec<Location> =
-        vec![
-            Location {y: 0, x: 0},
-        ];
 }
 
 pub struct Input {
     inputs: Vec<DropletId>,
     outputs: Vec<DropletId>,
-    destination: Location,
+    destination: [Location; 1],
 }
 
 impl Input {
@@ -52,7 +48,7 @@ impl Input {
         Ok( Input {
             inputs: vec![],
             outputs: vec![output],
-            destination: loc
+            destination: [loc]
         })
     }
 }
@@ -72,15 +68,19 @@ impl Command for Input {
     }
 
     fn output_locations(&self) -> &[Location] {
-        INPUT_OUTPUT_LOCS.as_slice()
+        &self.destination
     }
 
     fn shape(&self) -> &Grid {
         &INPUT_SHAPE
     }
 
-    fn run(&self, arch: &mut Architecture, mapping: &Mapping) {
-        let droplet = arch.droplet_from_location(self.destination);
+    fn trust_placement(&self) -> bool {
+        true
+    }
+
+    fn run(&self, arch: &mut Architecture, _: &Mapping) {
+        let droplet = arch.droplet_from_location(self.destination[0]);
         let result_id = self.outputs[0];
 
         let result = match arch.droplets.entry(result_id) {
@@ -88,7 +88,7 @@ impl Command for Input {
             Vacant(spot) => spot.insert(droplet)
         };
 
-        assert!(result.location == self.destination);
+        assert!(result.location == self.destination[0]);
     }
 }
 
@@ -145,7 +145,7 @@ impl Command for Move {
         true
     }
 
-    fn run(&self, arch: &mut Architecture, mapping: &Mapping) {
+    fn run(&self, arch: &mut Architecture, _: &Mapping) {
 
         let droplet = arch.droplets.remove(&self.inputs[0]).unwrap();
 
