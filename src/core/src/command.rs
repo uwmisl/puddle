@@ -147,7 +147,8 @@ impl Command for Move {
 
     fn run(&self, arch: &mut Architecture, _: &Mapping) {
 
-        let droplet = arch.droplets.remove(&self.inputs[0]).unwrap();
+        let mut droplet = arch.droplets.remove(&self.inputs[0]).unwrap();
+        droplet.destination = None;
 
         let result_id = self.outputs[0];
 
@@ -188,16 +189,6 @@ pub struct Mix {
 impl Mix {
     pub fn new(arch: &mut Architecture, id1: DropletId, id2: DropletId) -> PuddleResult<Mix> {
         let output = arch.new_droplet_id();
-
-        // we must validate getting these things out of the hashtable
-        // TODO wrap this in a method of arch
-        let d1_cg = arch.droplets.get(&id1)
-            .ok_or(NonExistentDropletId(id1))?.collision_group;
-        let d2 = arch.droplets.get_mut(&id2)
-            .ok_or(NonExistentDropletId(id1))?;
-
-        // make sure their collision groups are the same so we can mix them
-        d2.collision_group = d1_cg;
 
         Ok( Mix {
             inputs: vec![id1, id2],

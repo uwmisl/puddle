@@ -82,7 +82,7 @@ impl Session {
         let mapping: HashMap<Location, Location> =
             if cmd.trust_placement() {
                 // if we are trusting placement, just use an identity map
-                cmd.shape()
+                arch.grid
                     .locations()
                     .map(|(loc, _cell)| (loc, loc)).collect()
             } else {
@@ -214,7 +214,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore]
     fn execute_move_command() {
         let session = Session::new(
             Architecture::from_grid(
@@ -238,7 +237,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore]
     fn execute_mix_command() {
         let session = Session::new(
             Architecture::from_grid(
@@ -279,7 +277,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore]
     fn execute_all_commands() {
         let session = Session::new(
             Architecture::from_grid(
