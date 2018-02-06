@@ -1,9 +1,17 @@
-language: rust
+# language: rust
 
-rust: stable
-cache: cargo
+# rust: stable
 
-before_install: cd puddle
+cache:
+  directories:
+    # rust caching
+    - $HOME/.cargo
+    - src/core/target
+
+before_install:
+  - pip install pipenv
+
+script: run-tests.sh
 
 notifications:
   slack:

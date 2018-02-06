@@ -1,4 +1,4 @@
-extern crate puddle;
+extern crate puddle_core;
 
 extern crate iron;
 extern crate mount;
@@ -21,8 +21,8 @@ use staticfile::Static;
 
 use jsonrpc_core::IoHandler;
 
-use puddle::api::{Session, Rpc};
-use puddle::arch::Architecture;
+use puddle_core::api::{Session, Rpc};
+use puddle_core::arch::Architecture;
 
 #[derive(Debug)]
 struct JsonRpcError;
