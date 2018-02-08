@@ -4,7 +4,7 @@ use std::convert::From;
 use jsonrpc_core as rpc;
 
 use std::collections::HashMap;
-use arch::{DropletId, Architecture, Location};
+use arch::{DropletId, DropletInfo, Architecture, Location};
 use command::*;
 
 
@@ -45,6 +45,9 @@ build_rpc_trait! {
 
 		    #[rpc(name = "split")]
         fn split(&self, DropletId) -> PuddleResult<(DropletId, DropletId)>;
+
+		    #[rpc(name = "droplets")]
+        fn droplets(&self) -> PuddleResult<HashMap<DropletId, DropletInfo>>;
     }
 }
 
@@ -176,6 +179,17 @@ impl Rpc for Session {
         let out1 = split_cmd.output_droplets()[1];
         self.register(split_cmd);
         Ok((out0, out1))
+    }
+
+    fn droplets(&self) -> PuddleResult<HashMap<DropletId, DropletInfo>> {
+        self.flush()?;
+        let arch = self.arch.read().unwrap();
+        Ok(
+            arch.droplets
+                .iter()
+                .map(|(id, droplet)| (*id, droplet.info()))
+                .collect()
+        )
     }
 }
 

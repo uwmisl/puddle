@@ -6,7 +6,6 @@ use arch::{Architecture, Location, DropletId};
 use arch::grid::Grid;
 
 use api::PuddleResult;
-use api::PuddleError::*;
 
 type Mapping = HashMap<Location, Location>;
 

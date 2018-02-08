@@ -1,17 +1,20 @@
-# language: rust
-
-# rust: stable
+language: rust
+rust: stable
 
 cache:
   directories:
     # rust caching
     - $HOME/.cargo
     - src/core/target
+    # python caching
+    - $HOME/.virtualenvs
 
 before_install:
-  - pip install pipenv
+  # pipenv will use pyenv to automatically install python if needed
+  - curl -L https://raw.githubusercontent.com/pyenv/pyenv-installer/master/bin/pyenv-installer | bash
+  - pip install --user pipenv
 
-script: run-tests.sh
+script: ./run-tests.sh
 
 notifications:
   slack:

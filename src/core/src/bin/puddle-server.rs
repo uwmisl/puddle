@@ -67,7 +67,8 @@ fn status(_: &mut Request) -> IronResult<Response> {
 }
 
 fn main() {
-    let path = "../tests/arches/arch01.json";
+    use std::env::args;
+    let path = args().nth(1).unwrap();
     let reader = File::open(path).expect("file not found");
     let session = Session::new(Architecture::from_reader(reader));
 

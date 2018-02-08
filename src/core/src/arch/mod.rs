@@ -73,7 +73,14 @@ impl Droplet {
         }
     }
 
+    pub fn info(&self) -> DropletInfo {
+        DropletInfo {}
+    }
+
 }
+
+#[derive(PartialEq, Eq, Hash, Debug, Serialize)]
+pub struct DropletInfo {}
 
 #[derive(Debug, Clone)]
 pub struct Architecture {

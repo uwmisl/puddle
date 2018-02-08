@@ -113,3 +113,6 @@ node_modules/
 
 # profiling data
 prof/
+
+# python stuff
+.pytest_cache

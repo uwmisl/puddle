@@ -3,5 +3,4 @@
 set -ev
 
 (cd src/core/ && cargo test)
-
-pwd
+(cd src/python/ && pipenv install --dev && pipenv run pytest)
