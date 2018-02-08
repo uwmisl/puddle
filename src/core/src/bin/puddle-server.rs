@@ -75,7 +75,9 @@ fn run(matches: ArgMatches) -> Result<(), Box<::std::error::Error>> {
     let path = matches.value_of("arch").unwrap();
     let reader = File::open(path)?;
 
-    let session = Session::new(Architecture::from_reader(reader));
+    let session = Session::new(
+        Architecture::from_reader(reader),
+    ).sync(true);
 
     let mut mount = Mount::new();
     mount
@@ -115,6 +117,8 @@ fn main() {
              .long("port")
              .default_value("3000")
              .takes_value(true))
+        .arg(Arg::with_name("sync")
+             .long("sync"))
         .get_matches();
 
     ::std::process::exit(match run(matches) {

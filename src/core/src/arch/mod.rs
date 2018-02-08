@@ -188,7 +188,9 @@ impl Architecture {
         None
     }
 
-    pub fn take_paths(&mut self, paths: HashMap<DropletId, Path>) {
+    pub fn take_paths<F>(&mut self, paths: HashMap<DropletId, Path>, callback: F)
+        where F: Fn()
+    {
 
         #[cfg(test)]
         for (id, path) in paths.iter() {
@@ -205,6 +207,7 @@ impl Architecture {
                 if i < path.len() {
                     d.location = path[i];
                 }
+                callback();
             }
             let coll = self.get_collision();
             if coll.is_some() {

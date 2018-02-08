@@ -1,4 +1,4 @@
-use std::sync::{RwLock, Mutex};
+use std::sync::{RwLock, Mutex, Condvar};
 use std::convert::From;
 
 use jsonrpc_core as rpc;
@@ -12,6 +12,9 @@ pub struct Session {
     // TODO is fine grained locking the right thing there?
     arch: RwLock<Architecture>,
     commands: Mutex<Vec<Box<Command>>>,
+    sync: bool,
+    step_seen: Mutex<bool>,
+    step_signal: Condvar,
 }
 
 #[derive(Debug)]
@@ -66,6 +69,24 @@ impl Session {
         Session {
             arch: RwLock::new(arch),
             commands: Mutex::new(Vec::new()),
+            sync: false,
+            // start with true because every step we've taken so far has been seen
+            step_seen: Mutex::new(true),
+            step_signal: Condvar::new(),
+        }
+    }
+
+    pub fn sync(mut self, should_sync: bool) -> Self {
+        self.sync = should_sync;
+        self
+    }
+
+    pub fn wait(&self) {
+        if self.sync {
+            let mut seen = self.step_seen.lock().unwrap();
+            while !*seen {
+                seen = self.step_signal.wait(seen).unwrap();
+            }
         }
     }
 
@@ -118,7 +139,7 @@ impl Session {
             Some(p) => p,
         };
 
-        arch.take_paths(paths);
+        arch.take_paths(paths, || {self.wait();});
         cmd.run(&mut arch, &mapping);
 
         // teardown destinations if the droplets are still there
@@ -184,12 +205,17 @@ impl Rpc for Session {
     fn droplets(&self) -> PuddleResult<HashMap<DropletId, DropletInfo>> {
         self.flush()?;
         let arch = self.arch.read().unwrap();
-        Ok(
-            arch.droplets
-                .iter()
-                .map(|(id, droplet)| (*id, droplet.info()))
-                .collect()
-        )
+
+        let droplets = arch.droplets
+            .iter()
+            .map(|(id, droplet)| (*id, droplet.info()))
+            .collect();
+
+        let mut seen = self.step_seen.lock().unwrap();
+        *seen = true;
+        self.step_signal.notify_one();
+
+        Ok(droplets)
     }
 }
 
