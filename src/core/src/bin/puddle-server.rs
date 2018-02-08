@@ -6,6 +6,8 @@ extern crate staticfile;
 
 extern crate jsonrpc_core;
 
+extern crate clap;
+
 use std::fmt;
 use std::fs::File;
 use std::path::Path;
@@ -20,6 +22,8 @@ use mount::Mount;
 use staticfile::Static;
 
 use jsonrpc_core::IoHandler;
+
+use clap::{ArgMatches, App, Arg};
 
 use puddle_core::api::{Session, Rpc};
 use puddle_core::arch::Architecture;
@@ -66,12 +70,12 @@ fn status(_: &mut Request) -> IronResult<Response> {
     Ok(Response::with((status::Ok, "All is good!")))
 }
 
-fn main() {
-    use std::env::args;
-    let path = args().nth(1).unwrap();
-    let reader = File::open(path).expect("file not found");
-    let session = Session::new(Architecture::from_reader(reader));
+fn run(matches: ArgMatches) -> Result<(), Box<::std::error::Error>> {
+    // required argument is safe to unwrap
+    let path = matches.value_of("arch").unwrap();
+    let reader = File::open(path)?;
 
+    let session = Session::new(Architecture::from_reader(reader));
 
     let mut mount = Mount::new();
     mount
@@ -83,7 +87,41 @@ fn main() {
             IoHandlerWrapper(ioh)
         });
 
-    let address = "localhost:3000";
+    // args that have defaults are safe to unwrap
+    let host = matches.value_of("host").unwrap();
+    let port = matches.value_of("port").unwrap();
+    let address = format!("{}:{}", host, port);
     println!("Listening on http://{}", address);
-    Iron::new(mount).http(address).unwrap();
+    Iron::new(mount).http(address)?;
+
+    Ok(())
+}
+
+fn main() {
+    let matches = App::new("puddle")
+        .version("0.1")
+        .author("Max Willsey <me@mwillsey.com>")
+        .about("Runs a server for Puddle")
+        .arg(Arg::with_name("arch")
+             .value_name("ARCH_FILE")
+             .help("The architecture file")
+             .takes_value(true)
+             .required(true))
+        .arg(Arg::with_name("host")
+             .long("host")
+             .default_value("localhost")
+             .takes_value(true))
+        .arg(Arg::with_name("port")
+             .long("port")
+             .default_value("3000")
+             .takes_value(true))
+        .get_matches();
+
+    ::std::process::exit(match run(matches) {
+        Ok(_) => 0,
+        Err(err) => {
+            eprintln!("error: {}", err);
+            1
+        }
+    });
 }
