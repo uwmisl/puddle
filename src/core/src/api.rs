@@ -3,7 +3,7 @@ use std::convert::From;
 
 use jsonrpc_core as rpc;
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use arch::{DropletId, DropletInfo, Architecture, Location};
 use command::*;
 
@@ -138,6 +138,11 @@ impl Session {
             None => return Err(ExecutionError::RouteError),
             Some(p) => p,
         };
+
+        assert_eq!(
+            arch.droplets.keys().collect::<HashSet<&DropletId>>(),
+            paths.keys().collect::<HashSet<&DropletId>>(),
+        );
 
         arch.take_paths(paths, || {self.wait();});
         cmd.run(&mut arch, &mapping);
