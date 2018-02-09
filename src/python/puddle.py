@@ -113,6 +113,7 @@ def mk_session(
         arch_file = None,
         host = 'localhost',
         port = '3000',
+        path = 'rpc'
 ):
 
     # paths written in this file should be relative to the project root
@@ -139,7 +140,7 @@ def mk_session(
         line = line.decode('utf8')
         time.sleep(0.1)
 
-    session = Session('http://{}:{}'.format(host, port))
+    session = Session('http://{}:{}/{}'.format(host, port, path))
     yield session
 
     session._flush()

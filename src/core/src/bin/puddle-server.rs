@@ -93,12 +93,12 @@ fn run(matches: ArgMatches) -> Result<(), Box<::std::error::Error>> {
     let mut mount = Mount::new();
     mount
         .mount("/status", status)
-        .mount("/static", Static::new(static_dir))
-        .mount("/", {
+        .mount("/rpc", {
             let mut ioh = IoHandler::new();
             ioh.extend_with(session.to_delegate());
             IoHandlerWrapper(ioh)
-        });
+        })
+        .mount("/", Static::new(static_dir));
 
     // args that have defaults are safe to unwrap
     let host = matches.value_of("host").unwrap();
