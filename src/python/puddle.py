@@ -72,6 +72,9 @@ class Session:
     def droplets(self):
         return self._rpc("droplets")
 
+    def _flush(self):
+        self._rpc("flush")
+
     def input(self, y, x):
         result_id = self._rpc("input", to_location(y,x))
         return Droplet(self, result_id, i_know_what_im_doing=True)

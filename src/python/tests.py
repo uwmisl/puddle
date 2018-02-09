@@ -32,7 +32,11 @@ def session():
         line = line.decode('utf8')
         time.sleep(0.1)
 
-    yield puddle.Session('http://localhost:3000')
+    session = puddle.Session('http://localhost:3000')
+
+    yield session
+
+    session._flush()
 
     popen.terminate()
     popen.wait()
