@@ -4,6 +4,7 @@ pub mod grid;
 use std::ops::{Add, Sub};
 use std::collections::HashMap;
 use std::io::Read;
+use std::sync::{RwLock};
 
 use serde_json;
 
@@ -188,35 +189,41 @@ impl Architecture {
         None
     }
 
-    pub fn take_paths<F>(&mut self, paths: HashMap<DropletId, Path>, callback: F)
+    pub fn take_paths<F>(lock: &RwLock<Self>, paths: HashMap<DropletId, Path>, callback: F)
         where F: Fn()
     {
+
+        use std::mem::drop;
+        let arch = lock.write().unwrap();
 
         #[cfg(test)]
         for (id, path) in paths.iter() {
             use routing::tests::check_path_on_grid;
-            let d = &self.droplets[id];
-            check_path_on_grid(d, path, &self.grid);
+            let d = &arch.droplets[id];
+            check_path_on_grid(d, path, &arch.grid);
         }
         // println!("paths: {:?}", paths);
 
+        drop(arch);
+
         let max_len = paths.values().map(|p| p.len()).max().unwrap_or(0);
         for i in 0..max_len {
+            callback();
+            let mut arch = lock.write().unwrap();
             for (id, path) in paths.iter() {
-                let mut d = self.droplets.get_mut(id).unwrap();
+                let mut d = arch.droplets.get_mut(id).unwrap();
                 if i < path.len() {
                     d.location = path[i];
                 }
-                callback();
             }
-            let coll = self.get_collision();
+            let coll = arch.get_collision();
             if coll.is_some() {
                 let (id1, id2) = coll.unwrap();
                 panic!("Paths: {:?}\n Collision:\n  {:?} {:?}\n  {:?} {:?}",
                        paths,
-                       id1, self.droplets[&id1], id2, self.droplets[&id2]);
+                       id1, arch.droplets[&id1], id2, arch.droplets[&id2]);
             }
-            // assert!(self.get_collision().is_none())
+            // assert!(arch.get_collision().is_none())
         }
 
     }

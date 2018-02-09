@@ -144,8 +144,14 @@ impl Session {
             paths.keys().collect::<HashSet<&DropletId>>(),
         );
 
-        arch.take_paths(paths, || {self.wait();});
-        cmd.run(&mut arch, &mapping);
+        use std::mem::drop;
+        drop(arch);
+
+        Architecture::take_paths(&self.arch, paths, || {self.wait();});
+
+        cmd.run(&self.arch, &mapping, &|| {self.wait()});
+
+        let mut arch = self.arch.write().unwrap();
 
         // teardown destinations if the droplets are still there
         // TODO is this ever going to be true?

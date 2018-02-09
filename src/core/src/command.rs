@@ -7,6 +7,9 @@ use arch::grid::Grid;
 
 use api::PuddleResult;
 
+use std::sync::RwLock;
+use std::mem::drop;
+
 type Mapping = HashMap<Location, Location>;
 
 // Send and 'static here are necessary to move trait objects around
@@ -16,7 +19,7 @@ pub trait Command: Send + 'static {
     fn output_droplets(&self) -> &[DropletId];
     fn output_locations(&self) -> &[Location];
     fn shape(&self) -> &Grid;
-    fn run(&self, arch: &mut Architecture, mapping: &Mapping);
+    fn run(&self, arch: &RwLock<Architecture>, mapping: &Mapping, callback: &Fn());
 
     fn trust_placement(&self) -> bool {
         false
@@ -78,7 +81,8 @@ impl Command for Input {
         true
     }
 
-    fn run(&self, arch: &mut Architecture, _: &Mapping) {
+    fn run(&self, lock: &RwLock<Architecture>, _: &Mapping, callback: &Fn()) {
+        let mut arch = lock.write().unwrap();
         let droplet = arch.droplet_from_location(self.destination[0]);
         let result_id = self.outputs[0];
 
@@ -88,6 +92,7 @@ impl Command for Input {
         };
 
         assert!(result.location == self.destination[0]);
+        callback();
     }
 }
 
@@ -144,8 +149,8 @@ impl Command for Move {
         true
     }
 
-    fn run(&self, arch: &mut Architecture, _: &Mapping) {
-
+    fn run(&self, lock: &RwLock<Architecture>, _: &Mapping, callback: &Fn()) {
+        let mut arch = lock.write().unwrap();
         let mut droplet = arch.droplets.remove(&self.inputs[0]).unwrap();
         droplet.destination = None;
 
@@ -155,6 +160,7 @@ impl Command for Move {
             Occupied(occ) => panic!("Droplet was already here: {:?}", occ.get()),
             Vacant(spot) => spot.insert(droplet)
         };
+        callback();
     }
 }
 
@@ -228,7 +234,8 @@ impl Command for Mix {
         // possibly move creating output droplets here
     }
 
-    fn run(&self, arch: &mut Architecture, mapping: &Mapping) {
+    fn run(&self, lock: &RwLock<Architecture>, mapping: &Mapping, callback: &Fn()) {
+        let mut arch = lock.write().unwrap();
 
         let d0 = arch.droplets.remove(&self.inputs[0]).unwrap();
         let d1 = arch.droplets.remove(&self.inputs[1]).unwrap();
@@ -236,15 +243,19 @@ impl Command for Mix {
         let droplet = arch.droplet_from_location(d0.location);
         let result_id = self.outputs[0];
 
-        let result = match arch.droplets.entry(result_id) {
+        match arch.droplets.entry(result_id) {
             Occupied(occ) => panic!("Droplet was already here: {:?}", occ.get()),
             Vacant(spot) => spot.insert(droplet)
         };
 
         assert!(d0.location == d1.location);
 
+        drop(arch);
+        callback();
         for loc in MIX_LOOP.iter() {
-            result.location = mapping[loc];
+            let mut arch = lock.write().unwrap();
+            arch.droplets.get_mut(&result_id).unwrap().location = mapping[loc];
+            callback();
         }
     }
 }
@@ -315,11 +326,12 @@ impl Command for Split {
         &SPLIT_SHAPE
     }
 
-    fn run(&self, arch: &mut Architecture, mapping: &Mapping) {
+    fn run(&self, lock: &RwLock<Architecture>, mapping: &Mapping, callback: &Fn()) {
+        let mut arch = lock.write().unwrap();
 
         let d = arch.droplets.remove(&self.inputs[0]).unwrap();
 
-        let mut droplet1 = arch.droplet_from_location(d.location);
+        let droplet1 = arch.droplet_from_location(d.location);
         let mut droplet2 = arch.droplet_from_location(d.location);
 
         let result1_id = self.outputs[0];
@@ -338,11 +350,16 @@ impl Command for Split {
             Vacant(spot) => spot.insert(droplet2)
         };
 
+        drop(arch);
+        callback();
         for (loc1, loc2) in SPLIT_PATH1.iter().zip(SPLIT_PATH2.iter()) {
-            droplet1.location = mapping[loc1];
-            droplet2.location = mapping[loc2];
+            let mut arch = lock.write().unwrap();
+            arch.droplets.get_mut(&result1_id).unwrap().location = mapping[loc1];
+            arch.droplets.get_mut(&result2_id).unwrap().location = mapping[loc2];
+            callback();
         }
 
-        droplet2.collision_group = droplet2_cg;
+        let mut arch = lock.write().unwrap();
+        arch.droplets.get_mut(&result2_id).unwrap().collision_group = droplet2_cg;
     }
 }
