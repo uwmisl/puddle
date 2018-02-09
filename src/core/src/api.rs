@@ -67,7 +67,6 @@ impl From<PuddleError> for rpc::Error {
 }
 
 impl Session {
-
     pub fn new(arch: Architecture) -> Session {
         Session {
             arch: RwLock::new(arch),
@@ -97,7 +96,8 @@ impl Session {
     }
 
     fn register<Cmd>(&self, cmd: Cmd)
-        where Cmd: Command
+    where
+        Cmd: Command,
     {
         let mut commands = self.commands.lock().unwrap();
         commands.push(Box::new(cmd));
@@ -110,18 +110,18 @@ impl Session {
 
         cmd.pre_run(&mut arch);
 
-        let mapping: HashMap<Location, Location> =
-            if cmd.trust_placement() {
-                // if we are trusting placement, just use an identity map
-                arch.grid
-                    .locations()
-                    .map(|(loc, _cell)| (loc, loc)).collect()
-            } else {
-                match arch.grid.place(cmd.shape()) {
-                    None => return Err(ExecutionError::PlaceError),
-                    Some(m) => m,
-                }
-            };
+        let mapping: HashMap<Location, Location> = if cmd.trust_placement() {
+            // if we are trusting placement, just use an identity map
+            arch.grid
+                .locations()
+                .map(|(loc, _cell)| (loc, loc))
+                .collect()
+        } else {
+            match arch.grid.place(cmd.shape()) {
+                None => return Err(ExecutionError::PlaceError),
+                Some(m) => m,
+            }
+        };
 
         // println!("Mapping: {:?}", mapping);
 
@@ -133,11 +133,10 @@ impl Session {
         for (loc, id) in in_locs.iter().zip(in_ids) {
             // this should have been put to none last time
             let droplet = arch.droplets.get_mut(id).expect(
-                "Command gave back and invalid DropletId"
+                "Command gave back and invalid DropletId",
             );
             assert!(droplet.destination.is_none());
-            let mapped_loc = mapping.get(loc)
-                .expect("input location wasn't in mapping");
+            let mapped_loc = mapping.get(loc).expect("input location wasn't in mapping");
             droplet.destination = Some(*mapped_loc);
         }
 
@@ -154,30 +153,26 @@ impl Session {
         use std::mem::drop;
         drop(arch);
 
-        Architecture::take_paths(&self.arch, paths, || {self.wait();});
+        Architecture::take_paths(&self.arch, paths, || { self.wait(); });
 
-        cmd.run(&self.arch, &mapping, &|| {self.wait()});
+        cmd.run(&self.arch, &mapping, &|| self.wait());
 
         let mut arch = self.arch.write().unwrap();
 
         // teardown destinations if the droplets are still there
         // TODO is this ever going to be true?
         for id in in_ids {
-            arch.droplets.get_mut(id).map(
-                |droplet| {
-                    assert_eq!(Some(droplet.location), droplet.destination);
-                    droplet.destination = None;
-                }
-            );
+            arch.droplets.get_mut(id).map(|droplet| {
+                assert_eq!(Some(droplet.location), droplet.destination);
+                droplet.destination = None;
+            });
         }
 
         Ok(())
     }
-
 }
 
 impl Rpc for Session {
-
     fn flush(&self) -> PuddleResult<()> {
         let mut commands = self.commands.lock().unwrap();
 
@@ -255,7 +250,7 @@ mod tests {
 
     use super::*;
 
-    use arch::{Location};
+    use arch::Location;
     use arch::grid::Grid;
 
     //
@@ -264,14 +259,10 @@ mod tests {
 
     #[test]
     fn execute_input_command() {
-        let session = Session::new(
-            Architecture::from_grid(
-                Grid::rectangle(1,1)
-            )
-        );
+        let session = Session::new(Architecture::from_grid(Grid::rectangle(1, 1)));
 
         // todo: this shouldn't work
-        let loc = Location {y: 3, x: 3};
+        let loc = Location { y: 3, x: 3 };
         let id = session.input(loc).unwrap();
         session.flush().unwrap();
 
@@ -285,13 +276,9 @@ mod tests {
 
     #[test]
     fn execute_move_command() {
-        let session = Session::new(
-            Architecture::from_grid(
-                Grid::rectangle(2,2)
-            )
-        );
+        let session = Session::new(Architecture::from_grid(Grid::rectangle(2, 2)));
 
-        let loc = Location {y: 1, x: 1};
+        let loc = Location { y: 1, x: 1 };
 
         let id = session.input(loc).unwrap();
         let id1 = session.move_droplet(id, loc).unwrap();
@@ -308,14 +295,10 @@ mod tests {
 
     #[test]
     fn execute_mix_command() {
-        let session = Session::new(
-            Architecture::from_grid(
-                Grid::rectangle(4,3)
-            )
-        );
+        let session = Session::new(Architecture::from_grid(Grid::rectangle(4, 3)));
 
-        let id1 = session.input(Location {x: 2, y: 3}).unwrap();
-        let id2 = session.input(Location {x: 1, y: 1}).unwrap();
+        let id1 = session.input(Location { x: 2, y: 3 }).unwrap();
+        let id2 = session.input(Location { x: 1, y: 1 }).unwrap();
         let id3 = session.mix(id1, id2).unwrap();
         session.flush().unwrap();
 
@@ -327,19 +310,15 @@ mod tests {
 
     #[test]
     fn execute_split_command() {
-        let session = Session::new(
-            Architecture::from_grid(
-                Grid::rectangle(1,5)
-            )
-        );
+        let session = Session::new(Architecture::from_grid(Grid::rectangle(1, 5)));
 
-        let id = session.input(Location {x: 2, y: 0}).unwrap();
+        let id = session.input(Location { x: 2, y: 0 }).unwrap();
         let (id1, id2) = session.split(id).unwrap();
 
         session.flush().unwrap();
 
         let arch = session.arch.read().unwrap();
-        let ids : Vec<&DropletId> = arch.droplets.keys().collect();
+        let ids: Vec<&DropletId> = arch.droplets.keys().collect();
 
         assert_eq!(ids.len(), 2);
         assert!(ids.contains(&&id1));
@@ -348,25 +327,21 @@ mod tests {
 
     #[test]
     fn execute_all_commands() {
-        let session = Session::new(
-            Architecture::from_grid(
-                Grid::rectangle(10,10)
-            )
-        );
+        let session = Session::new(Architecture::from_grid(Grid::rectangle(10, 10)));
 
         // todo: add move into here.
-        let id1 = session.input(Location {y: 2, x: 2}).unwrap();
-        let id2 = session.input(Location {y: 0, x: 0}).unwrap();
+        let id1 = session.input(Location { y: 2, x: 2 }).unwrap();
+        let id2 = session.input(Location { y: 0, x: 0 }).unwrap();
         let id3 = session.mix(id1, id2).unwrap();
         let (id4, id5) = session.split(id3).unwrap();
-        let id6 = session.input(Location {y: 7, x: 7}).unwrap();
-        let id7 = session.move_droplet(id6, Location {y: 5, x: 5}).unwrap();
+        let id6 = session.input(Location { y: 7, x: 7 }).unwrap();
+        let id7 = session.move_droplet(id6, Location { y: 5, x: 5 }).unwrap();
         let id8 = session.mix(id4, id7).unwrap();
 
         session.flush().unwrap();
 
         let arch = session.arch.read().unwrap();
-        let ids : Vec<&DropletId> = arch.droplets.keys().collect();
+        let ids: Vec<&DropletId> = arch.droplets.keys().collect();
 
         assert_eq!(ids.len(), 2);
         assert!(ids.contains(&&id5));
@@ -379,14 +354,10 @@ mod tests {
 
     #[test]
     fn lazy_input_command() {
-        let session = Session::new(
-            Architecture::from_grid(
-                Grid::rectangle(1,1)
-            )
-        );
+        let session = Session::new(Architecture::from_grid(Grid::rectangle(1, 1)));
 
         // TODO: this shouldn't work?
-        let loc = Location {y: 3, x: 3};
+        let loc = Location { y: 3, x: 3 };
         let _ = session.input(loc).unwrap();
 
         let arch = session.arch.read().unwrap();
@@ -396,13 +367,9 @@ mod tests {
 
     #[test]
     fn lazy_move_command() {
-        let session = Session::new(
-            Architecture::from_grid(
-                Grid::rectangle(2,2)
-            )
-        );
+        let session = Session::new(Architecture::from_grid(Grid::rectangle(2, 2)));
 
-        let loc = Location {y: 1, x: 1};
+        let loc = Location { y: 1, x: 1 };
 
         let id = session.input(loc).unwrap();
 
@@ -418,21 +385,17 @@ mod tests {
 
     #[test]
     fn lazy_mix_command() {
-        let session = Session::new(
-            Architecture::from_grid(
-                Grid::rectangle(8,8)
-            )
-        );
+        let session = Session::new(Architecture::from_grid(Grid::rectangle(8, 8)));
 
-        let id1 = session.input(Location {y: 1, x: 1}).unwrap();
-        let id2 = session.input(Location {y: 4, x: 4}).unwrap();
+        let id1 = session.input(Location { y: 1, x: 1 }).unwrap();
+        let id2 = session.input(Location { y: 4, x: 4 }).unwrap();
 
         session.flush().unwrap();
 
         let _ = session.mix(id1, id2).unwrap();
 
         let arch = session.arch.read().unwrap();
-        let ids : Vec<&DropletId> = arch.droplets.keys().collect();
+        let ids: Vec<&DropletId> = arch.droplets.keys().collect();
 
         assert_eq!(ids.len(), 2);
         assert!(ids.contains(&&id1));
@@ -441,13 +404,9 @@ mod tests {
 
     #[test]
     fn lazy_split_command() {
-        let session = Session::new(
-            Architecture::from_grid(
-                Grid::rectangle(1,1)
-            )
-        );
+        let session = Session::new(Architecture::from_grid(Grid::rectangle(1, 1)));
 
-        let id = session.input(Location {y: 1, x: 1}).unwrap();
+        let id = session.input(Location { y: 1, x: 1 }).unwrap();
 
         session.flush().unwrap();
 

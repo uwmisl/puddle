@@ -27,43 +27,47 @@ type ParsedGridVec = Vec<Vec<CellIndex>>;
 type GridVec = Vec<Vec<Option<Cell>>>;
 
 pub fn deserialize<'de, D>(d: D) -> Result<GridVec, D::Error>
-where D: Deserializer<'de>
+where
+    D: Deserializer<'de>,
 {
-    let pg_vec : ParsedGridVec = try!(Vec::deserialize(d));
+    let pg_vec: ParsedGridVec = try!(Vec::deserialize(d));
     let mut next_pin = 0;
 
-    let vec = pg_vec.iter()
-        .map(|row|
-             row.iter().map(
-                 |ci: &CellIndex|
-                 match ci {
-                     &Marked(Empty) => None,
-                     &Marked(Auto) => {
-                         let pin = next_pin;
-                         next_pin += 1;
-                         Some(Cell { pin: pin })
-                     }
-                 }).collect()
-        ).collect();
+    let vec = pg_vec
+        .iter()
+        .map(|row| {
+            row.iter()
+                .map(|ci: &CellIndex| match ci {
+                    &Marked(Empty) => None,
+                    &Marked(Auto) => {
+                        let pin = next_pin;
+                        next_pin += 1;
+                        Some(Cell { pin: pin })
+                    }
+                })
+                .collect()
+        })
+        .collect();
 
     Ok(vec)
 }
 
 pub fn serialize<S>(gv: &GridVec, s: S) -> Result<S::Ok, S::Error>
-where S: Serializer
+where
+    S: Serializer,
 {
     let pg_vec: ParsedGridVec = gv.iter()
-        .map(|row|
-             row.iter().map(
-                 |opt: &Option<Cell>|
-                 match opt {
-                     &None => Marked(Empty),
-                     &Some(_) => Marked(Auto),
-                 }
-             ) .collect()
-        ).collect();
+        .map(|row| {
+            row.iter()
+                .map(|opt: &Option<Cell>| match opt {
+                    &None => Marked(Empty),
+                    &Some(_) => Marked(Auto),
+                })
+                .collect()
+        })
+        .collect();
 
-   pg_vec.serialize(s)
+    pg_vec.serialize(s)
 }
 
 #[cfg(test)]
@@ -81,8 +85,8 @@ mod tests {
     fn test_simple_parse() {
         let _: ParsedGridVec = sj::from_str(
             "[[\"a\", \"a\", \"a\"],
-              [\"a\", \"a\", \"a\"]]")
-            .expect("parse failed");
+              [\"a\", \"a\", \"a\"]]",
+        ).expect("parse failed");
     }
 
     fn check_round_trip(grid: Grid) {

@@ -55,20 +55,23 @@ impl Handler for IoHandlerWrapper {
     fn handle(&self, req: &mut Request) -> IronResult<Response> {
         // read the body into a string
         let mut body = String::new();
-        req .body
-            .read_to_string(&mut body)
-            .map_err(|e| IronError::new(e, (status::InternalServerError, "Error reading request")))?;
+        req.body.read_to_string(&mut body).map_err(|e| {
+            IronError::new(e, (status::InternalServerError, "Error reading request"))
+        })?;
 
         println!("req: ({})", body);
 
         // handle the request with jsonrpc, then convert to IronResult
-        self.0.handle_request_sync(&body)
+        self.0
+            .handle_request_sync(&body)
             .map(|resp| {
                 println!("resp: ({})", resp);
                 Response::with((ContentType::json().0, status::Ok, resp))
             })
-            .ok_or(IronError::new(JsonRpcError, (status::InternalServerError,
-                                                 "jsonrpc error")))
+            .ok_or(IronError::new(
+                JsonRpcError,
+                (status::InternalServerError, "jsonrpc error"),
+            ))
     }
 }
 
@@ -83,12 +86,9 @@ fn run(matches: ArgMatches) -> Result<(), Box<::std::error::Error>> {
 
     let static_dir = Path::new(matches.value_of("static").unwrap());
 
-    let should_sync = matches.occurrences_of("sync") > 0
-        || env::var("PUDDLE_VIZ").is_ok();
+    let should_sync = matches.occurrences_of("sync") > 0 || env::var("PUDDLE_VIZ").is_ok();
 
-    let session = Session::new(
-        Architecture::from_reader(reader),
-    ).sync(should_sync);
+    let session = Session::new(Architecture::from_reader(reader)).sync(should_sync);
 
     let mut mount = Mount::new();
     mount
@@ -123,26 +123,33 @@ fn main() {
         .version("0.1")
         .author("Max Willsey <me@mwillsey.com>")
         .about("Runs a server for Puddle")
-        .arg(Arg::with_name("arch")
-             .value_name("ARCH_FILE")
-             .help("The architecture file")
-             .takes_value(true)
-             .required(true))
-        .arg(Arg::with_name("static")
-             .long("static")
-             .required(true)
-             .takes_value(true)
-             .validator(check_dir))
-        .arg(Arg::with_name("host")
-             .long("host")
-             .default_value("localhost")
-             .takes_value(true))
-        .arg(Arg::with_name("port")
-             .long("port")
-             .default_value("3000")
-             .takes_value(true))
-        .arg(Arg::with_name("sync")
-             .long("sync"))
+        .arg(
+            Arg::with_name("arch")
+                .value_name("ARCH_FILE")
+                .help("The architecture file")
+                .takes_value(true)
+                .required(true),
+        )
+        .arg(
+            Arg::with_name("static")
+                .long("static")
+                .required(true)
+                .takes_value(true)
+                .validator(check_dir),
+        )
+        .arg(
+            Arg::with_name("host")
+                .long("host")
+                .default_value("localhost")
+                .takes_value(true),
+        )
+        .arg(
+            Arg::with_name("port")
+                .long("port")
+                .default_value("3000")
+                .takes_value(true),
+        )
+        .arg(Arg::with_name("sync").long("sync"))
         .get_matches();
 
     ::std::process::exit(match run(matches) {

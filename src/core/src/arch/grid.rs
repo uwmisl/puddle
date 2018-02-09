@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use arch::{Location};
+use arch::Location;
 
 #[derive(Debug, PartialEq, Eq, Hash, Serialize, Deserialize, Clone, Copy)]
 pub struct Cell {
@@ -55,16 +55,19 @@ impl Grid {
     }
 
     pub fn locations<'a>(&'a self) -> Box<Iterator<Item = (Location, Cell)> + 'a> {
-        let iter = self.vec.iter()
-            .enumerate()
-            .flat_map(move |(i, row)|
-                      row.iter()
-                      .enumerate()
-                      .filter_map(move |(j, cell_opt)|
-                                  cell_opt.map(
-                                      |cell| (Location {y: i as i32, x: j as i32},
-                                              cell)
-                                  )));
+        let iter = self.vec.iter().enumerate().flat_map(move |(i, row)| {
+            row.iter().enumerate().filter_map(move |(j, cell_opt)| {
+                cell_opt.map(|cell| {
+                    (
+                        Location {
+                            y: i as i32,
+                            x: j as i32,
+                        },
+                        cell,
+                    )
+                })
+            })
+        });
         Box::new(iter)
     }
 
@@ -72,18 +75,19 @@ impl Grid {
     /// Tests if this grid is compatible within `bigger` when `offset` is applied
     /// to `self`
     fn is_compatible_within(&self, offset: Location, bigger: &Self) -> bool {
-        self.locations()
-            .all(|(loc, my_cell)| {
-                let their_loc = &loc + &offset;
-                bigger.get_cell(&their_loc)
-                    .map_or(false, |theirs| my_cell.is_compatible(&theirs))
+        self.locations().all(|(loc, my_cell)| {
+            let their_loc = &loc + &offset;
+            bigger.get_cell(&their_loc).map_or(false, |theirs| {
+                my_cell.is_compatible(&theirs)
             })
+        })
     }
 
-    fn mapping_into_other_from_offset(&self,
-                                      offset: Location,
-                                      bigger: &Self)
-                                      -> HashMap<Location, Location> {
+    fn mapping_into_other_from_offset(
+        &self,
+        offset: Location,
+        bigger: &Self,
+    ) -> HashMap<Location, Location> {
         assert!(self.is_compatible_within(offset, bigger));
 
         let mut map = HashMap::new();
@@ -96,28 +100,43 @@ impl Grid {
     }
 
     pub fn place(&self, smaller: &Self) -> Option<HashMap<Location, Location>> {
-        let offset_found = self.vec.iter()
+        let offset_found = self.vec
+            .iter()
             .enumerate()
-            .flat_map(move |(i, row)|
-                      (0..row.len()).map(
-                          move |j| Location {y: i as i32, x: j as i32}))
+            .flat_map(move |(i, row)| {
+                (0..row.len()).map(move |j| {
+                    Location {
+                        y: i as i32,
+                        x: j as i32,
+                    }
+                })
+            })
             .find(|&offset| smaller.is_compatible_within(offset, self));
         println!("Placing with offset: {:?}", offset_found);
 
-        offset_found.map(|offset|
-                         smaller.mapping_into_other_from_offset(offset, self))
+        offset_found.map(|offset| {
+            smaller.mapping_into_other_from_offset(offset, self)
+        })
     }
 
     pub fn from_function<F>(mut f: F, height: u32, width: u32) -> Grid
-        where F: FnMut(Location) -> Option<Cell>
+    where
+        F: FnMut(Location) -> Option<Cell>,
     {
 
         Grid {
-            vec: (0..height).map(
-                move |i| (0..width).map(
-                    |j| f( Location {y: i as i32, x: j as i32} )
-                ).collect()
-            ).collect()
+            vec: (0..height)
+                .map(move |i| {
+                    (0..width)
+                        .map(|j| {
+                            f(Location {
+                                y: i as i32,
+                                x: j as i32,
+                            })
+                        })
+                        .collect()
+                })
+                .collect(),
         }
     }
 
@@ -125,21 +144,21 @@ impl Grid {
 
     pub fn get_cell(&self, loc: &Location) -> Option<&Cell> {
         if loc.x < 0 || loc.y < 0 {
-            return None
+            return None;
         }
         let i = loc.y as usize;
         let j = loc.x as usize;
-        self.vec.get(i).and_then(
-            |row| row.get(j).and_then(
-                |cell_opt| cell_opt.as_ref()
-            )
-        )
+        self.vec.get(i).and_then(|row| {
+            row.get(j).and_then(|cell_opt| cell_opt.as_ref())
+        })
     }
 
     fn locations_from_offsets<'a, I>(&self, loc: &Location, offsets: I) -> Vec<Location>
-        where I: Iterator<Item = &'a Location>
+    where
+        I: Iterator<Item = &'a Location>,
     {
-        offsets.map(|off| loc + &off)
+        offsets
+            .map(|off| loc + &off)
             .filter(|loc| self.get_cell(loc).is_some())
             .collect()
     }
@@ -217,18 +236,8 @@ pub mod tests {
     fn test_connected() {
 
         let cell = Some(Cell { pin: 0 });
-        let grid1 = Grid {
-            vec: vec![
-                vec![None, cell],
-                vec![cell, None]
-            ]
-        };
-        let grid2 = Grid {
-            vec: vec![
-                vec![cell, cell],
-                vec![None, None]
-            ]
-        };
+        let grid1 = Grid { vec: vec![vec![None, cell], vec![cell, None]] };
+        let grid2 = Grid { vec: vec![vec![cell, cell], vec![None, None]] };
 
         assert!(!grid1.is_connected());
         assert!(grid2.is_connected())

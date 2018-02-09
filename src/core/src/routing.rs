@@ -36,7 +36,7 @@ type NextVec = Vec<(Cost, Node)>;
 struct AvoidanceSet {
     max_time: Time,
     present: HashMap<Node, CollisionGroup>,
-    finals: HashMap<Location, (Time, CollisionGroup)>
+    finals: HashMap<Location, (Time, CollisionGroup)>,
 }
 
 impl AvoidanceSet {
@@ -53,35 +53,34 @@ impl AvoidanceSet {
     fn collides(&self, node: &Node, cg: CollisionGroup) -> bool {
         // if not present, no collision
         // if present, collision iff cg not the same
-        self.present
-            .get(&node)
-            .map_or(false, |cg2| *cg2 != cg)
+        self.present.get(&node).map_or(false, |cg2| *cg2 != cg)
     }
 
     fn collides_with_final(&self, node: &Node, cg: CollisionGroup) -> bool {
-        self.finals
-            .get(&node.location)
-            .map_or(false, |&(final_t, final_cg)|
-                    node.time >= final_t
-                    && final_cg != cg
-            )
+        self.finals.get(&node.location).map_or(false, |&(final_t,
+           final_cg)| {
+            node.time >= final_t && final_cg != cg
+        })
     }
 
     fn would_finally_collide(&self, node: &Node, cg: CollisionGroup) -> bool {
         (node.time..self.max_time)
-            .map(|t| Node {time: t, location: node.location})
+            .map(|t| {
+                Node {
+                    time: t,
+                    location: node.location,
+                }
+            })
             .any(|future_node| self.collides(&future_node, cg))
     }
 
     fn avoid_path(&mut self, path: &Path, cg: CollisionGroup, grid: &Grid) {
-        let node_path = path.clone().into_iter()
-            .enumerate()
-            .map(|(i, loc)| {
-                Node {
-                    time: i as Time,
-                    location: loc,
-                }
-            });
+        let node_path = path.clone().into_iter().enumerate().map(|(i, loc)| {
+            Node {
+                time: i as Time,
+                location: loc,
+            }
+        });
         for node in node_path {
             self.avoid_node(grid, node, cg);
         }
@@ -101,10 +100,13 @@ impl AvoidanceSet {
                 if time < 0 {
                     continue;
                 }
-                self.present.insert(Node {
-                    location: loc,
-                    time: time as Time,
-                }, cg);
+                self.present.insert(
+                    Node {
+                        location: loc,
+                        time: time as Time,
+                    },
+                    cg,
+                );
             }
         }
     }
@@ -115,26 +117,29 @@ impl Node {
         let mut vec: Vec<(Cost, Node)> = grid.neighbors4(&self.location)
             .iter()
             .map(|&location| {
-                (1,
-                 Node {
-                    location: location,
-                    time: self.time + 1,
-                })
+                (
+                    1,
+                    Node {
+                        location: location,
+                        time: self.time + 1,
+                    },
+                )
             })
             .collect();
 
-        vec.push((100,
-                  Node {
-            location: self.location,
-            time: self.time + 1,
-        }));
+        vec.push((
+            100,
+            Node {
+                location: self.location,
+                time: self.time + 1,
+            },
+        ));
 
         vec
     }
 }
 
 impl Architecture {
-
     pub fn route(&self) -> Option<HashMap<DropletId, Path>> {
         let mut av_set = AvoidanceSet::default();
         let grid = &self.grid;
@@ -171,13 +176,15 @@ impl Architecture {
 }
 
 
-fn route_one<FNext, FDone>(droplet: &Droplet,
-                           max_time: Time,
-                           mut next_fn: FNext,
-                           mut done_fn: FDone,
+fn route_one<FNext, FDone>(
+    droplet: &Droplet,
+    max_time: Time,
+    mut next_fn: FNext,
+    mut done_fn: FDone,
 ) -> Option<Path>
-where FNext: FnMut(&Node) -> NextVec,
-      FDone: FnMut(&Node) -> bool
+where
+    FNext: FnMut(&Node) -> NextVec,
+    FDone: FnMut(&Node) -> bool,
 {
     let mut todo: MinHeap<Cost, Node> = MinHeap::new();
     let mut best_so_far: HashMap<Node, Cost> = HashMap::new();
@@ -194,7 +201,7 @@ where FNext: FnMut(&Node) -> NextVec,
 
     let dest = match droplet.destination {
         Some(x) => x,
-        None => droplet.location
+        None => droplet.location,
     };
 
     // use manhattan distance from goal as the heuristic
@@ -262,7 +269,7 @@ pub mod tests {
         assert_eq!(droplet.location, path[0]);
         let dest = match droplet.destination {
             Some(x) => x,
-            None => droplet.location
+            None => droplet.location,
         };
         assert_eq!(dest, path[path.len() - 1]);
         for win in path.windows(2) {

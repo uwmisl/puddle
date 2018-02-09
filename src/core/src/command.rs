@@ -49,16 +49,15 @@ impl Input {
     pub fn new(arch: &mut Architecture, loc: Location) -> PuddleResult<Input> {
         let output = arch.new_droplet_id();
 
-        Ok( Input {
+        Ok(Input {
             inputs: vec![],
             outputs: vec![output],
-            destination: [loc]
+            destination: [loc],
         })
     }
 }
 
 impl Command for Input {
-
     fn input_droplets(&self) -> &[DropletId] {
         self.inputs.as_slice()
     }
@@ -91,7 +90,7 @@ impl Command for Input {
 
             match arch.droplets.entry(result_id) {
                 Occupied(occ) => panic!("Droplet was already here: {:?}", occ.get()),
-                Vacant(spot) => spot.insert(droplet)
+                Vacant(spot) => spot.insert(droplet),
             };
             // assert!(result.location == self.destination[0]);
         }
@@ -118,17 +117,15 @@ impl Move {
     pub fn new(arch: &mut Architecture, id: DropletId, loc: Location) -> PuddleResult<Move> {
         let output = arch.new_droplet_id();
 
-        Ok( Move {
+        Ok(Move {
             inputs: vec![id],
             outputs: vec![output],
             destination: [loc],
-
         })
     }
 }
 
 impl Command for Move {
-
     fn input_droplets(&self) -> &[DropletId] {
         self.inputs.as_slice()
     }
@@ -162,7 +159,7 @@ impl Command for Move {
 
         match arch.droplets.entry(result_id) {
             Occupied(occ) => panic!("Droplet was already here: {:?}", occ.get()),
-            Vacant(spot) => spot.insert(droplet)
+            Vacant(spot) => spot.insert(droplet),
         };
         drop(arch);
         callback();
@@ -201,15 +198,14 @@ impl Mix {
     pub fn new(arch: &mut Architecture, id1: DropletId, id2: DropletId) -> PuddleResult<Mix> {
         let output = arch.new_droplet_id();
 
-        Ok( Mix {
+        Ok(Mix {
             inputs: vec![id1, id2],
-            outputs: vec![output]
+            outputs: vec![output],
         })
     }
 }
 
 impl Command for Mix {
-
     fn input_droplets(&self) -> &[DropletId] {
         self.inputs.as_slice()
     }
@@ -251,7 +247,7 @@ impl Command for Mix {
 
         match arch.droplets.entry(result_id) {
             Occupied(occ) => panic!("Droplet was already here: {:?}", occ.get()),
-            Vacant(spot) => spot.insert(droplet)
+            Vacant(spot) => spot.insert(droplet),
         };
 
         assert!(d0.location == d1.location);
@@ -305,15 +301,14 @@ impl Split {
         let output1 = arch.new_droplet_id();
         let output2 = arch.new_droplet_id();
 
-        Ok( Split {
+        Ok(Split {
             inputs: vec![id],
-            outputs: vec![output1, output2]
+            outputs: vec![output1, output2],
         })
     }
 }
 
 impl Command for Split {
-
     fn input_droplets(&self) -> &[DropletId] {
         self.inputs.as_slice()
     }
@@ -350,12 +345,12 @@ impl Command for Split {
 
         match arch.droplets.entry(result1_id) {
             Occupied(occ) => panic!("Droplet was already here: {:?}", occ.get()),
-            Vacant(spot) => spot.insert(droplet1)
+            Vacant(spot) => spot.insert(droplet1),
         };
 
         match arch.droplets.entry(result2_id) {
             Occupied(occ) => panic!("Droplet was already here: {:?}", occ.get()),
-            Vacant(spot) => spot.insert(droplet2)
+            Vacant(spot) => spot.insert(droplet2),
         };
 
         drop(arch);

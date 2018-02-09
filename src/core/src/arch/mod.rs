@@ -4,7 +4,7 @@ pub mod grid;
 use std::ops::{Add, Sub};
 use std::collections::HashMap;
 use std::io::Read;
-use std::sync::{RwLock};
+use std::sync::RwLock;
 
 use serde_json;
 
@@ -12,8 +12,7 @@ use arch::grid::Grid;
 
 use routing::Path;
 
-#[derive(PartialEq, Eq, PartialOrd, Ord, Hash, Clone,
-         Copy, Debug, Serialize, Deserialize)]
+#[derive(PartialEq, Eq, PartialOrd, Ord, Hash, Clone, Copy, Debug, Serialize, Deserialize)]
 pub struct Location {
     pub y: i32,
     pub x: i32,
@@ -78,17 +77,16 @@ impl Droplet {
         DropletInfo {
             location: self.location,
             volume: 1,
-            shape: vec![Location {y: 0, x: 0}]
+            shape: vec![Location { y: 0, x: 0 }],
         }
     }
-
 }
 
 #[derive(PartialEq, Eq, Hash, Debug, Serialize)]
 pub struct DropletInfo {
     location: Location,
     volume: i32,
-    shape: Vec<Location>
+    shape: Vec<Location>,
 }
 
 #[derive(Debug, Clone)]
@@ -100,7 +98,6 @@ pub struct Architecture {
 }
 
 impl Architecture {
-
     pub fn from_grid(grid: Grid) -> Architecture {
         Architecture {
             grid: grid,
@@ -198,7 +195,8 @@ impl Architecture {
     }
 
     pub fn take_paths<F>(lock: &RwLock<Self>, paths: HashMap<DropletId, Path>, callback: F)
-        where F: Fn()
+    where
+        F: Fn(),
     {
 
         use std::mem::drop;
@@ -227,15 +225,19 @@ impl Architecture {
             let coll = arch.get_collision();
             if coll.is_some() {
                 let (id1, id2) = coll.unwrap();
-                panic!("Paths: {:?}\n Collision:\n  {:?} {:?}\n  {:?} {:?}",
-                       paths,
-                       id1, arch.droplets[&id1], id2, arch.droplets[&id2]);
+                panic!(
+                    "Paths: {:?}\n Collision:\n  {:?} {:?}\n  {:?} {:?}",
+                    paths,
+                    id1,
+                    arch.droplets[&id1],
+                    id2,
+                    arch.droplets[&id2]
+                );
             }
             // assert!(arch.get_collision().is_none())
         }
 
     }
-
 }
 
 
@@ -266,28 +268,28 @@ pub mod tests {
         }
     }
 
-    pub fn arb_arch_from_grid(grid: Grid, n_droplets: Range<usize>)
-         -> BoxedStrategy<Architecture>
-    {
-        let ht_gen = hash_map(prop::num::usize::ANY,
-                              arb_droplet(grid.locations()
-                                          .map(|(loc, _)| loc).collect()),
-                              n_droplets);
+    pub fn arb_arch_from_grid(grid: Grid, n_droplets: Range<usize>) -> BoxedStrategy<Architecture> {
+        let ht_gen = hash_map(
+            prop::num::usize::ANY,
+            arb_droplet(grid.locations().map(|(loc, _)| loc).collect()),
+            n_droplets,
+        );
         // can't use prop_compose! because we need to move the hash map here
-        ht_gen.prop_map(
-            move |ht| {
+        ht_gen
+            .prop_map(move |ht| {
 
                 let next_id = ht.keys().max().map_or(0, |max| max + 1);
-                let next_cg = ht.values()
-                    .map(|d| d.collision_group)
-                    .max()
-                    .map_or(0, |max| max + 1);
+                let next_cg = ht.values().map(|d| d.collision_group).max().map_or(
+                    0,
+                    |max| max + 1,
+                );
                 Architecture {
                     grid: grid.clone(),
                     next_droplet_id: next_id,
                     next_collision_group: next_cg,
                     droplets: ht,
                 }
-        }).boxed()
+            })
+            .boxed()
     }
 }

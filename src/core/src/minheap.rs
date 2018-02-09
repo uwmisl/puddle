@@ -6,16 +6,15 @@ use std::collections::BinaryHeap;
 
 /// MinHeap<K, T>
 pub struct MinHeap<K: Ord, T: Eq> {
-    heap: BinaryHeap<MinHeapElem<K,T>>,
+    heap: BinaryHeap<MinHeapElem<K, T>>,
     timestamp: u32,
 }
 
-impl<K: Ord, T: Eq> MinHeap<K,T> {
-
-    pub fn new() -> MinHeap<K,T> {
+impl<K: Ord, T: Eq> MinHeap<K, T> {
+    pub fn new() -> MinHeap<K, T> {
         MinHeap {
             heap: BinaryHeap::new(),
-            timestamp: 0
+            timestamp: 0,
         }
     }
 
@@ -23,7 +22,7 @@ impl<K: Ord, T: Eq> MinHeap<K,T> {
         let x = MinHeapElem {
             cost: cost,
             timestamp: self.timestamp,
-            elem: elem
+            elem: elem,
         };
         self.timestamp += 1;
         self.heap.push(x)
@@ -36,7 +35,6 @@ impl<K: Ord, T: Eq> MinHeap<K,T> {
             None
         }
     }
-
 }
 
 /// `MinHeapElem<K, T>` holds a score `K` and a scored object `T` in
@@ -48,7 +46,6 @@ impl<K: Ord, T: Eq> MinHeap<K,T> {
 ///
 /// **Note:** `MinHeapElem` implements a total order (`Ord`), so that it is
 /// possible to use float types as scores.
-
 #[derive(PartialEq, Eq, Copy, Clone, Debug)]
 struct MinHeapElem<K: Ord, T: Eq> {
     cost: K,
@@ -82,6 +79,6 @@ impl<K: Ord, T: Eq> Ord for MinHeapElem<K, T> {
 
 impl<K: Ord, T: Eq> PartialOrd for MinHeapElem<K, T> {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        Some( self.cmp(other) )
+        Some(self.cmp(other))
     }
 }
