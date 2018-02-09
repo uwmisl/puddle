@@ -38,14 +38,10 @@ Please watch your trailing whitespace! There should basically be no whitespace
 at the end of any lines. Look up how to configure your editor to automatically
 do this, and you'll make the world a better place.
 
-Aside from that, for Python, [flake8][] and [mypy][] will take care of most code
-style things. Make sure to install a flake8 plugin for your favorite text
-editor.
+Aside from that, for Rust, `cargo fmt` will take care of most things.
 
 [cc]: CODE_OF_CONDUCT.md
 [readme]: README.md
-[flake8]: http://flake8.pycqa.org/en/latest/
-[mypy]: http://mypy-lang.org/
 [commit]: https://chris.beams.io/posts/git-commit/
 [feat-branch]: https://www.atlassian.com/git/tutorials/comparing-workflows#feature-branch-workflow
 [lfs]: https://git-lfs.github.com/
