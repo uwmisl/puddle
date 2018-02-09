@@ -109,7 +109,6 @@ ENV/
 
 # js garbage
 node_modules/
-*.js
 
 # profiling data
 prof/
