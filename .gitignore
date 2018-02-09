@@ -109,7 +109,9 @@ ENV/
 
 # js garbage
 node_modules/
-*.js
 
 # profiling data
 prof/
+
+# python stuff
+.pytest_cache
