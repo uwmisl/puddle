@@ -12,6 +12,7 @@ use std::fmt;
 use std::fs::File;
 use std::path::Path;
 use std::io::Read;
+use std::env;
 
 use iron::prelude::*;
 use iron::Handler;
@@ -57,12 +58,17 @@ impl Handler for IoHandlerWrapper {
         req .body
             .read_to_string(&mut body)
             .map_err(|e| IronError::new(e, (status::InternalServerError, "Error reading request")))?;
-        println!("body: {}", body);
+
+        println!("req: ({})", body);
 
         // handle the request with jsonrpc, then convert to IronResult
         self.0.handle_request_sync(&body)
-            .map(|resp| Response::with((ContentType::json().0, status::Ok, resp)))
-            .ok_or(IronError::new(JsonRpcError, (status::InternalServerError, "jsonrpc error")))
+            .map(|resp| {
+                println!("resp: ({})", resp);
+                Response::with((ContentType::json().0, status::Ok, resp))
+            })
+            .ok_or(IronError::new(JsonRpcError, (status::InternalServerError,
+                                                 "jsonrpc error")))
     }
 }
 
@@ -75,14 +81,19 @@ fn run(matches: ArgMatches) -> Result<(), Box<::std::error::Error>> {
     let path = matches.value_of("arch").unwrap();
     let reader = File::open(path)?;
 
+    let static_dir = Path::new(matches.value_of("static").unwrap());
+
+    let should_sync = matches.occurrences_of("sync") > 0
+        || env::var("PUDDLE_VIZ").is_ok();
+
     let session = Session::new(
         Architecture::from_reader(reader),
-    ).sync(true);
+    ).sync(should_sync);
 
     let mut mount = Mount::new();
     mount
         .mount("/status", status)
-        .mount("/static", Static::new(Path::new("target/doc/")))
+        .mount("/static", Static::new(static_dir))
         .mount("/", {
             let mut ioh = IoHandler::new();
             ioh.extend_with(session.to_delegate());
@@ -99,6 +110,14 @@ fn run(matches: ArgMatches) -> Result<(), Box<::std::error::Error>> {
     Ok(())
 }
 
+fn check_dir(dir: String) -> Result<(), String> {
+    if Path::new(&dir).is_dir() {
+        Ok(())
+    } else {
+        Err("static should be a directory".to_string())
+    }
+}
+
 fn main() {
     let matches = App::new("puddle")
         .version("0.1")
@@ -109,6 +128,11 @@ fn main() {
              .help("The architecture file")
              .takes_value(true)
              .required(true))
+        .arg(Arg::with_name("static")
+             .long("static")
+             .required(true)
+             .takes_value(true)
+             .validator(check_dir))
         .arg(Arg::with_name("host")
              .long("host")
              .default_value("localhost")

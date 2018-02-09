@@ -18,3 +18,4 @@ requests = "*"
 [dev-packages]
 
 pytest = "*"
+"e1839a8" = {path = ".", editable = true}

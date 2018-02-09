@@ -75,13 +75,21 @@ impl Droplet {
     }
 
     pub fn info(&self) -> DropletInfo {
-        DropletInfo {}
+        DropletInfo {
+            location: self.location,
+            volume: 1,
+            shape: vec![Location {y: 0, x: 0}]
+        }
     }
 
 }
 
 #[derive(PartialEq, Eq, Hash, Debug, Serialize)]
-pub struct DropletInfo {}
+pub struct DropletInfo {
+    location: Location,
+    volume: i32,
+    shape: Vec<Location>
+}
 
 #[derive(Debug, Clone)]
 pub struct Architecture {

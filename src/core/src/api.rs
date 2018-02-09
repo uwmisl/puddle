@@ -51,6 +51,9 @@ build_rpc_trait! {
 
 		    #[rpc(name = "droplets")]
         fn droplets(&self) -> PuddleResult<HashMap<DropletId, DropletInfo>>;
+
+		    #[rpc(name = "visualize_droplets")]
+        fn visualize_droplets(&self) -> PuddleResult<HashMap<DropletId, DropletInfo>>;
     }
 }
 
@@ -100,6 +103,7 @@ impl Session {
     fn execute(&self, cmd: Box<Command>) -> Result<(), ExecutionError> {
 
         let mut arch = self.arch.write().unwrap();
+        println!("Running: {:?}", cmd);
 
         cmd.pre_run(&mut arch);
 
@@ -116,7 +120,7 @@ impl Session {
                 }
             };
 
-        println!("Mapping: {:?}", mapping);
+        // println!("Mapping: {:?}", mapping);
 
         let in_locs = cmd.input_locations();
         let in_ids = cmd.input_droplets();
@@ -215,6 +219,18 @@ impl Rpc for Session {
 
     fn droplets(&self) -> PuddleResult<HashMap<DropletId, DropletInfo>> {
         self.flush()?;
+        let arch = self.arch.read().unwrap();
+
+        let droplets = arch.droplets
+            .iter()
+            .map(|(id, droplet)| (*id, droplet.info()))
+            .collect();
+
+        Ok(droplets)
+    }
+
+    fn visualize_droplets(&self) -> PuddleResult<HashMap<DropletId, DropletInfo>> {
+        // DONT FLUSH
         let arch = self.arch.read().unwrap();
 
         let droplets = arch.droplets

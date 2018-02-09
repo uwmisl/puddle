@@ -1,6 +1,7 @@
 
 use std::collections::HashMap;
 use std::collections::hash_map::Entry::*;
+use std::fmt::Debug;
 
 use arch::{Architecture, Location, DropletId};
 use arch::grid::Grid;
@@ -13,7 +14,7 @@ use std::mem::drop;
 type Mapping = HashMap<Location, Location>;
 
 // Send and 'static here are necessary to move trait objects around
-pub trait Command: Send + 'static {
+pub trait Command: Debug + Send + 'static {
     fn input_droplets(&self) -> &[DropletId];
     fn input_locations(&self) -> &[Location];
     fn output_droplets(&self) -> &[DropletId];
@@ -37,6 +38,7 @@ lazy_static! {
     static ref INPUT_INPUT_LOCS: Vec<Location> = vec![];
 }
 
+#[derive(Debug)]
 pub struct Input {
     inputs: Vec<DropletId>,
     outputs: Vec<DropletId>,
@@ -104,6 +106,7 @@ lazy_static! {
     static ref MOVE_SHAPE: Grid = Grid::rectangle(0,0);
 }
 
+#[derive(Debug)]
 pub struct Move {
     inputs: Vec<DropletId>,
     outputs: Vec<DropletId>,
@@ -186,6 +189,7 @@ lazy_static! {
         .collect();
 }
 
+#[derive(Debug)]
 pub struct Mix {
     inputs: Vec<DropletId>,
     outputs: Vec<DropletId>,
@@ -287,6 +291,7 @@ lazy_static! {
         ];
 }
 
+#[derive(Debug)]
 pub struct Split {
     inputs: Vec<DropletId>,
     outputs: Vec<DropletId>,

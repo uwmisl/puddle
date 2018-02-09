@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <title>Puddle Viz</title>
+        <style>
+        body {
+            font-size: 14px;
+            font-family: sans-serif;
+        }
+
+        #slider-container {
+            padding-top: 16px;
+            padding-left: 5px;
+            position: relative;
+            width: 100vw;
+        }
+
+        #slider {
+            -webkit-appearance: none;
+            width: 400px;
+            height: 20px;
+            border-radius: 5px;
+            background: #a9aa9e;
+            outline: none;
+            -webkit-transition: .2s;
+            transition: opacity .2s;
+        }
+
+        #slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 22px;
+            height: 22px;
+            border-radius: 5px;
+            background: #4b4559;
+            cursor: pointer;
+        }
+
+        #text {
+            font-size: 15px;
+            padding-top: 15px;
+            padding-left: 5px;
+            position: relative;
+            line-height: 7px;
+        }
+        </style>
+        <link rel="stylesheet" href="https://ajax.googleapis.com/ajax/libs/jqueryui/1.12.1/themes/smoothness/jquery-ui.css">
+        <script src="https://cdn.jsdelivr.net/npm/phaser-ce@2.10.0"></script>
+        <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+        <script src="https://ajax.googleapis.com/ajax/libs/jqueryui/1.12.1/jquery-ui.min.js"></script>
+        <script src="static/game.js"></script>
+    </head>
+    <body>
+        <div id="game"></div>
+        <label><input id="ready" type="checkbox">auto-animate</label>
+        <button type="button" id="back">Back</button>
+        <button type="button" id="step">Step</button>
+        <div id="slider-container">
+            <input type="range" min="0" max="0" value="0" id="slider">
+        </div>
+        <div id="text">
+            <p><b>key bindings</b></p>
+            <p>l: step forward</p>
+            <p>j: step backward</p>
+        </div>
+</body>
+</html>

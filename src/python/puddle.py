@@ -1,5 +1,11 @@
 import requests
 import json
+import time
+
+from contextlib import contextmanager
+
+from subprocess import Popen, check_output, PIPE
+import shlex
 
 
 def to_location(y,x):
@@ -91,8 +97,53 @@ class Session:
 
     def split(self, d):
         assert isinstance(d, Droplet)
-        result_id = self._rpc("split", d._use())
-        return Droplet(self, result_id, i_know_what_im_doing=True)
+        id1, id2 = self._rpc("split", d._use())
+        return (Droplet(self, id1, i_know_what_im_doing=True),
+                Droplet(self, id2, i_know_what_im_doing=True))
+
+
+def call(cmd):
+    args = shlex.split(cmd)
+    output = check_output(args)
+    return output.decode('utf8').strip()
+
+
+@contextmanager
+def mk_session(
+        arch_file = None,
+        host = 'localhost',
+        port = '3000',
+):
+
+    # paths written in this file should be relative to the project root
+    root = call('git rev-parse --show-toplevel')
+
+    arch_file = arch_file or root + '/tests/arches/arch01.json'
+
+    # build the server command and run it
+    cmd = 'cargo run --manifest-path {cargo_toml} -- ' \
+        '--static {static_dir} --host {host} --port {port} {arch_file}'.format(
+            cargo_toml = root + '/src/core/Cargo.toml',
+            arch_file = arch_file,
+            static_dir = root + '/src/web',
+            host = host,
+            port = port,
+    )
+    popen = Popen(args=shlex.split(cmd), stdout=PIPE)
+
+    # wait for the server to print 'Listening' so we know it's ready
+    line = ''
+    while 'Listening' not in line:
+        line = popen.stdout.readline() or line
+        line = line.decode('utf8')
+        time.sleep(0.1)
+
+    session = Session('http://{}:{}'.format(host, port))
+    yield session
+
+    session._flush()
+    popen.terminate()
+    popen.wait()
 
 
 class Droplet:
