@@ -86,10 +86,13 @@ impl Session {
 
     pub fn wait(&self) {
         if self.sync {
+            println!(">>> WAITING");
             let mut seen = self.step_seen.lock().unwrap();
             while !*seen {
                 seen = self.step_signal.wait(seen).unwrap();
             }
+            *seen = false;
+            println!("<<< WAITING");
         }
     }
 

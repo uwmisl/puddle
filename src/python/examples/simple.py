@@ -2,7 +2,7 @@ from puddle import mk_session, Session
 
 # session = Session('http://localhost:3000')
 # if True:
-with mk_session('tests/arches/arch01.json') as session:
+with mk_session('../../tests/arches/arch01.json') as session:
 
     a = session.input(1,1)
     b = session.input(3,1)

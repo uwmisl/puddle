@@ -84,16 +84,17 @@ impl Command for Input {
     }
 
     fn run(&self, lock: &RwLock<Architecture>, _: &Mapping, callback: &Fn()) {
-        let mut arch = lock.write().unwrap();
-        let droplet = arch.droplet_from_location(self.destination[0]);
-        let result_id = self.outputs[0];
+        {
+            let mut arch = lock.write().unwrap();
+            let droplet = arch.droplet_from_location(self.destination[0]);
+            let result_id = self.outputs[0];
 
-        let result = match arch.droplets.entry(result_id) {
-            Occupied(occ) => panic!("Droplet was already here: {:?}", occ.get()),
-            Vacant(spot) => spot.insert(droplet)
-        };
-
-        assert!(result.location == self.destination[0]);
+            match arch.droplets.entry(result_id) {
+                Occupied(occ) => panic!("Droplet was already here: {:?}", occ.get()),
+                Vacant(spot) => spot.insert(droplet)
+            };
+            // assert!(result.location == self.destination[0]);
+        }
         callback();
     }
 }
@@ -163,6 +164,7 @@ impl Command for Move {
             Occupied(occ) => panic!("Droplet was already here: {:?}", occ.get()),
             Vacant(spot) => spot.insert(droplet)
         };
+        drop(arch);
         callback();
     }
 }
@@ -259,6 +261,7 @@ impl Command for Mix {
         for loc in MIX_LOOP.iter() {
             let mut arch = lock.write().unwrap();
             arch.droplets.get_mut(&result_id).unwrap().location = mapping[loc];
+            drop(arch);
             callback();
         }
     }
@@ -361,6 +364,7 @@ impl Command for Split {
             let mut arch = lock.write().unwrap();
             arch.droplets.get_mut(&result1_id).unwrap().location = mapping[loc1];
             arch.droplets.get_mut(&result2_id).unwrap().location = mapping[loc2];
+            drop(arch);
             callback();
         }
 

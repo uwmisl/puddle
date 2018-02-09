@@ -134,6 +134,7 @@ def mk_session(
     # wait for the server to print 'Listening' so we know it's ready
     line = ''
     while 'Listening' not in line:
+        print(line)
         line = popen.stdout.readline() or line
         line = line.decode('utf8')
         time.sleep(0.1)
