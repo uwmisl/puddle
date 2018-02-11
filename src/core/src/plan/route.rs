@@ -2,7 +2,7 @@
 use std::collections::{HashSet, HashMap};
 use std::collections::hash_map::Entry::{Occupied, Vacant};
 
-use minheap::MinHeap;
+use plan::minheap::MinHeap;
 use arch::{Location, Droplet, DropletId, Architecture};
 use arch::grid::Grid;
 

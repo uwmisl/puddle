@@ -18,10 +18,8 @@ extern crate jsonrpc_core;
 #[macro_use]
 extern crate jsonrpc_macros;
 
-mod minheap;
-
 // these need to be pub until we have an api
 pub mod arch;
-pub mod routing;
+pub mod plan;
 pub mod command;
 pub mod api;

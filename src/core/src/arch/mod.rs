@@ -10,7 +10,7 @@ use serde_json;
 
 use arch::grid::Grid;
 
-use routing::Path;
+use plan::route::Path;
 
 #[derive(PartialEq, Eq, PartialOrd, Ord, Hash, Clone, Copy, Debug, Serialize, Deserialize)]
 pub struct Location {
@@ -204,7 +204,7 @@ impl Architecture {
 
         #[cfg(test)]
         for (id, path) in paths.iter() {
-            use routing::tests::check_path_on_grid;
+            use plan::route::tests::check_path_on_grid;
             let d = &arch.droplets[id];
             check_path_on_grid(d, path, &arch.grid);
         }
