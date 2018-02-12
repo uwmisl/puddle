@@ -292,7 +292,15 @@ $(function() {
             method: 'visualize_droplets',
             params: []
         };
-        var fetch = $.post('/rpc', JSON.stringify(req_data), parse_data, 'json')
+        var fetch =
+            $.ajax({
+                url:'/rpc',
+                type:"POST",
+                data: JSON.stringify(req_data),
+                contentType:"application/json; charset=utf-8",
+                dataType:"json",
+                success: parse_data
+            })
             .fail(function() {
                 server_closed = true;
                 max_frame = display_frame;
