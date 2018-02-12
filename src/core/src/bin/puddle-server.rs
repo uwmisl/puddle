@@ -1,82 +1,36 @@
 extern crate puddle_core;
 
-extern crate iron;
-extern crate mount;
-extern crate staticfile;
-
+#[macro_use]
+extern crate rouille;
 extern crate jsonrpc_core;
-
 extern crate clap;
 
-use std::fmt;
 use std::fs::File;
-use std::path::Path;
-use std::io::Read;
+use std::path::{Path, PathBuf};
 use std::env;
 
-use iron::prelude::*;
-use iron::Handler;
-use iron::headers::ContentType;
-use iron::status;
-
-use mount::Mount;
-use staticfile::Static;
+use rouille::{Request, Response};
+use rouille::input::json_input;
 
 use jsonrpc_core::IoHandler;
+use jsonrpc_core::futures::future::Future;
 
 use clap::{ArgMatches, App, Arg};
 
 use puddle_core::api::{Session, Rpc};
 use puddle_core::arch::Architecture;
 
-#[derive(Debug)]
-struct JsonRpcError;
+fn handle(ioh: &IoHandler, req: &Request) -> Response {
+    // read the body into a string
+    let json_req = json_input(req).unwrap();
+    eprintln!("req: ({:?})", json_req);
 
-impl fmt::Display for JsonRpcError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "jsonrpc did not respond")
-    }
-}
-
-impl iron::error::Error for JsonRpcError {
-    fn description(&self) -> &str {
-        "jsonrpc did not respond"
-    }
-
-    fn cause(&self) -> Option<&iron::error::Error> {
-        None
-    }
-}
-
-// needed so we can implement the Handler trait on IoHandler
-struct IoHandlerWrapper(IoHandler);
-
-impl Handler for IoHandlerWrapper {
-    fn handle(&self, req: &mut Request) -> IronResult<Response> {
-        // read the body into a string
-        let mut body = String::new();
-        req.body.read_to_string(&mut body).map_err(|e| {
-            IronError::new(e, (status::InternalServerError, "Error reading request"))
-        })?;
-
-        println!("req: ({})", body);
-
-        // handle the request with jsonrpc, then convert to IronResult
-        self.0
-            .handle_request_sync(&body)
-            .map(|resp| {
-                println!("resp: ({})", resp);
-                Response::with((ContentType::json().0, status::Ok, resp))
-            })
-            .ok_or(IronError::new(
-                JsonRpcError,
-                (status::InternalServerError, "jsonrpc error"),
-            ))
-    }
-}
-
-fn status(_: &mut Request) -> IronResult<Response> {
-    Ok(Response::with((status::Ok, "All is good!")))
+    // handle the request with jsonrpc, then convert to IronResult
+    let resp = Response::json(
+        &ioh.handle_rpc_request(json_req).wait().unwrap()
+    );
+    eprintln!("Resp: {:?}", resp);
+    resp
 }
 
 fn run(matches: ArgMatches) -> Result<(), Box<::std::error::Error>> {
@@ -84,30 +38,48 @@ fn run(matches: ArgMatches) -> Result<(), Box<::std::error::Error>> {
     let path = matches.value_of("arch").unwrap();
     let reader = File::open(path)?;
 
-    let static_dir = Path::new(matches.value_of("static").unwrap());
+    let static_dir = PathBuf::from(matches.value_of("static").unwrap());
 
     let should_sync = matches.occurrences_of("sync") > 0 || env::var("PUDDLE_VIZ").is_ok();
 
     let session = Session::new(Architecture::from_reader(reader)).sync(should_sync);
 
-    let mut mount = Mount::new();
-    mount
-        .mount("/status", status)
-        .mount("/rpc", {
-            let mut ioh = IoHandler::new();
-            ioh.extend_with(session.to_delegate());
-            IoHandlerWrapper(ioh)
-        })
-        .mount("/", Static::new(static_dir));
+    let mut ioh = IoHandler::new();
+    ioh.extend_with(session.to_delegate());
 
     // args that have defaults are safe to unwrap
     let host = matches.value_of("host").unwrap();
     let port = matches.value_of("port").unwrap();
     let address = format!("{}:{}", host, port);
     println!("Listening on http://{}", address);
-    Iron::new(mount).http(address)?;
 
-    Ok(())
+    rouille::start_server(address, move |request| {
+        router!(
+            request,
+            (GET) (/status) => {
+                // Builds a `Response` object that contains the "hello world" text.
+                Response::text("Ok!")
+            },
+            (POST) (/rpc) => {
+                handle(&ioh, request)
+            },
+            (GET) (/{path: String}) => {
+                // FIXME this hack won't work on subdirectories
+                if path == "" {
+                    let mut pb = static_dir.clone();
+                    pb.push("index.html");
+                    Response::from_file(
+                        "html",
+                        File::open(pb).unwrap()
+                    )
+                } else {
+                    rouille::match_assets(&request, &static_dir)
+                }
+            },
+
+            _ => { rouille::Response::empty_404() }
+        )
+    });
 }
 
 fn check_dir(dir: String) -> Result<(), String> {
