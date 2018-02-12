@@ -30,15 +30,16 @@ class Session:
         self.endpoint = endpoint
         self.next_id = 0
 
+        status_check = endpoint + '/status'
         try:
-            resp = requests.get(endpoint + '/status')
+            resp = requests.get(status_check)
         except Exception as exn:
             print(exn)
-            raise RPCError('could not connect to {}'.format(endpoint)) from exn
+            raise RPCError('could not connect to {}'.format(status_check)) from exn
 
         if resp.status_code != 200:
-            raise RPCError('Something is wrong with {}: got status code'
-                           .format(endpoint, resp.status_code))
+            raise RPCError('Something is wrong with {}: got status code {}'
+                           .format(status_check, resp.status_code))
 
     def _rpc(self, method, *args, **kwargs):
 
@@ -57,7 +58,7 @@ class Session:
 
         try:
             response = requests.post(
-                self.endpoint,
+                self.endpoint + '/rpc',
                 headers = Session.json_headers,
                 data = json.dumps(data),
             )
@@ -113,7 +114,6 @@ def mk_session(
         arch_file = None,
         host = 'localhost',
         port = '3000',
-        path = 'rpc'
 ):
 
     # paths written in this file should be relative to the project root
@@ -140,7 +140,7 @@ def mk_session(
         line = line.decode('utf8')
         time.sleep(0.1)
 
-    session = Session('http://{}:{}/{}'.format(host, port, path))
+    session = Session('http://{}:{}'.format(host, port))
     yield session
 
     session._flush()
