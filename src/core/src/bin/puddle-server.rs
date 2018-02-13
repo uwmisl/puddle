@@ -26,9 +26,7 @@ fn handle(ioh: &IoHandler, req: &Request) -> Response {
     eprintln!("req: ({:?})", json_req);
 
     // handle the request with jsonrpc, then convert to IronResult
-    let resp = Response::json(
-        &ioh.handle_rpc_request(json_req).wait().unwrap()
-    );
+    let resp = Response::json(&ioh.handle_rpc_request(json_req).wait().unwrap());
     eprintln!("Resp: {:?}", resp);
     resp
 }
