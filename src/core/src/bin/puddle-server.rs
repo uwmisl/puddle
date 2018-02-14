@@ -13,6 +13,7 @@ use rouille::{Request, Response};
 use rouille::input::json_input;
 
 use jsonrpc_core::IoHandler;
+use jsonrpc_core::to_string;
 use jsonrpc_core::futures::future::Future;
 
 use clap::{ArgMatches, App, Arg};
@@ -23,11 +24,12 @@ use puddle_core::arch::Architecture;
 fn handle(ioh: &IoHandler, req: &Request) -> Response {
     // read the body into a string
     let json_req = json_input(req).unwrap();
-    eprintln!("req: ({:?})", json_req);
+    eprintln!("req: ({:?})", to_string(&json_req));
 
     // handle the request with jsonrpc, then convert to IronResult
-    let resp = Response::json(&ioh.handle_rpc_request(json_req).wait().unwrap());
-    eprintln!("Resp: {:?}", resp);
+    let resp_data = &ioh.handle_rpc_request(json_req).wait().unwrap();
+    let resp = Response::json(resp_data);
+    eprintln!("Resp: {:?}", resp_data);
     resp
 }
 
