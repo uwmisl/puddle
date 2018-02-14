@@ -1,4 +1,4 @@
-use super::{Droplet, DropletId, DropletInfo, Grid};
+use super::{Droplet, DropletId, DropletInfo, Grid, Location};
 
 use exec::Action;
 
@@ -19,6 +19,7 @@ impl GridView {
         }
     }
 
+    /// Returns an invalid droplet, if any.
     pub fn get_collision(&self) -> Option<(DropletId, DropletId)> {
         for (id1, droplet1) in self.droplets.iter() {
             for (id2, droplet2) in self.droplets.iter() {
@@ -29,11 +30,13 @@ impl GridView {
                     continue;
                 }
 
-                let collide = self.grid.neighbors9(&droplet1.location)
+                let collide = self.grid
+                    .neighbors_dimensions(&droplet1.location, &droplet1.dimensions)
                     .into_iter()
-                    // TODO this check will be more complicated when there are
-                    // droplet shapes
-                    .any(|loc| loc == droplet2.location);
+                    .any(|loc| {
+                        Droplet::get_locations(&droplet2.location, &droplet2.dimensions)
+                            .contains(&loc)
+                    });
 
                 if collide {
                     return Some((*id1, *id2));
@@ -60,11 +63,10 @@ impl GridView {
                 let dest1 = droplet1.destination.unwrap();
                 let dest2 = droplet2.destination.unwrap();
 
-                let collide = self.grid.neighbors9(&dest1)
+                let collide = self.grid
+                    .neighbors_dimensions(&dest1, &droplet1.dimensions)
                     .into_iter()
-                // TODO this check will be more complicated when there are
-                // droplet shapes
-                    .any(|loc| loc == dest2);
+                    .any(|loc| Droplet::get_locations(&dest2, &droplet2.dimensions).contains(&loc));
 
                 if collide {
                     return Some((*id1, *id2));
@@ -102,9 +104,11 @@ impl GridView {
     pub fn execute(&mut self, action: &Action) {
         use self::Action::*;
         match *action {
-            AddDroplet { id, location } => {
-                self.insert(Droplet::new(id, location));
-            }
+            AddDroplet {
+                id,
+                location,
+                dimensions,
+            } => self.insert(Droplet::new(id, location, dimensions)),
             RemoveDroplet { id } => {
                 self.remove(id);
             }
@@ -112,12 +116,12 @@ impl GridView {
                 let d0 = self.remove(in0);
                 let d1 = self.remove(in1);
                 assert_eq!(d0.location, d1.location);
-                self.insert(Droplet::new(out, d0.location))
+                self.insert(Droplet::new(out, d0.location, Location { y: 1, x: 1 }))
             }
             Split { inp, out0, out1 } => {
                 let d = self.remove(inp);
-                self.insert(Droplet::new(out0, d.location));
-                self.insert(Droplet::new(out1, d.location));
+                self.insert(Droplet::new(out0, d.location, Location { y: 1, x: 1 }));
+                self.insert(Droplet::new(out1, d.location, Location { y: 1, x: 1 }));
             }
             UpdateDroplet { old_id, new_id } => {
                 let mut d = self.remove(old_id);
@@ -146,7 +150,6 @@ impl GridView {
 
 #[cfg(test)]
 pub mod tests {
-
     use super::*;
     use Location;
 
@@ -182,6 +185,7 @@ pub mod tests {
             Droplet {
                 id: id,
                 location: loc,
+                dimensions: Location {y: 1, x: 1},
                 destination: Some(dest),
                 collision_group: cg,
             }

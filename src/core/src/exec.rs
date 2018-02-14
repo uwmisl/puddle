@@ -9,6 +9,7 @@ pub enum Action {
     AddDroplet {
         id: DropletId,
         location: Location,
+        dimensions: Location,
     },
     RemoveDroplet {
         id: DropletId,
@@ -47,6 +48,7 @@ impl Action {
             AddDroplet {
                 id,
                 ref mut location,
+                dimensions,
             } => {
                 *location = placement[location];
             }

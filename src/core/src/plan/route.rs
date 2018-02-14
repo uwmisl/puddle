@@ -87,25 +87,26 @@ impl AvoidanceSet {
             .any(|future_node| self.collides(&future_node))
     }
 
-    fn avoid_path(&mut self, path: &Path, grid: &Grid) {
+    fn avoid_path(&mut self, path: &Path, grid: &Grid, droplet_dimensions: &Location) {
         let node_path = path.clone().into_iter().enumerate().map(|(i, loc)| Node {
             time: i as Time,
             location: loc,
         });
         for node in node_path {
-            self.avoid_node(grid, node);
+            self.avoid_node(grid, node, droplet_dimensions);
         }
 
+        // Add last element to finals
         let last = path.len() - 1;
-        for loc in grid.neighbors9(&path[last]) {
+        for loc in grid.neighbors_dimensions(&path[last], droplet_dimensions) {
             self.finals.insert(loc, last as Time);
         }
 
         self.max_time = self.max_time.max(last as Time)
     }
 
-    fn avoid_node(&mut self, grid: &Grid, node: Node) {
-        for loc in grid.neighbors9(&node.location) {
+    fn avoid_node(&mut self, grid: &Grid, node: Node, dimensions: &Location) {
+        for loc in grid.neighbors_dimensions(&node.location, dimensions) {
             for t in -1..2 {
                 let time = (node.time as i32) + t;
                 if time < 0 {
@@ -121,6 +122,9 @@ impl AvoidanceSet {
 }
 
 impl Node {
+    /// Returns a vector representing possible locations on the given `Grid` that can be the next
+    /// location for this `Node`. This uses `neighbors4`, since droplets only move in the cardinal
+    /// directions.
     fn expand(&self, grid: &Grid) -> NextVec {
         let mut vec: Vec<(Cost, Node)> = grid.neighbors4(&self.location)
             .iter()
@@ -128,7 +132,7 @@ impl Node {
                 (
                     1,
                     Node {
-                        location: location,
+                        location,
                         time: self.time + 1,
                     },
                 )
@@ -172,6 +176,7 @@ fn route_many(droplets: &[(&DropletId, &Droplet)], grid: &Grid) -> Option<Map<Dr
     let mut max_t = 0;
 
     for &(&id, droplet) in droplets.iter() {
+        // route a single droplet
         let result = route_one(
             &droplet,
             num_cells as Time + max_t,
@@ -190,7 +195,8 @@ fn route_many(droplets: &[(&DropletId, &Droplet)], grid: &Grid) -> Option<Map<Dr
 
         max_t = max_t.max(path.len() as Time);
 
-        av_set.avoid_path(&path, grid);
+        // once we know this path works, add to our avoidance set
+        av_set.avoid_path(&path, grid, &droplet.dimensions);
         paths.insert(id, path);
     }
 

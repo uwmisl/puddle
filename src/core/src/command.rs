@@ -94,6 +94,7 @@ impl Command for Input {
             Action::AddDroplet {
                 id: self.outputs[0],
                 location: self.location[0],
+                dimensions: Location { y: 1, x: 1 },
             },
             Action::Tick,
         ]

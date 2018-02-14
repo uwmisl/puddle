@@ -1,5 +1,6 @@
 use std::io::Read;
 use serde_json;
+use std::collections::HashSet;
 
 use util::collections::Map;
 use super::{Droplet, DropletId, Location};
@@ -28,21 +29,21 @@ const NEIGHBORS_8: [Location; 8] = [
     Location { y: -1, x: -1 },
     Location { y:  0, x: -1 },
     Location { y:  1, x: -1 },
-    Location { y: -1, x:  0 },
+    Location { y: -1, x: 0 },
     // Location {y:  0, x:  0},
-    Location { y:  1, x:  0 },
-    Location { y: -1, x:  1 },
-    Location { y:  0, x:  1 },
-    Location { y:  1, x:  1 }
+    Location { y:  1, x: 0 },
+    Location { y: -1, x: 1 },
+    Location { y:  0, x: 1 },
+    Location { y:  1, x: 1 }
 ];
 
 #[cfg_attr(rustfmt, rustfmt_skip)]
 const NEIGHBORS_4: [Location; 4] = [
     Location { y:  0, x: -1 },
-    Location { y: -1, x:  0 },
+    Location { y: -1, x: 0 },
     // Location {y:  0, x:  0},
-    Location { y:  1, x:  0 },
-    Location { y:  0, x:  1 },
+    Location { y:  1, x: 0 },
+    Location { y:  0, x: 1 },
 ];
 
 impl Grid {
@@ -187,10 +188,20 @@ impl Grid {
         vec.push(*loc);
         vec
     }
-}
 
-#[cfg(test)]
-use std::collections::HashSet;
+    /// Returns a Vec representing the neighbors of the location combined with
+    /// the dimensions of the droplet.
+    pub fn neighbors_dimensions(&self, loc: &Location, dimensions: &Location) -> Vec<Location> {
+        let mut dimensions_nbrhd: HashSet<Location> = HashSet::new();
+        for y in 0..dimensions.y {
+            for x in 0..dimensions.x {
+                let new_loc = loc + &Location { y, x };
+                dimensions_nbrhd.extend(self.neighbors9(&new_loc));
+            }
+        }
+        dimensions_nbrhd.iter().cloned().collect()
+    }
+}
 
 #[cfg(test)]
 impl Grid {
@@ -228,7 +239,6 @@ impl Grid {
 
 #[cfg(test)]
 pub mod tests {
-
     use super::*;
 
     use std::iter::FromIterator;
