@@ -117,7 +117,7 @@ impl Session {
                 .map(|(loc, _cell)| (loc, loc))
                 .collect()
         } else {
-            match arch.grid.place(cmd.shape()) {
+            match arch.grid.place(cmd.shape(), &arch.droplets) {
                 None => return Err(ExecutionError::PlaceError),
                 Some(m) => m,
             }

@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use arch::Location;
+use arch::{Location, Droplet, DropletId};
 
 #[derive(Debug, PartialEq, Eq, Hash, Serialize, Deserialize, Clone, Copy)]
 pub struct Cell {
@@ -74,11 +74,18 @@ impl Grid {
 
     /// Tests if this grid is compatible within `bigger` when `offset` is applied
     /// to `self`
-    fn is_compatible_within(&self, offset: Location, bigger: &Self) -> bool {
+    fn is_compatible_within(&self, offset: Location, bigger: &Self,
+                            droplets: &HashMap<DropletId, Droplet>) -> bool {
         self.locations().all(|(loc, my_cell)| {
             let their_loc = &loc + &offset;
             bigger.get_cell(&their_loc).map_or(false, |theirs| {
                 my_cell.is_compatible(&theirs)
+                    &&
+                    droplets.values().any(
+                        |droplet|
+                        self.neighbors9(&loc)
+                            .iter().any(|nbr| nbr == &droplet.location)
+                    )
             })
         })
     }
@@ -88,7 +95,7 @@ impl Grid {
         offset: Location,
         bigger: &Self,
     ) -> HashMap<Location, Location> {
-        assert!(self.is_compatible_within(offset, bigger));
+        // assert!(self.is_compatible_within(offset, bigger));
 
         let mut map = HashMap::new();
 
@@ -99,7 +106,8 @@ impl Grid {
         map
     }
 
-    pub fn place(&self, smaller: &Self) -> Option<HashMap<Location, Location>> {
+    pub fn place(&self, smaller: &Self,
+                 droplets: &HashMap<DropletId, Droplet>) -> Option<HashMap<Location, Location>> {
         let offset_found = self.vec
             .iter()
             .enumerate()
@@ -111,7 +119,7 @@ impl Grid {
                     }
                 })
             })
-            .find(|&offset| smaller.is_compatible_within(offset, self));
+            .find(|&offset| smaller.is_compatible_within(offset, self, droplets));
         println!("Placing with offset: {:?}", offset_found);
 
         offset_found.map(|offset| {
