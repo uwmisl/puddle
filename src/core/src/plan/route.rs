@@ -141,40 +141,51 @@ impl Node {
 
 impl Architecture {
     pub fn route(&self) -> Option<HashMap<DropletId, Path>> {
-        let mut av_set = AvoidanceSet::default();
-        let grid = &self.grid;
-        let num_cells = self.grid.locations().count();
-
-        let mut paths = HashMap::new();
-        let mut max_t = 0;
-
-        for (&id, droplet) in self.droplets.iter() {
-            let cg = droplet.collision_group;
-            let result = route_one(
-                droplet,
-                num_cells as Time + max_t,
-                |node| av_set.filter(node.expand(grid), cg),
-                |node| node.location == match droplet.destination {
-                        Some(x) => x,
-                        None => droplet.location
-                    }
-                    && !av_set.would_finally_collide(node, cg)
-            );
-            let path = match result {
-                None => return None,
-                Some(path) => path,
-            };
-
-            max_t = max_t.max(path.len() as Time);
-
-            av_set.avoid_path(&path, cg, grid);
-            paths.insert(id, path);
+        let droplets = self.droplets.iter().collect::<Vec<_>>();
+        for _ in 1..50 {
+            let result = route_many(&droplets, &self.grid);
+            if result.is_some() {
+                return result
+            }
         }
 
-        Some(paths)
+        None
     }
 }
 
+fn route_many(droplets: &[(&DropletId, &Droplet)], grid: &Grid)
+              -> Option<HashMap<DropletId, Path>> {
+    let mut av_set = AvoidanceSet::default();
+    let num_cells = grid.locations().count();
+
+    let mut paths = HashMap::new();
+    let mut max_t = 0;
+
+    for &(&id, droplet) in droplets.iter() {
+        let cg = droplet.collision_group;
+        let result = route_one(
+            &droplet,
+            num_cells as Time + max_t,
+            |node| av_set.filter(node.expand(grid), cg),
+            |node| node.location == match droplet.destination {
+                Some(x) => x,
+                None => droplet.location
+            }
+            && !av_set.would_finally_collide(node, cg)
+        );
+        let path = match result {
+            None => return None,
+            Some(path) => path,
+        };
+
+        max_t = max_t.max(path.len() as Time);
+
+        av_set.avoid_path(&path, cg, grid);
+        paths.insert(id, path);
+    }
+
+    Some(paths)
+}
 
 fn route_one<FNext, FDone>(
     droplet: &Droplet,
