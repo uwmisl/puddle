@@ -4,7 +4,7 @@ import time
 
 from contextlib import contextmanager
 
-from subprocess import Popen, check_output, PIPE
+from subprocess import Popen, check_output, PIPE, CalledProcessError
 import shlex
 
 
@@ -136,6 +136,12 @@ def mk_session(
         host = 'localhost',
         port = '3000',
 ):
+
+    # make sure there aren't any puddle servers running now
+    try:
+        call('killall puddle-server')
+    except CalledProcessError:
+        pass
 
     # paths written in this file should be relative to the project root
     root = call('git rev-parse --show-toplevel')
