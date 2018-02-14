@@ -8,6 +8,37 @@ from subprocess import Popen, check_output, PIPE
 import shlex
 
 
+class Droplet:
+
+    def __init__(self, session, id, i_know_what_im_doing=False):
+        if not i_know_what_im_doing:
+            raise Exception("You shouldn't be calling this constructor directly")
+        self.session = session
+        self.valid = True
+        self._id = id
+
+    def _new(self, *args, **kwargs):
+        return type(self)(self.session, *args, i_know_what_im_doing=True, **kwargs)
+
+    def _use(self):
+        assert self.valid
+        self.valid = False
+        return self._id
+
+    def move(self, y, x):
+        result_id = self.session._rpc("move", self._use(), to_location(y,x))
+        return self.new(result_id)
+
+    def mix(self, other):
+        assert isinstance(other, type(self))
+        result_id = self.session._rpc("mix", self._use(), other._use())
+        return self._new(result_id)
+
+    def split(self):
+        id1, id2 = self.session._rpc("split", self._use())
+        return (self._new(id1), self._new(id2))
+
+
 def to_location(y,x):
     return {'y': y, 'x': x}
 
@@ -82,25 +113,14 @@ class Session:
     def _flush(self):
         self._rpc("flush")
 
-    def input(self, y, x):
+    def input(self, y, x, droplet_class=Droplet):
         result_id = self._rpc("input", to_location(y,x))
-        return Droplet(self, result_id, i_know_what_im_doing=True)
+        return droplet_class(self, result_id, i_know_what_im_doing=True)
 
-    def move(self, d, y, x):
-        result_id = self._rpc("move", d._use(), to_location(y,x))
-        return Droplet(self, result_id, i_know_what_im_doing=True)
-
-    def mix(self, d1, d2):
-        assert isinstance(d1, Droplet)
-        assert isinstance(d2, Droplet)
-        result_id = self._rpc("mix", d1._use(), d2._use())
-        return Droplet(self, result_id, i_know_what_im_doing=True)
-
-    def split(self, d):
-        assert isinstance(d, Droplet)
-        id1, id2 = self._rpc("split", d._use())
-        return (Droplet(self, id1, i_know_what_im_doing=True),
-                Droplet(self, id2, i_know_what_im_doing=True))
+    # just call the droplet methods
+    def move (self, droplet, *args, **kwargs): return droplet.move (*args, **kwargs)
+    def mix  (self, droplet, *args, **kwargs): return droplet.mix  (*args, **kwargs)
+    def split(self, droplet, *args, **kwargs): return droplet.split(*args, **kwargs)
 
 
 def call(cmd):
@@ -146,23 +166,3 @@ def mk_session(
     session._flush()
     popen.terminate()
     popen.wait()
-
-
-class Droplet:
-
-    def __init__(self, session, id, i_know_what_im_doing=False):
-        if not i_know_what_im_doing:
-            raise Exception("You shouldn't be calling this constructor directly")
-        self.session = session
-        self.valid = True
-        self._id = id
-
-    def _use(self):
-        assert self.valid
-        self.valid = False
-        return self._id
-
-    # just call the session methods
-    def move (self, *args, **kwargs): return self.session.move (self, *args, **kwargs)
-    def mix  (self, *args, **kwargs): return self.session.mix  (self, *args, **kwargs)
-    def split(self, *args, **kwargs): return self.session.split(self, *args, **kwargs)
