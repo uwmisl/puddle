@@ -25,9 +25,9 @@ class Droplet:
         self.valid = False
         return self._id
 
-    def move(self, y, x):
-        result_id = self.session._rpc("move", self._use(), to_location(y,x))
-        return self.new(result_id)
+    def move(self, loc):
+        result_id = self.session._rpc("move", self._use(), to_location(loc))
+        return self._new(result_id)
 
     def mix(self, other):
         assert isinstance(other, type(self))
@@ -39,8 +39,8 @@ class Droplet:
         return (self._new(id1), self._new(id2))
 
 
-def to_location(y,x):
-    return {'y': y, 'x': x}
+def to_location(loc):
+    return {'y': loc[0], 'x': loc[1]}
 
 
 class RPCError(Exception):
@@ -113,9 +113,10 @@ class Session:
     def _flush(self):
         self._rpc("flush")
 
-    def input(self, y, x, droplet_class=Droplet):
-        result_id = self._rpc("input", to_location(y,x))
-        return droplet_class(self, result_id, i_know_what_im_doing=True)
+    def input(self, location, **kwargs):
+        droplet_class = kwargs.pop('droplet_class', Droplet)
+        result_id = self._rpc("input", to_location(location) if location else None)
+        return droplet_class(self, result_id, **kwargs, i_know_what_im_doing=True)
 
     # just call the droplet methods
     def move (self, droplet, *args, **kwargs): return droplet.move (*args, **kwargs)

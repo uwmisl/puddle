@@ -11,8 +11,8 @@ def session():
 
 
 def test_easy(session):
-    a = session.input(1,1)
-    b = session.input(3,3)
+    a = session.input((1,1))
+    b = session.input((3,3))
     c = a.mix(b)
 
     droplets = session.droplets()

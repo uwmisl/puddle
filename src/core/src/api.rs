@@ -4,7 +4,7 @@ use std::convert::From;
 use jsonrpc_core as rpc;
 
 use std::collections::{HashMap, HashSet};
-use arch::{DropletId, DropletInfo, Architecture, Location};
+use arch::{Droplet, DropletId, DropletInfo, Architecture, Location};
 use command::*;
 
 
@@ -19,7 +19,10 @@ pub struct Session {
 
 #[derive(Debug)]
 pub enum ExecutionError {
-    RouteError,
+    RouteError {
+        placement: HashMap<Location, Location>,
+        droplets: HashMap<DropletId, Droplet>
+    },
     PlaceError,
 }
 
@@ -38,7 +41,7 @@ build_rpc_trait! {
         fn flush(&self) -> PuddleResult<()>;
 
 		    #[rpc(name = "input")]
-        fn input(&self, Location) -> PuddleResult<DropletId>;
+        fn input(&self, Option<Location>) -> PuddleResult<DropletId>;
 
 		    #[rpc(name = "move")]
         fn move_droplet(&self, DropletId, Location) -> PuddleResult<DropletId>;
@@ -106,7 +109,7 @@ impl Session {
     fn execute(&self, cmd: Box<Command>) -> Result<(), ExecutionError> {
 
         let mut arch = self.arch.write().unwrap();
-        println!("Running: {:?}", cmd);
+        eprintln!("Running: {:?}", cmd);
 
         cmd.pre_run(&mut arch);
 
@@ -123,7 +126,7 @@ impl Session {
             }
         };
 
-        // println!("Mapping: {:?}", mapping);
+        eprintln!("Mapping: {:?}", mapping);
 
         let in_locs = cmd.input_locations();
         let in_ids = cmd.input_droplets();
@@ -141,7 +144,10 @@ impl Session {
         }
 
         let paths = match arch.route() {
-            None => return Err(ExecutionError::RouteError),
+            None => return Err(ExecutionError::RouteError{
+                placement: mapping,
+                droplets: arch.droplets.clone(),
+            }),
             Some(p) => p,
         };
 
@@ -182,7 +188,7 @@ impl Rpc for Session {
         Ok(())
     }
 
-    fn input(&self, loc: Location) -> PuddleResult<DropletId> {
+    fn input(&self, loc: Option<Location>) -> PuddleResult<DropletId> {
         let mut arch = self.arch.write().unwrap();
         let input_cmd = Input::new(&mut arch, loc)?;
         let out = input_cmd.output_droplets()[0];
@@ -262,8 +268,8 @@ mod tests {
         let session = Session::new(Architecture::from_grid(Grid::rectangle(1, 1)));
 
         // todo: this shouldn't work
-        let loc = Location { y: 3, x: 3 };
-        let id = session.input(loc).unwrap();
+        let loc = Location { y: 0, x: 0 };
+        let id = session.input(Some(loc)).unwrap();
         session.flush().unwrap();
 
         let arch = session.arch.read().unwrap();
@@ -280,7 +286,7 @@ mod tests {
 
         let loc = Location { y: 1, x: 1 };
 
-        let id = session.input(loc).unwrap();
+        let id = session.input(Some(loc)).unwrap();
         let id1 = session.move_droplet(id, loc).unwrap();
         session.flush().unwrap();
 
@@ -293,12 +299,15 @@ mod tests {
         assert_eq!(loc, dr.location)
     }
 
+    // FIXME these tests should have tighter placement constraints
+    // but placement is bad right now
+
     #[test]
     fn execute_mix_command() {
-        let session = Session::new(Architecture::from_grid(Grid::rectangle(4, 3)));
+        let session = Session::new(Architecture::from_grid(Grid::rectangle(4, 6)));
 
-        let id1 = session.input(Location { x: 2, y: 3 }).unwrap();
-        let id2 = session.input(Location { x: 1, y: 1 }).unwrap();
+        let id1 = session.input(Some(Location { y: 3, x: 1 })).unwrap();
+        let id2 = session.input(Some(Location { y: 1, x: 1 })).unwrap();
         let id3 = session.mix(id1, id2).unwrap();
         session.flush().unwrap();
 
@@ -310,9 +319,9 @@ mod tests {
 
     #[test]
     fn execute_split_command() {
-        let session = Session::new(Architecture::from_grid(Grid::rectangle(1, 5)));
+        let session = Session::new(Architecture::from_grid(Grid::rectangle(5, 5)));
 
-        let id = session.input(Location { x: 2, y: 0 }).unwrap();
+        let id = session.input(Some(Location { x: 0, y: 0 })).unwrap();
         let (id1, id2) = session.split(id).unwrap();
 
         session.flush().unwrap();
@@ -330,11 +339,11 @@ mod tests {
         let session = Session::new(Architecture::from_grid(Grid::rectangle(10, 10)));
 
         // todo: add move into here.
-        let id1 = session.input(Location { y: 2, x: 2 }).unwrap();
-        let id2 = session.input(Location { y: 0, x: 0 }).unwrap();
+        let id1 = session.input(Some(Location { y: 2, x: 2 })).unwrap();
+        let id2 = session.input(Some(Location { y: 0, x: 0 })).unwrap();
         let id3 = session.mix(id1, id2).unwrap();
         let (id4, id5) = session.split(id3).unwrap();
-        let id6 = session.input(Location { y: 7, x: 7 }).unwrap();
+        let id6 = session.input(Some(Location { y: 7, x: 7 })).unwrap();
         let id7 = session.move_droplet(id6, Location { y: 5, x: 5 }).unwrap();
         let id8 = session.mix(id4, id7).unwrap();
 
@@ -358,7 +367,7 @@ mod tests {
 
         // TODO: this shouldn't work?
         let loc = Location { y: 3, x: 3 };
-        let _ = session.input(loc).unwrap();
+        let _ = session.input(Some(loc)).unwrap();
 
         let arch = session.arch.read().unwrap();
         let ids: Vec<&DropletId> = arch.droplets.keys().collect();
@@ -371,7 +380,7 @@ mod tests {
 
         let loc = Location { y: 1, x: 1 };
 
-        let id = session.input(loc).unwrap();
+        let id = session.input(Some(loc)).unwrap();
 
         session.flush().unwrap();
 
@@ -387,8 +396,8 @@ mod tests {
     fn lazy_mix_command() {
         let session = Session::new(Architecture::from_grid(Grid::rectangle(8, 8)));
 
-        let id1 = session.input(Location { y: 1, x: 1 }).unwrap();
-        let id2 = session.input(Location { y: 4, x: 4 }).unwrap();
+        let id1 = session.input(Some(Location { y: 1, x: 1 })).unwrap();
+        let id2 = session.input(Some(Location { y: 4, x: 4 })).unwrap();
 
         session.flush().unwrap();
 
@@ -406,7 +415,7 @@ mod tests {
     fn lazy_split_command() {
         let session = Session::new(Architecture::from_grid(Grid::rectangle(1, 1)));
 
-        let id = session.input(Location { y: 1, x: 1 }).unwrap();
+        let id = session.input(Some(Location { y: 0, x: 0 })).unwrap();
 
         session.flush().unwrap();
 

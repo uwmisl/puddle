@@ -34,7 +34,7 @@ pub trait Command: Debug + Send + 'static {
 //
 
 lazy_static! {
-    static ref INPUT_SHAPE: Grid = Grid::rectangle(0,0);
+    static ref INPUT_SHAPE: Grid = Grid::rectangle(1,1);
     static ref INPUT_INPUT_LOCS: Vec<Location> = vec![];
 }
 
@@ -42,17 +42,19 @@ lazy_static! {
 pub struct Input {
     inputs: Vec<DropletId>,
     outputs: Vec<DropletId>,
-    destination: [Location; 1],
+    location: Vec<Location>,
+    trusted: bool,
 }
 
 impl Input {
-    pub fn new(arch: &mut Architecture, loc: Location) -> PuddleResult<Input> {
+    pub fn new(arch: &mut Architecture, loc: Option<Location>) -> PuddleResult<Input> {
         let output = arch.new_droplet_id();
 
         Ok(Input {
             inputs: vec![],
             outputs: vec![output],
-            destination: [loc],
+            location: vec![loc.unwrap_or(Location {y:0, x:0})],
+            trusted: loc.is_some(),
         })
     }
 }
@@ -71,7 +73,7 @@ impl Command for Input {
     }
 
     fn output_locations(&self) -> &[Location] {
-        &self.destination
+        &self.location
     }
 
     fn shape(&self) -> &Grid {
@@ -79,13 +81,14 @@ impl Command for Input {
     }
 
     fn trust_placement(&self) -> bool {
-        true
+        self.trusted
     }
 
-    fn run(&self, lock: &RwLock<Architecture>, _: &Mapping, callback: &Fn()) {
+    fn run(&self, lock: &RwLock<Architecture>, mapping: &Mapping, callback: &Fn()) {
         {
             let mut arch = lock.write().unwrap();
-            let droplet = arch.droplet_from_location(self.destination[0]);
+            let loc = mapping[&self.location[0]];
+            let droplet = arch.droplet_from_location(loc);
             let result_id = self.outputs[0];
 
             match arch.droplets.entry(result_id) {

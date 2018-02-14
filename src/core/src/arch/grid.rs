@@ -81,11 +81,10 @@ impl Grid {
             bigger.get_cell(&their_loc).map_or(false, |theirs| {
                 my_cell.is_compatible(&theirs)
                     &&
-                    droplets.values().any(
+                    !droplets.values().any(
                         |droplet|
-                        self.neighbors9(&loc)
-                            .iter().any(|nbr| nbr == &droplet.location)
-                    )
+                        (their_loc.x - droplet.location.x).abs() < 3 &&
+                            (their_loc.y - droplet.location.y).abs() < 3)
             })
         })
     }
@@ -275,7 +274,7 @@ pub mod tests {
         #[test]
         fn grid_self_compatible(ref grid in arb_grid((1..10), (1..10), 0.5)) {
             let zero = Location {x: 0, y: 0};
-            prop_assert!(grid.is_compatible_within(zero, &grid))
+            prop_assert!(grid.is_compatible_within(zero, &grid, &HashMap::new()))
         }
 
         #[test]
@@ -283,7 +282,7 @@ pub mod tests {
             let num_cells = grid.locations().count();
             prop_assume!( num_cells > 5 );
 
-            let map = grid.place(&grid).unwrap();
+            let map = grid.place(&grid, &HashMap::new()).unwrap();
 
             let my_locs: HashMap<Location, Location> = HashMap::from_iter(
                 grid.locations()
