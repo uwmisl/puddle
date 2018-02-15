@@ -53,7 +53,7 @@ impl Input {
         Ok(Input {
             inputs: vec![],
             outputs: vec![output],
-            location: vec![loc.unwrap_or(Location {y:0, x:0})],
+            location: vec![loc.unwrap_or(Location { y: 0, x: 0 })],
             trusted: loc.is_some(),
         })
     }

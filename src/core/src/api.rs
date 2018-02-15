@@ -21,7 +21,7 @@ pub struct Session {
 pub enum ExecutionError {
     RouteError {
         placement: HashMap<Location, Location>,
-        droplets: HashMap<DropletId, Droplet>
+        droplets: HashMap<DropletId, Droplet>,
     },
     PlaceError,
 }
@@ -36,26 +36,26 @@ pub type PuddleResult<T> = Result<T, PuddleError>;
 
 
 build_rpc_trait! {
-	  pub trait Rpc {
-		    #[rpc(name = "flush")]
+    pub trait Rpc {
+        #[rpc(name = "flush")]
         fn flush(&self) -> PuddleResult<()>;
 
-		    #[rpc(name = "input")]
+        #[rpc(name = "input")]
         fn input(&self, Option<Location>) -> PuddleResult<DropletId>;
 
-		    #[rpc(name = "move")]
+        #[rpc(name = "move")]
         fn move_droplet(&self, DropletId, Location) -> PuddleResult<DropletId>;
 
-		    #[rpc(name = "mix")]
+        #[rpc(name = "mix")]
         fn mix(&self, DropletId, DropletId) -> PuddleResult<DropletId>;
 
-		    #[rpc(name = "split")]
+        #[rpc(name = "split")]
         fn split(&self, DropletId) -> PuddleResult<(DropletId, DropletId)>;
 
-		    #[rpc(name = "droplets")]
+        #[rpc(name = "droplets")]
         fn droplets(&self) -> PuddleResult<HashMap<DropletId, DropletInfo>>;
 
-		    #[rpc(name = "visualize_droplets")]
+        #[rpc(name = "visualize_droplets")]
         fn visualize_droplets(&self) -> PuddleResult<HashMap<DropletId, DropletInfo>>;
     }
 }
@@ -144,10 +144,12 @@ impl Session {
         }
 
         let paths = match arch.route() {
-            None => return Err(ExecutionError::RouteError{
-                placement: mapping,
-                droplets: arch.droplets.clone(),
-            }),
+            None => {
+                return Err(ExecutionError::RouteError {
+                    placement: mapping,
+                    droplets: arch.droplets.clone(),
+                })
+            }
             Some(p) => p,
         };
 

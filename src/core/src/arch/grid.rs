@@ -74,17 +74,20 @@ impl Grid {
 
     /// Tests if this grid is compatible within `bigger` when `offset` is applied
     /// to `self`
-    fn is_compatible_within(&self, offset: Location, bigger: &Self,
-                            droplets: &HashMap<DropletId, Droplet>) -> bool {
+    fn is_compatible_within(
+        &self,
+        offset: Location,
+        bigger: &Self,
+        droplets: &HashMap<DropletId, Droplet>,
+    ) -> bool {
         self.locations().all(|(loc, my_cell)| {
             let their_loc = &loc + &offset;
             bigger.get_cell(&their_loc).map_or(false, |theirs| {
-                my_cell.is_compatible(&theirs)
-                    &&
-                    !droplets.values().any(
-                        |droplet|
+                my_cell.is_compatible(&theirs) &&
+                    !droplets.values().any(|droplet| {
                         (their_loc.x - droplet.location.x).abs() < 3 &&
-                            (their_loc.y - droplet.location.y).abs() < 3)
+                            (their_loc.y - droplet.location.y).abs() < 3
+                    })
             })
         })
     }
@@ -105,8 +108,11 @@ impl Grid {
         map
     }
 
-    pub fn place(&self, smaller: &Self,
-                 droplets: &HashMap<DropletId, Droplet>) -> Option<HashMap<Location, Location>> {
+    pub fn place(
+        &self,
+        smaller: &Self,
+        droplets: &HashMap<DropletId, Droplet>,
+    ) -> Option<HashMap<Location, Location>> {
         let offset_found = self.vec
             .iter()
             .enumerate()
@@ -118,7 +124,9 @@ impl Grid {
                     }
                 })
             })
-            .find(|&offset| smaller.is_compatible_within(offset, self, droplets));
+            .find(|&offset| {
+                smaller.is_compatible_within(offset, self, droplets)
+            });
         println!("Placing with offset: {:?}", offset_found);
 
         offset_found.map(|offset| {

@@ -149,7 +149,7 @@ impl Architecture {
             rng.shuffle(&mut droplets);
             let result = route_many(&droplets, &self.grid);
             if result.is_some() {
-                return result
+                return result;
             }
         }
 
@@ -157,8 +157,10 @@ impl Architecture {
     }
 }
 
-fn route_many(droplets: &[(&DropletId, &Droplet)], grid: &Grid)
-              -> Option<HashMap<DropletId, Path>> {
+fn route_many(
+    droplets: &[(&DropletId, &Droplet)],
+    grid: &Grid,
+) -> Option<HashMap<DropletId, Path>> {
     let mut av_set = AvoidanceSet::default();
     let num_cells = grid.locations().count();
 
