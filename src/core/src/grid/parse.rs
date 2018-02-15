@@ -1,4 +1,4 @@
-use arch::grid::Cell;
+use grid::Cell;
 
 use serde::{Serialize, Serializer, Deserialize, Deserializer};
 
@@ -74,7 +74,7 @@ where
 mod tests {
 
     use super::*;
-    use arch::grid::Grid;
+    use grid::Grid;
 
     use std::fs::File;
     use glob::glob;

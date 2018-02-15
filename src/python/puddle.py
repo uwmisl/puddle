@@ -15,7 +15,8 @@ class Droplet:
             raise Exception("You shouldn't be calling this constructor directly")
         self.session = session
         self.valid = True
-        self._id = id
+        self._id = id['id']
+        self._process = id['process_id']
 
     def _new(self, *args, **kwargs):
         return type(self)(self.session, *args, i_know_what_im_doing=True, **kwargs)
@@ -23,19 +24,19 @@ class Droplet:
     def _use(self):
         assert self.valid
         self.valid = False
-        return self._id
+        return {'id': self._id, 'process_id': self._process}
 
     def move(self, loc):
-        result_id = self.session._rpc("move", self._use(), to_location(loc))
+        result_id = self.session._rpc("move", self.session.pid, self._use(), to_location(loc))
         return self._new(result_id)
 
     def mix(self, other):
         assert isinstance(other, type(self))
-        result_id = self.session._rpc("mix", self._use(), other._use())
+        result_id = self.session._rpc("mix", self.session.pid, self._use(), other._use())
         return self._new(result_id)
 
     def split(self):
-        id1, id2 = self.session._rpc("split", self._use())
+        id1, id2 = self.session._rpc("split", self.session.pid, self._use())
         return (self._new(id1), self._new(id2))
 
 
@@ -50,6 +51,8 @@ class RPCError(Exception):
 class RequestError(Exception):
     pass
 
+class SessionError(Exception):
+    pass
 
 class Session:
 
@@ -57,7 +60,7 @@ class Session:
         'content-type': 'application/json'
     }
 
-    def __init__(self, endpoint):
+    def __init__(self, endpoint, name):
         self.endpoint = endpoint
         self.next_id = 0
 
@@ -71,6 +74,8 @@ class Session:
         if resp.status_code != 200:
             raise RPCError('Something is wrong with {}: got status code {}'
                            .format(status_check, resp.status_code))
+
+        self.pid = self._rpc('new_process', name)
 
     def _rpc(self, method, *args, **kwargs):
 
@@ -108,14 +113,15 @@ class Session:
             raise SessionError(resp_json['error'])
 
     def droplets(self):
-        return self._rpc("droplets")
+        dlist = self._rpc("droplet_info", self.pid)
+        return {d['id']['id']: d for d in dlist}
 
     def _flush(self):
-        self._rpc("flush")
+        self._rpc("flush", self.pid)
 
     def input(self, location, **kwargs):
         droplet_class = kwargs.pop('droplet_class', Droplet)
-        result_id = self._rpc("input", to_location(location) if location else None)
+        result_id = self._rpc("input", self.pid, to_location(location) if location else None)
         return droplet_class(self, result_id, **kwargs, i_know_what_im_doing=True)
 
     # just call the droplet methods
@@ -167,7 +173,7 @@ def mk_session(
         line = line.decode('utf8')
         time.sleep(0.1)
 
-    session = Session('http://{}:{}'.format(host, port))
+    session = Session('http://{}:{}'.format(host, port), 'test')
     yield session
 
     session._flush()

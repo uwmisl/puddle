@@ -1,34 +1,37 @@
 extern crate puddle_core;
 
+extern crate jsonrpc_core;
+
 #[macro_use]
 extern crate rouille;
-extern crate jsonrpc_core;
 extern crate clap;
 
 use std::fs::File;
+use std::io::Read;
+use std::sync::Arc;
 use std::path::{Path, PathBuf};
 use std::env;
 
 use rouille::{Request, Response};
-use rouille::input::json_input;
 
 use jsonrpc_core::IoHandler;
-use jsonrpc_core::to_string;
-use jsonrpc_core::futures::future::Future;
 
 use clap::{ArgMatches, App, Arg};
 
-use puddle_core::api::{Session, Rpc};
-use puddle_core::arch::Architecture;
+use puddle_core::*;
 
 fn handle(ioh: &IoHandler, req: &Request) -> Response {
     // read the body into a string
-    let json_req = json_input(req).unwrap();
-    eprintln!("req: ({:?})", to_string(&json_req));
+    let mut req_string = String::new();
+    let mut body = req.data().expect("body already retrieved!");
+    body.read_to_string(&mut req_string).expect("read failed");
+
+    eprintln!("req: ({})", &req_string);
 
     // handle the request with jsonrpc, then convert to IronResult
-    let resp_data = &ioh.handle_rpc_request(json_req).wait().unwrap();
-    let resp = Response::json(resp_data);
+    let resp_data = &ioh.handle_request_sync(&req_string).expect("handle failed!");
+    let resp = Response::from_data("application/json",
+                                   resp_data.bytes().collect::<Vec<_>>());
     // eprintln!("Resp: {:?}", resp_data);
     resp
 }
@@ -42,10 +45,12 @@ fn run(matches: ArgMatches) -> Result<(), Box<::std::error::Error>> {
 
     let should_sync = matches.occurrences_of("sync") > 0 || env::var("PUDDLE_VIZ").is_ok();
 
-    let session = Session::new(Architecture::from_reader(reader)).sync(should_sync);
+    let grid = Grid::from_reader(reader)?;
+    let manager = Manager::new(should_sync, grid);
+    let arc = Arc::new(manager);
 
     let mut ioh = IoHandler::new();
-    ioh.extend_with(session.to_delegate());
+    ioh.extend_with(arc.to_delegate());
 
     // args that have defaults are safe to unwrap
     let host = matches.value_of("host").unwrap();

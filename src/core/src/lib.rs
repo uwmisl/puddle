@@ -16,12 +16,19 @@ extern crate proptest;
 #[macro_use]
 extern crate lazy_static;
 
-extern crate jsonrpc_core;
 #[macro_use]
 extern crate jsonrpc_macros;
+extern crate jsonrpc_core;
+
+extern crate uuid;
 
 // these need to be pub until we have an api
-pub mod arch;
-pub mod plan;
-pub mod command;
-pub mod api;
+mod grid;
+mod util;
+mod exec;
+mod plan;
+mod command;
+mod process;
+
+pub use grid::{Grid, DropletId, DropletInfo, Location};
+pub use process::*;

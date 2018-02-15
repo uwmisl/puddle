@@ -4,7 +4,7 @@ use std::convert::From;
 use jsonrpc_core as rpc;
 
 use std::collections::{HashMap, HashSet};
-use arch::{Droplet, DropletId, DropletInfo, Architecture, Location};
+use grid::{Droplet, DropletId, DropletInfo, GridView, Location};
 use command::*;
 
 
@@ -161,7 +161,7 @@ impl Session {
         use std::mem::drop;
         drop(arch);
 
-        Architecture::take_paths(&self.arch, paths, || { self.wait(); });
+        view.take_paths(&self.arch, paths, || { self.wait(); });
 
         cmd.run(&self.arch, &mapping, &|| self.wait());
 

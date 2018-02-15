@@ -1,6 +1,8 @@
-use std::collections::HashMap;
+use std::io::Read;
+use serde_json;
 
-use arch::{Location, Droplet, DropletId};
+use util::collections::Map;
+use super::{Location, Droplet, DropletId};
 
 #[derive(Debug, PartialEq, Eq, Hash, Serialize, Deserialize, Clone, Copy)]
 pub struct Cell {
@@ -44,7 +46,7 @@ const NEIGHBORS_4: [Location; 4] = [
 ];
 
 impl Grid {
-    pub fn rectangle(h: u32, w: u32) -> Self {
+    pub fn rectangle(h: usize, w: usize) -> Self {
         let mut pin = 0;
         let always_cell = |_| {
             let cell = Some(Cell { pin: pin });
@@ -52,6 +54,10 @@ impl Grid {
             cell
         };
         Grid::from_function(always_cell, h, w)
+    }
+
+    pub fn from_reader<R: Read>(reader: R) -> Result<Grid, serde_json::Error> {
+        serde_json::from_reader(reader)
     }
 
     pub fn locations<'a>(&'a self) -> Box<Iterator<Item = (Location, Cell)> + 'a> {
@@ -78,7 +84,7 @@ impl Grid {
         &self,
         offset: Location,
         bigger: &Self,
-        droplets: &HashMap<DropletId, Droplet>,
+        droplets: &Map<DropletId, Droplet>,
     ) -> bool {
         self.locations().all(|(loc, my_cell)| {
             let their_loc = &loc + &offset;
@@ -95,11 +101,11 @@ impl Grid {
     fn mapping_into_other_from_offset(
         &self,
         offset: Location,
-        bigger: &Self,
-    ) -> HashMap<Location, Location> {
+        _bigger: &Self,
+    ) -> Map<Location, Location> {
         // assert!(self.is_compatible_within(offset, bigger));
 
-        let mut map = HashMap::new();
+        let mut map = Map::new();
 
         for (loc, _) in self.locations() {
             map.insert(loc, &loc + &offset);
@@ -111,8 +117,8 @@ impl Grid {
     pub fn place(
         &self,
         smaller: &Self,
-        droplets: &HashMap<DropletId, Droplet>,
-    ) -> Option<HashMap<Location, Location>> {
+        droplets: &Map<DropletId, Droplet>,
+    ) -> Option<Map<Location, Location>> {
         let offset_found = self.vec
             .iter()
             .enumerate()
@@ -134,7 +140,7 @@ impl Grid {
         })
     }
 
-    pub fn from_function<F>(mut f: F, height: u32, width: u32) -> Grid
+    pub fn from_function<F>(mut f: F, height: usize, width: usize) -> Grid
     where
         F: FnMut(Location) -> Option<Cell>,
     {
@@ -282,7 +288,7 @@ pub mod tests {
         #[test]
         fn grid_self_compatible(ref grid in arb_grid((1..10), (1..10), 0.5)) {
             let zero = Location {x: 0, y: 0};
-            prop_assert!(grid.is_compatible_within(zero, &grid, &HashMap::new()))
+            prop_assert!(grid.is_compatible_within(zero, &grid, &Map::new()))
         }
 
         #[test]
@@ -290,9 +296,9 @@ pub mod tests {
             let num_cells = grid.locations().count();
             prop_assume!( num_cells > 5 );
 
-            let map = grid.place(&grid, &HashMap::new()).unwrap();
+            let map = grid.place(&grid, &Map::new()).unwrap();
 
-            let my_locs: HashMap<Location, Location> = HashMap::from_iter(
+            let my_locs: Map<Location, Location> = Map::from_iter(
                 grid.locations()
                     .map(|(loc, _)| (loc, loc))
             );

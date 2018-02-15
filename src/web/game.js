@@ -146,10 +146,10 @@ function update_frame() {
 function parse_data(data, text_status) {
     var data = data.result;
     var jsons = [];
-    for (let id in data) {
-        let json = data[id];
-        json.id = id;
-        console.log(id, json);
+    for (let json of data) {
+        // FIXME this will not work for multiple processes,
+        // droplet id's will be the SAME!
+        json.id = json.id.id;
         jsons.push(json);
     }
 
@@ -289,7 +289,7 @@ $(function() {
         var req_data = {
             jsonrpc: '2.0',
             id: 1000, // FIXME increment this
-            method: 'visualize_droplets',
+            method: 'visualizer_droplet_info',
             params: []
         };
         var fetch =

@@ -18,4 +18,4 @@ def test_easy(session):
     droplets = session.droplets()
 
     # TODO droplet ids should be strings at some point
-    assert set(droplets.keys()) == {str(c._id)}
+    assert set(droplets.keys()) == {c._id}

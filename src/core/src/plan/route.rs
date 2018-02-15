@@ -1,17 +1,18 @@
 
-use std::collections::{HashSet, HashMap};
-use std::collections::hash_map::Entry::{Occupied, Vacant};
+use std::collections::HashSet;
 
 use plan::minheap::MinHeap;
-use arch::{Location, Droplet, DropletId, Architecture};
-use arch::grid::Grid;
+use grid::{Location, Droplet, DropletId, GridView, Grid};
+
+use util::collections::Map;
+use util::collections::Entry::*;
 
 use rand::{thread_rng, Rng};
 
 
 pub type Path = Vec<Location>;
 
-fn build_path(mut came_from: HashMap<Node, Node>, end_node: Node) -> Path {
+fn build_path(mut came_from: Map<Node, Node>, end_node: Node) -> Path {
     let mut path = Vec::new();
     let mut current = end_node;
     while let Some(prev) = came_from.remove(&current) {
@@ -37,8 +38,8 @@ type NextVec = Vec<(Cost, Node)>;
 #[derive(Default)]
 struct AvoidanceSet {
     max_time: Time,
-    present: HashMap<Node, CollisionGroup>,
-    finals: HashMap<Location, (Time, CollisionGroup)>,
+    present: Map<Node, CollisionGroup>,
+    finals: Map<Location, (Time, CollisionGroup)>,
 }
 
 impl AvoidanceSet {
@@ -141,8 +142,8 @@ impl Node {
     }
 }
 
-impl Architecture {
-    pub fn route(&self) -> Option<HashMap<DropletId, Path>> {
+impl GridView {
+    pub fn route(&self) -> Option<Map<DropletId, Path>> {
         let mut droplets = self.droplets.iter().collect::<Vec<_>>();
         let mut rng = thread_rng();
         for _ in 1..50 {
@@ -157,14 +158,11 @@ impl Architecture {
     }
 }
 
-fn route_many(
-    droplets: &[(&DropletId, &Droplet)],
-    grid: &Grid,
-) -> Option<HashMap<DropletId, Path>> {
+fn route_many(droplets: &[(&DropletId, &Droplet)], grid: &Grid) -> Option<Map<DropletId, Path>> {
     let mut av_set = AvoidanceSet::default();
     let num_cells = grid.locations().count();
 
-    let mut paths = HashMap::new();
+    let mut paths = Map::new();
     let mut max_t = 0;
 
     for &(&id, droplet) in droplets.iter() {
@@ -204,8 +202,8 @@ where
     FDone: FnMut(&Node) -> bool,
 {
     let mut todo: MinHeap<Cost, Node> = MinHeap::new();
-    let mut best_so_far: HashMap<Node, Cost> = HashMap::new();
-    let mut came_from: HashMap<Node, Node> = HashMap::new();
+    let mut best_so_far: Map<Node, Cost> = Map::new();
+    let mut came_from: Map<Node, Node> = Map::new();
     // TODO remove done in favor of came_from
     let mut done: HashSet<Node> = HashSet::new();
 
@@ -279,8 +277,8 @@ pub mod tests {
 
     use proptest::prelude::*;
 
-    use arch::tests::*;
-    use arch::grid::tests::*;
+    use grid::grid::tests::arb_grid;
+    use grid::gridview::tests::arb_gridview;
 
     pub fn check_path_on_grid(droplet: &Droplet, path: &Path, grid: &Grid) {
         assert_eq!(droplet.location, path[0]);
@@ -296,13 +294,13 @@ pub mod tests {
         }
     }
 
-    fn uncrowded_arch_from_grid(grid: Grid) -> BoxedStrategy<Architecture> {
+    fn uncrowded_arch_from_grid(grid: Grid) -> BoxedStrategy<GridView> {
 
         let height = grid.vec.len();
         let width = grid.vec.iter().map(|row| row.len()).min().unwrap();
         let max_dim = height.min(width) / 2;
         let max_droplets = (max_dim as usize).max(1);
-        arb_arch_from_grid(grid, 0..max_droplets)
+        arb_gridview(grid, 0..max_droplets)
     }
 
     proptest! {
@@ -311,7 +309,7 @@ pub mod tests {
         fn route_one_connected(
             ref arch in arb_grid((5..10), (5..10), 0.95)
                 .prop_filter("not connected", |ref g| g.is_connected())
-                .prop_flat_map(move |g| arb_arch_from_grid(g, 1..2)))
+                .prop_flat_map(move |g| arb_gridview(g, 1..2)))
         {
             let droplet = arch.droplets.values().next().unwrap();
             let num_cells = arch.grid.locations().count();

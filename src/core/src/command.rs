@@ -1,32 +1,41 @@
-
-use std::collections::HashMap;
-use std::collections::hash_map::Entry::*;
 use std::fmt::Debug;
+use std::sync::mpsc::Sender;
 
-use arch::{Architecture, Location, DropletId};
-use arch::grid::Grid;
+use grid::{DropletId, Grid, GridView, Location};
+use exec::Action;
 
-use api::PuddleResult;
+use process::PuddleResult;
 
-use std::sync::RwLock;
-use std::mem::drop;
-
-type Mapping = HashMap<Location, Location>;
+static EMPTY_IDS: &[DropletId] = &[];
+static EMPTY_LOCATIONS: &[Location] = &[];
 
 // Send and 'static here are necessary to move trait objects around
+// TODO is that necessary
 pub trait Command: Debug + Send + 'static {
-    fn input_droplets(&self) -> &[DropletId];
-    fn input_locations(&self) -> &[Location];
-    fn output_droplets(&self) -> &[DropletId];
-    fn output_locations(&self) -> &[Location];
+    fn input_droplets(&self) -> &[DropletId] {
+        EMPTY_IDS
+    }
+    fn input_locations(&self) -> &[Location] {
+        EMPTY_LOCATIONS
+    }
+    fn output_droplets(&self) -> &[DropletId] {
+        EMPTY_IDS
+    }
+    fn output_locations(&self) -> &[Location] {
+        EMPTY_LOCATIONS
+    }
     fn shape(&self) -> &Grid;
-    fn run(&self, arch: &RwLock<Architecture>, mapping: &Mapping, callback: &Fn());
+    fn actions(&self) -> Vec<Action>;
+
+    fn is_blocking(&self) -> bool {
+        false
+    }
 
     fn trust_placement(&self) -> bool {
         false
     }
 
-    fn pre_run(&self, _: &mut Architecture) {}
+    fn pre_plan(&self, &mut GridView) {}
 }
 
 //
@@ -47,12 +56,10 @@ pub struct Input {
 }
 
 impl Input {
-    pub fn new(arch: &mut Architecture, loc: Option<Location>) -> PuddleResult<Input> {
-        let output = arch.new_droplet_id();
-
+    pub fn new(loc: Option<Location>, out_id: DropletId) -> PuddleResult<Input> {
         Ok(Input {
             inputs: vec![],
-            outputs: vec![output],
+            outputs: vec![out_id],
             location: vec![loc.unwrap_or(Location { y: 0, x: 0 })],
             trusted: loc.is_some(),
         })
@@ -84,20 +91,46 @@ impl Command for Input {
         self.trusted
     }
 
-    fn run(&self, lock: &RwLock<Architecture>, mapping: &Mapping, callback: &Fn()) {
-        {
-            let mut arch = lock.write().unwrap();
-            let loc = mapping[&self.location[0]];
-            let droplet = arch.droplet_from_location(loc);
-            let result_id = self.outputs[0];
+    fn actions(&self) -> Vec<Action> {
+        vec![
+            Action::AddDroplet {
+                id: self.outputs[0],
+                location: self.location[0],
+            },
+        ]
+    }
+}
 
-            match arch.droplets.entry(result_id) {
-                Occupied(occ) => panic!("Droplet was already here: {:?}", occ.get()),
-                Vacant(spot) => spot.insert(droplet),
-            };
-            // assert!(result.location == self.destination[0]);
-        }
-        callback();
+//
+// Flush
+//
+
+lazy_static! {
+    /// Flush shape is just empty because it doesn't need to be placed
+    static ref FLUSH_SHAPE: Grid = Grid::rectangle(0,0);
+}
+
+#[derive(Debug)]
+pub struct Flush {
+    tx: Sender<()>,
+}
+
+impl Flush {
+    pub fn new(tx: Sender<()>) -> Flush {
+        Flush { tx }
+    }
+}
+
+impl Command for Flush {
+    fn shape(&self) -> &Grid {
+        &FLUSH_SHAPE
+    }
+    fn actions(&self) -> Vec<Action> {
+        vec![
+            Action::Ping {
+                tx: self.tx.clone(),
+            },
+        ]
     }
 }
 
@@ -117,12 +150,10 @@ pub struct Move {
 }
 
 impl Move {
-    pub fn new(arch: &mut Architecture, id: DropletId, loc: Location) -> PuddleResult<Move> {
-        let output = arch.new_droplet_id();
-
+    pub fn new(in_id: DropletId, loc: Location, out_id: DropletId) -> PuddleResult<Move> {
         Ok(Move {
-            inputs: vec![id],
-            outputs: vec![output],
+            inputs: vec![in_id],
+            outputs: vec![out_id],
             destination: [loc],
         })
     }
@@ -153,19 +184,10 @@ impl Command for Move {
         true
     }
 
-    fn run(&self, lock: &RwLock<Architecture>, _: &Mapping, callback: &Fn()) {
-        let mut arch = lock.write().unwrap();
-        let mut droplet = arch.droplets.remove(&self.inputs[0]).unwrap();
-        droplet.destination = None;
-
-        let result_id = self.outputs[0];
-
-        match arch.droplets.entry(result_id) {
-            Occupied(occ) => panic!("Droplet was already here: {:?}", occ.get()),
-            Vacant(spot) => spot.insert(droplet),
-        };
-        drop(arch);
-        callback();
+    fn actions(&self) -> Vec<Action> {
+        let old_id = self.inputs[0];
+        let new_id = self.outputs[0];
+        vec![Action::UpdateDroplet { old_id, new_id }]
     }
 }
 
@@ -198,12 +220,10 @@ pub struct Mix {
 }
 
 impl Mix {
-    pub fn new(arch: &mut Architecture, id1: DropletId, id2: DropletId) -> PuddleResult<Mix> {
-        let output = arch.new_droplet_id();
-
+    pub fn new(id1: DropletId, id2: DropletId, out_id: DropletId) -> PuddleResult<Mix> {
         Ok(Mix {
             inputs: vec![id1, id2],
-            outputs: vec![output],
+            outputs: vec![out_id],
         })
     }
 }
@@ -229,40 +249,35 @@ impl Command for Mix {
         &MIX_SHAPE
     }
 
-    fn pre_run(&self, arch: &mut Architecture) {
-
-        let d0_cg = arch.droplets.get(&self.inputs[0]).unwrap().collision_group;
-        let d1 = arch.droplets.get_mut(&self.inputs[1]).unwrap();
+    fn pre_plan(&self, gridview: &mut GridView) {
+        let d0_cg = gridview
+            .droplets
+            .get(&self.inputs[0])
+            .unwrap()
+            .collision_group;
+        let d1 = gridview.droplets.get_mut(&self.inputs[1]).unwrap();
 
         d1.collision_group = d0_cg;
 
         // possibly move creating output droplets here
     }
 
-    fn run(&self, lock: &RwLock<Architecture>, mapping: &Mapping, callback: &Fn()) {
-        let mut arch = lock.write().unwrap();
-
-        let d0 = arch.droplets.remove(&self.inputs[0]).unwrap();
-        let d1 = arch.droplets.remove(&self.inputs[1]).unwrap();
-
-        let droplet = arch.droplet_from_location(d0.location);
-        let result_id = self.outputs[0];
-
-        match arch.droplets.entry(result_id) {
-            Occupied(occ) => panic!("Droplet was already here: {:?}", occ.get()),
-            Vacant(spot) => spot.insert(droplet),
-        };
-
-        assert!(d0.location == d1.location);
-
-        drop(arch);
-        callback();
+    fn actions(&self) -> Vec<Action> {
+        let out = self.outputs[0];
+        let mut vec = vec![
+            Action::Mix {
+                in0: self.inputs[0],
+                in1: self.inputs[1],
+                out: out,
+            },
+        ];
         for loc in MIX_LOOP.iter() {
-            let mut arch = lock.write().unwrap();
-            arch.droplets.get_mut(&result_id).unwrap().location = mapping[loc];
-            drop(arch);
-            callback();
+            vec.push(Action::MoveDroplet {
+                id: out,
+                location: *loc,
+            })
         }
+        vec
     }
 }
 
@@ -281,13 +296,15 @@ lazy_static! {
             Location {y: 0, x: 0},
             Location {y: 0, x: 4},
         ];
-    static ref SPLIT_PATH1: Vec<Location> =
+    static ref SPLIT_PATH0: Vec<Location> =
         vec![
+            Location {y: 0, x: 2},
             Location {y: 0, x: 1},
             Location {y: 0, x: 0},
         ];
-    static ref SPLIT_PATH2: Vec<Location> =
+    static ref SPLIT_PATH1: Vec<Location> =
         vec![
+            Location {y: 0, x: 2},
             Location {y: 0, x: 3},
             Location {y: 0, x: 4},
         ];
@@ -300,13 +317,10 @@ pub struct Split {
 }
 
 impl Split {
-    pub fn new(arch: &mut Architecture, id: DropletId) -> PuddleResult<Split> {
-        let output1 = arch.new_droplet_id();
-        let output2 = arch.new_droplet_id();
-
+    pub fn new(id: DropletId, out_id1: DropletId, out_id2: DropletId) -> PuddleResult<Split> {
         Ok(Split {
             inputs: vec![id],
-            outputs: vec![output1, output2],
+            outputs: vec![out_id1, out_id2],
         })
     }
 }
@@ -332,41 +346,31 @@ impl Command for Split {
         &SPLIT_SHAPE
     }
 
-    fn run(&self, lock: &RwLock<Architecture>, mapping: &Mapping, callback: &Fn()) {
-        let mut arch = lock.write().unwrap();
+    fn actions(&self) -> Vec<Action> {
+        let inp = self.inputs[0];
+        let mut acts = vec![
+            Action::Split {
+                inp: inp,
+                out0: self.outputs[0],
+                out1: self.outputs[1],
+            },
+        ];
 
-        let d = arch.droplets.remove(&self.inputs[0]).unwrap();
-
-        let droplet1 = arch.droplet_from_location(d.location);
-        let mut droplet2 = arch.droplet_from_location(d.location);
-
-        let result1_id = self.outputs[0];
-        let result2_id = self.outputs[1];
-
-        let droplet2_cg = droplet2.collision_group;
-        droplet2.collision_group = droplet1.collision_group;
-
-        match arch.droplets.entry(result1_id) {
-            Occupied(occ) => panic!("Droplet was already here: {:?}", occ.get()),
-            Vacant(spot) => spot.insert(droplet1),
-        };
-
-        match arch.droplets.entry(result2_id) {
-            Occupied(occ) => panic!("Droplet was already here: {:?}", occ.get()),
-            Vacant(spot) => spot.insert(droplet2),
-        };
-
-        drop(arch);
-        callback();
-        for (loc1, loc2) in SPLIT_PATH1.iter().zip(SPLIT_PATH2.iter()) {
-            let mut arch = lock.write().unwrap();
-            arch.droplets.get_mut(&result1_id).unwrap().location = mapping[loc1];
-            arch.droplets.get_mut(&result2_id).unwrap().location = mapping[loc2];
-            drop(arch);
-            callback();
+        for (l0, l1) in SPLIT_PATH0.iter().zip(SPLIT_PATH1.iter()) {
+            acts.push(Action::Lockstep {
+                actions: vec![
+                    Action::MoveDroplet {
+                        id: self.outputs[0],
+                        location: *l0,
+                    },
+                    Action::MoveDroplet {
+                        id: self.outputs[1],
+                        location: *l1,
+                    },
+                ],
+            });
         }
 
-        let mut arch = lock.write().unwrap();
-        arch.droplets.get_mut(&result2_id).unwrap().collision_group = droplet2_cg;
+        acts
     }
 }
