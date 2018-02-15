@@ -120,13 +120,15 @@ class VolConcDroplet(Droplet):
         return d1, d2
 
 
-with mk_session('../../tests/arches/arch02.json') as session:
+with mk_session('../../tests/arches/arch-big.json') as session:
+    # FIXME this needs arch big for now because place and route is bad
+    # also, you just can't do that many iterations
 
     c_low = 0
     c_high = 1
 
-    c_target = .1
-    eps = 0.1
+    c_target = .37
+    eps = 0.01
 
     def d_low_factory():
         return session.input(
@@ -144,7 +146,6 @@ with mk_session('../../tests/arches/arch02.json') as session:
             droplet_class = VolConcDroplet,
         )
 
-    # FIXME this doesnt work yet
     d = dilute(session, d_low_factory, d_high_factory,
                 c_target, epsilon = eps)
 

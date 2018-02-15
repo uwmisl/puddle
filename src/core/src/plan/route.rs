@@ -6,6 +6,8 @@ use plan::minheap::MinHeap;
 use arch::{Location, Droplet, DropletId, Architecture};
 use arch::grid::Grid;
 
+use rand::{thread_rng, Rng};
+
 
 pub type Path = Vec<Location>;
 
@@ -141,8 +143,10 @@ impl Node {
 
 impl Architecture {
     pub fn route(&self) -> Option<HashMap<DropletId, Path>> {
-        let droplets = self.droplets.iter().collect::<Vec<_>>();
+        let mut droplets = self.droplets.iter().collect::<Vec<_>>();
+        let mut rng = thread_rng();
         for _ in 1..50 {
+            rng.shuffle(&mut droplets);
             let result = route_many(&droplets, &self.grid);
             if result.is_some() {
                 return result
