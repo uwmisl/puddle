@@ -36,9 +36,7 @@ pub enum Action {
         id: DropletId,
         location: Location,
     },
-    Lockstep {
-        actions: Vec<Action>,
-    },
+    Tick,
     // TODO should be more general
     Ping {
         tx: Sender<()>,
@@ -61,9 +59,7 @@ impl Action {
             MoveDroplet { id, ref mut location } => {
                 *location = placement[location];
             }
-            Lockstep { ref mut actions } => for a in actions {
-                a.translate(placement);
-            },
+            Tick => {},
             Ping { ref tx } => {}
         }
     }
@@ -82,16 +78,19 @@ impl Executor {
         }
     }
 
-    fn execute(&mut self, action: Action) {
+    fn execute(&mut self, action: &Action) -> bool {
         debug!("executing {:?}", action);
         use self::Action::*;
-        match &action {
+        let keep_going = match action {
             &Ping { ref tx } => {
                 tx.send(()).unwrap();
+                true
             }
-            _ => {}
-        }
-        self.gridview.execute(&action);
+            &Tick => false,
+            _ => true
+        };
+        self.gridview.execute(action);
+        keep_going
     }
 
     pub fn run(&mut self, action_rx: Receiver<Action>, endpoint: Endpoint<Vec<DropletInfo>, ()>) {
@@ -105,12 +104,15 @@ impl Executor {
                 endpoint.send(self.gridview.droplet_info(None)).unwrap();
             }
 
-            // now do some stuff
-            let action = match action_rx.recv() {
-                Ok(action) => action,
-                Err(_) => return
-            };
-            self.execute(action);
+            // now execute until we see a tick
+            let mut keep_going = true;
+            while keep_going {
+                let action = match action_rx.recv() {
+                    Ok(action) => action,
+                    Err(_) => return
+                };
+                keep_going = self.execute(&action);
+            }
         }
     }
 }

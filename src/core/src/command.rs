@@ -97,6 +97,7 @@ impl Command for Input {
                 id: self.outputs[0],
                 location: self.location[0],
             },
+            Action::Tick,
         ]
     }
 }
@@ -264,20 +265,23 @@ impl Command for Mix {
 
     fn actions(&self) -> Vec<Action> {
         let out = self.outputs[0];
-        let mut vec = vec![
+        let mut acts = vec![
             Action::Mix {
                 in0: self.inputs[0],
                 in1: self.inputs[1],
                 out: out,
             },
         ];
+        acts.push(Action::Tick);
+
         for loc in MIX_LOOP.iter() {
-            vec.push(Action::MoveDroplet {
+            acts.push(Action::MoveDroplet {
                 id: out,
                 location: *loc,
-            })
+            });
+            acts.push(Action::Tick);
         }
-        vec
+        acts
     }
 }
 
@@ -355,20 +359,18 @@ impl Command for Split {
                 out1: self.outputs[1],
             },
         ];
+        acts.push(Action::Tick);
 
         for (l0, l1) in SPLIT_PATH0.iter().zip(SPLIT_PATH1.iter()) {
-            acts.push(Action::Lockstep {
-                actions: vec![
-                    Action::MoveDroplet {
-                        id: self.outputs[0],
-                        location: *l0,
-                    },
-                    Action::MoveDroplet {
-                        id: self.outputs[1],
-                        location: *l1,
-                    },
-                ],
+            acts.push(Action::MoveDroplet {
+                id: self.outputs[0],
+                location: *l0,
             });
+            acts.push(Action::MoveDroplet {
+                id: self.outputs[1],
+                location: *l1,
+            });
+            acts.push(Action::Tick);
         }
 
         acts

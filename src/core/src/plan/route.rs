@@ -3,14 +3,14 @@ use std::collections::HashSet;
 
 use plan::minheap::MinHeap;
 use grid::{Location, Droplet, DropletId, GridView, Grid};
+use exec::Action;
 
 use util::collections::Map;
 use util::collections::Entry::*;
 
 use rand::{thread_rng, Rng};
 
-
-pub type Path = Vec<Location>;
+type Path = Vec<Location>;
 
 fn build_path(mut came_from: Map<Node, Node>, end_node: Node) -> Path {
     let mut path = Vec::new();
@@ -22,6 +22,23 @@ fn build_path(mut came_from: Map<Node, Node>, end_node: Node) -> Path {
     path.push(current.location);
     path.reverse();
     path
+}
+
+pub fn paths_to_actions(paths: Map<DropletId, Path>) -> Vec<Action> {
+    let max_len = paths.values().map(|p| p.len()).max().unwrap_or(0);
+    let mut acts = Vec::new();
+    for i in 0..max_len {
+        for (id, path) in paths.iter() {
+            if i < path.len() {
+                acts.push(Action::MoveDroplet {
+                    id: *id,
+                    location: path[i],
+                });
+            }
+        }
+        acts.push(Action::Tick);
+    }
+    acts
 }
 
 #[derive(PartialEq, Eq, PartialOrd, Ord, Hash, Clone, Copy, Debug)]
@@ -313,43 +330,46 @@ pub mod tests {
 
         #[test]
         fn route_one_connected(
-            ref arch in arb_grid((5..10), (5..10), 0.95)
+            ref gv in arb_grid((5..10), (5..10), 0.95)
                 .prop_filter("not connected", |ref g| g.is_connected())
                 .prop_flat_map(move |g| arb_gridview(g, 1..2)))
         {
             let _ = env_logger::try_init();
-            let droplet = arch.droplets.values().next().unwrap();
-            let num_cells = arch.grid.locations().count();
+            let droplet = gv.droplets.values().next().unwrap();
+            let num_cells = gv.grid.locations().count();
 
             let path = route_one(
                 &droplet,
                 num_cells as Time,
-                |node| node.expand(&arch.grid),
+                |node| node.expand(&gv.grid),
                 |node| node.location == match droplet.destination {
                         Some(x) => x,
                         None => droplet.location
                     }
             )
                 .unwrap();
-            check_path_on_grid(&droplet, &path, &arch.grid)
+            check_path_on_grid(&droplet, &path, &gv.grid)
         }
 
         #[test]
         fn route_connected(
-            ref rarch in arb_grid((5..10), (5..10), 0.95)
+            ref gv in arb_grid((5..10), (5..10), 0.95)
                 .prop_filter("not connected", |ref g| g.is_connected())
                 .prop_flat_map(uncrowded_arch_from_grid)
                 .prop_filter("starting collision",
-                             |ref a| a.get_collision().is_none())
+                             |ref gv| gv.get_collision().is_none())
                 .prop_filter("ending collision",
-                             |ref a| a.get_destination_collision().is_none())
+                             |ref gv| gv.get_destination_collision().is_none())
         )
         {
             let _ = env_logger::try_init();
-            let arch = rarch.clone();
-            prop_assume!(arch.route().is_some());
-            let paths = arch.route().unwrap();
-            prop_assert_eq!(paths.len(), arch.droplets.len());
+            let gv = gv.clone();
+            debug!("Running test with {} droplets, routes={}",
+                   gv.droplets.len(),
+                   gv.route().is_some());
+            prop_assume!(gv.route().is_some());
+            let paths = gv.route().unwrap();
+            prop_assert_eq!(paths.len(), gv.droplets.len());
             // FIXME!!
             // arch.take_paths(paths, || {})
         }

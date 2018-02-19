@@ -135,9 +135,7 @@ impl GridView {
                 assert!(droplet.location.distance_to(&location) <= 1);
                 droplet.location = location;
             }
-            Lockstep { ref actions } => for a in actions {
-                self.execute(&a);
-            },
+            Tick => {},
             // NOTE: ping does nothing here by default
             Ping { tx: _ } => {}
         }

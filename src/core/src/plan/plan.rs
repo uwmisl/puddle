@@ -1,9 +1,10 @@
-use grid::{Droplet, DropletId, DropletInfo, GridView, Location};
+use grid::{Droplet, DropletInfo, GridView, Location};
 use exec::Action;
 use std::sync::mpsc::Sender;
 use process::ProcessId;
 use command::Command;
-use util::collections::{Map, Set};
+use util::collections::Map;
+use plan::route::paths_to_actions;
 
 #[derive(Debug)]
 pub enum PlanError {
@@ -76,35 +77,16 @@ impl Planner {
 
         debug!("routing {:?}", cmd);
         let paths = match self.gridview.route() {
-            None => {
-                return Err(PlanError::RouteError {
-                    placement: placement,
-                    droplets: self.gridview.droplets.values().map(|d| d.clone()).collect(),
-                })
-            }
             Some(p) => p,
+            None => return Err(PlanError::RouteError {
+                placement: placement,
+                droplets: self.gridview.droplets.values()
+                    .map(|d| d.clone()).collect(),
+            })
         };
         debug!("route for {:?}: {:?}", cmd, paths);
 
-        assert_eq!(
-            self.gridview.droplets.keys().collect::<Set<&DropletId>>(),
-            paths.keys().collect::<Set<&DropletId>>(),
-        );
-
-        let max_len = paths.values().map(|p| p.len()).max().unwrap_or(0);
-        let mut actions: Vec<Action> = (0..max_len)
-            .map(|i| Action::Lockstep {
-                actions: paths
-                    .iter()
-                    .filter(|&(_id, path)| i < path.len())
-                    .map(|(id, path)| Action::MoveDroplet {
-                        id: *id,
-                        location: path[i],
-                    })
-                    .collect(),
-            })
-            .collect();
-
+        let mut actions = paths_to_actions(paths);
         let mut cmd_actions = cmd.actions();
         for mut a in &mut cmd_actions {
             a.translate(&placement);
