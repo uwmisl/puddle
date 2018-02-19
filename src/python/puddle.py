@@ -22,7 +22,8 @@ class Droplet:
         return type(self)(self.session, *args, i_know_what_im_doing=True, **kwargs)
 
     def _use(self):
-        assert self.valid
+        if not self.valid:
+            raise DropletConsumed('{} already used!'.format(self))
         self.valid = False
         return {'id': self._id, 'process_id': self._process}
 
@@ -47,11 +48,13 @@ def to_location(loc):
 class RPCError(Exception):
     pass
 
-
 class RequestError(Exception):
     pass
 
 class SessionError(Exception):
+    pass
+
+class DropletConsumed(Exception):
     pass
 
 class Session:
