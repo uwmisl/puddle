@@ -5,7 +5,7 @@ use plan::minheap::MinHeap;
 use grid::{Location, Droplet, DropletId, GridView, Grid};
 use exec::Action;
 
-use util::collections::Map;
+use util::collections::{Map, Set};
 use util::collections::Entry::*;
 
 use rand::{thread_rng, Rng};
@@ -47,7 +47,6 @@ struct Node {
     time: Time,
 }
 
-type CollisionGroup = usize;
 type Time = u32;
 type Cost = u32;
 type NextVec = Vec<(Cost, Node)>;
@@ -55,35 +54,32 @@ type NextVec = Vec<(Cost, Node)>;
 #[derive(Default)]
 struct AvoidanceSet {
     max_time: Time,
-    present: Map<Node, CollisionGroup>,
-    finals: Map<Location, (Time, CollisionGroup)>,
+    present: Set<Node>,
+    finals: Map<Location, Time>,
 }
 
 impl AvoidanceSet {
-    fn filter(&self, vec: NextVec, cg: CollisionGroup) -> NextVec {
+    fn filter(&self, vec: NextVec) -> NextVec {
         vec.into_iter()
             .filter(|&(_cost, node)|
-                    // make sure that it's either not in the map, or it's the
-                    // same as the collision group that's there
-                    !self.collides(&node, cg)
-                    && !self.collides_with_final(&node, cg))
+                    // make sure that it's either not in the map
+                    !self.collides(&node)
+                    && !self.collides_with_final(&node))
             .collect()
     }
 
-    fn collides(&self, node: &Node, cg: CollisionGroup) -> bool {
+    fn collides(&self, node: &Node) -> bool {
         // if not present, no collision
-        // if present, collision iff cg not the same
-        self.present.get(&node).map_or(false, |cg2| *cg2 != cg)
+        self.present.get(&node).is_some()
     }
 
-    fn collides_with_final(&self, node: &Node, cg: CollisionGroup) -> bool {
-        self.finals.get(&node.location).map_or(false, |&(final_t,
-           final_cg)| {
-            node.time >= final_t && final_cg != cg
+    fn collides_with_final(&self, node: &Node) -> bool {
+        self.finals.get(&node.location).map_or(false, |&final_t| {
+            node.time >= final_t
         })
     }
 
-    fn would_finally_collide(&self, node: &Node, cg: CollisionGroup) -> bool {
+    fn would_finally_collide(&self, node: &Node) -> bool {
         (node.time..self.max_time)
             .map(|t| {
                 Node {
@@ -91,10 +87,10 @@ impl AvoidanceSet {
                     location: node.location,
                 }
             })
-            .any(|future_node| self.collides(&future_node, cg))
+            .any(|future_node| self.collides(&future_node))
     }
 
-    fn avoid_path(&mut self, path: &Path, cg: CollisionGroup, grid: &Grid) {
+    fn avoid_path(&mut self, path: &Path, grid: &Grid) {
         let node_path = path.clone().into_iter().enumerate().map(|(i, loc)| {
             Node {
                 time: i as Time,
@@ -102,18 +98,18 @@ impl AvoidanceSet {
             }
         });
         for node in node_path {
-            self.avoid_node(grid, node, cg);
+            self.avoid_node(grid, node);
         }
 
         let last = path.len() - 1;
         for loc in grid.neighbors9(&path[last]) {
-            self.finals.insert(loc, (last as Time, cg));
+            self.finals.insert(loc, last as Time);
         }
 
         self.max_time = self.max_time.max(last as Time)
     }
 
-    fn avoid_node(&mut self, grid: &Grid, node: Node, cg: CollisionGroup) {
+    fn avoid_node(&mut self, grid: &Grid, node: Node) {
         for loc in grid.neighbors9(&node.location) {
             for t in -1..2 {
                 let time = (node.time as i32) + t;
@@ -125,7 +121,6 @@ impl AvoidanceSet {
                         location: loc,
                         time: time as Time,
                     },
-                    cg,
                 );
             }
         }
@@ -184,16 +179,15 @@ fn route_many(droplets: &[(&DropletId, &Droplet)], grid: &Grid) -> Option<Map<Dr
     let mut max_t = 0;
 
     for &(&id, droplet) in droplets.iter() {
-        let cg = droplet.collision_group;
         let result = route_one(
             &droplet,
             num_cells as Time + max_t,
-            |node| av_set.filter(node.expand(grid), cg),
+            |node| av_set.filter(node.expand(grid)),
             |node| node.location == match droplet.destination {
                 Some(x) => x,
                 None => droplet.location
             }
-            && !av_set.would_finally_collide(node, cg)
+            && !av_set.would_finally_collide(node)
         );
         let path = match result {
             None => return None,
@@ -202,7 +196,7 @@ fn route_many(droplets: &[(&DropletId, &Droplet)], grid: &Grid) -> Option<Map<Dr
 
         max_t = max_t.max(path.len() as Time);
 
-        av_set.avoid_path(&path, cg, grid);
+        av_set.avoid_path(&path, grid);
         paths.insert(id, path);
     }
 

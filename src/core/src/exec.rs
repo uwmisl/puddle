@@ -23,10 +23,6 @@ pub enum Action {
         out0: DropletId,
         out1: DropletId,
     },
-    SetCollisionGroup {
-        id0: DropletId,
-        id1: DropletId,
-    },
     UpdateDroplet {
         old_id: DropletId,
         new_id: DropletId,
@@ -54,7 +50,6 @@ impl Action {
             RemoveDroplet { id } => {}
             Mix { in0, in1, out } => {}
             Split { inp, out0, out1 } => {}
-            SetCollisionGroup { id0, id1 } => {}
             UpdateDroplet { old_id, new_id } => {}
             MoveDroplet { id, ref mut location } => {
                 *location = placement[location];

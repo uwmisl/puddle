@@ -121,9 +121,6 @@ impl GridView {
                 self.insert(Droplet::new(out0, d.location));
                 self.insert(Droplet::new(out1, d.location));
             }
-            SetCollisionGroup { id0, id1 } => {
-                self.get_mut(id0).collision_group = self.droplets[&id1].collision_group;
-            }
             UpdateDroplet { old_id, new_id } => {
                 let mut d = self.remove(old_id);
                 // NOTE this is pretty much the only place it's ok to change an id
