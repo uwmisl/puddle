@@ -1,7 +1,7 @@
 use std::fmt::Debug;
 use std::sync::mpsc::Sender;
 
-use grid::{DropletId, Grid, GridView, Location};
+use grid::{DropletId, Grid, Location};
 use exec::Action;
 
 use process::PuddleResult;
@@ -34,8 +34,6 @@ pub trait Command: Debug + Send + 'static {
     fn trust_placement(&self) -> bool {
         false
     }
-
-    fn pre_plan(&self, &mut GridView) {}
 }
 
 //
@@ -201,7 +199,7 @@ lazy_static! {
     static ref MIX_INPUT_LOCS: Vec<Location> =
         vec![
             Location {y: 0, x: 0},
-            Location {y: 0, x: 0},
+            Location {y: 2, x: 0},
         ];
     static ref MIX_OUTPUT_LOCS: Vec<Location> =
         vec![
@@ -250,29 +248,26 @@ impl Command for Mix {
         &MIX_SHAPE
     }
 
-    fn pre_plan(&self, gridview: &mut GridView) {
-        let d0_cg = gridview
-            .droplets
-            .get(&self.inputs[0])
-            .unwrap()
-            .collision_group;
-        let d1 = gridview.droplets.get_mut(&self.inputs[1]).unwrap();
-
-        d1.collision_group = d0_cg;
-
-        // possibly move creating output droplets here
-    }
-
     fn actions(&self) -> Vec<Action> {
         let out = self.outputs[0];
+        // this first set of actions moves d1 into d0 and performs the combine
+        // we cannot tick in between; it would cause a collision
         let mut acts = vec![
+            Action::MoveDroplet {
+                id: self.inputs[1],
+                location: Location {y: 1, x: 0},
+            },
+            Action::MoveDroplet {
+                id: self.inputs[1],
+                location: Location {y: 0, x: 0},
+            },
             Action::Mix {
                 in0: self.inputs[0],
                 in1: self.inputs[1],
                 out: out,
             },
+            Action::Tick,
         ];
-        acts.push(Action::Tick);
 
         for loc in MIX_LOOP.iter() {
             acts.push(Action::MoveDroplet {
@@ -302,13 +297,11 @@ lazy_static! {
         ];
     static ref SPLIT_PATH0: Vec<Location> =
         vec![
-            Location {y: 0, x: 2},
             Location {y: 0, x: 1},
             Location {y: 0, x: 0},
         ];
     static ref SPLIT_PATH1: Vec<Location> =
         vec![
-            Location {y: 0, x: 2},
             Location {y: 0, x: 3},
             Location {y: 0, x: 4},
         ];
@@ -359,7 +352,11 @@ impl Command for Split {
                 out1: self.outputs[1],
             },
         ];
-        acts.push(Action::Tick);
+
+        // NOTE
+        // we cannot tick here because a collision will happen!
+        // only tick after they've moved apart
+        // TODO incorporate this into split somehow?
 
         for (l0, l1) in SPLIT_PATH0.iter().zip(SPLIT_PATH1.iter()) {
             acts.push(Action::MoveDroplet {

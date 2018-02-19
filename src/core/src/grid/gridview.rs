@@ -121,8 +121,8 @@ impl GridView {
                 self.insert(Droplet::new(out0, d.location));
                 self.insert(Droplet::new(out1, d.location));
             }
-            SetCollisionGroup { id, cg } => {
-                self.get_mut(id).collision_group = cg;
+            SetCollisionGroup { id0, id1 } => {
+                self.get_mut(id0).collision_group = self.droplets[&id1].collision_group;
             }
             UpdateDroplet { old_id, new_id } => {
                 let mut d = self.remove(old_id);
@@ -135,7 +135,14 @@ impl GridView {
                 assert!(droplet.location.distance_to(&location) <= 1);
                 droplet.location = location;
             }
-            Tick => {},
+            Tick => {
+                self.get_collision().map(|(id1, id2)| {
+                    let d1 = &self.droplets[&id1];
+                    let d2 = &self.droplets[&id2];
+                    error!("Collision between {:?}, {:?}", d1, d2);
+                    panic!("collision");
+                });
+            },
             // NOTE: ping does nothing here by default
             Ping { tx: _ } => {}
         }

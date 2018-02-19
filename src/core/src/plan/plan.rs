@@ -36,9 +36,6 @@ impl Planner {
 
     pub fn plan<C: Command>(&mut self, cmd: C) -> Result<(), PlanError> {
 
-        debug!("pre planning {:?}", cmd);
-        cmd.pre_plan(&mut self.gridview);
-
         debug!("placing (trusted = {}) {:?}", cmd.trust_placement(), cmd);
         let placement = if cmd.trust_placement() {
             // if we are trusting placement, just use an identity map
