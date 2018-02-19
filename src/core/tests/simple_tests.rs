@@ -4,7 +4,7 @@ extern crate puddle_core;
 
 extern crate env_logger;
 
-use puddle_core::{Grid, Location, Manager, ProcessHandle, DropletId, DropletInfo};
+use puddle_core::{DropletId, DropletInfo, Grid, Location, Manager, ProcessHandle};
 
 fn manager_from_rect<'a>(rows: usize, cols: usize) -> Manager {
     let grid = Grid::rectangle(rows, cols);

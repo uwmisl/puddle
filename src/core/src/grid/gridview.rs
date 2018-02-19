@@ -77,9 +77,7 @@ impl GridView {
     pub fn droplet_info(&self, pid_option: Option<ProcessId>) -> Vec<DropletInfo> {
         self.droplets
             .values()
-            .filter(|&d| {
-                pid_option.map_or(true, |pid| d.id.process_id == pid)
-            })
+            .filter(|&d| pid_option.map_or(true, |pid| d.id.process_id == pid))
             .map(|d| d.info())
             .collect()
     }
@@ -139,7 +137,7 @@ impl GridView {
                     error!("Collision between {:?}, {:?}", d1, d2);
                     panic!("collision");
                 });
-            },
+            }
             // NOTE: ping does nothing here by default
             Ping { tx: _ } => {}
         }
@@ -150,7 +148,7 @@ impl GridView {
 pub mod tests {
 
     use super::*;
-    use ::Location;
+    use Location;
 
     use process::tests::*;
 

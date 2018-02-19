@@ -1,26 +1,26 @@
 use std::thread;
 use std::sync::{Arc, Mutex};
-use std::sync::mpsc::{channel};
-use std::ops::{Drop, Deref, DerefMut};
+use std::sync::mpsc::channel;
+use std::ops::{Deref, DerefMut, Drop};
 
-use process::{Process, ProcessId, PuddleResult, PuddleError};
+use process::{Process, ProcessId, PuddleError, PuddleResult};
 use grid::{DropletInfo, Grid, GridView};
-use exec::{Executor};
+use exec::Executor;
 
-use util::collections::{Map};
+use util::collections::Map;
 use util::endpoint::Endpoint;
 
-use plan::{Planner};
+use plan::Planner;
 
 pub struct ProcessHandle<'a> {
     process: Option<Process>,
     manager: &'a Manager,
 }
 
-
 impl<'a> Drop for ProcessHandle<'a> {
     fn drop(&mut self) {
-        let p = self.process.take()
+        let p = self.process
+            .take()
             .expect("ProcessHandle process was None!");
         self.manager.put_process(p);
     }
@@ -93,14 +93,15 @@ impl Manager {
 
     pub fn get_process(&self, pid: ProcessId) -> PuddleResult<ProcessHandle> {
         let p = self.take_process(pid)?;
-        Ok( ProcessHandle {
+        Ok(ProcessHandle {
             process: Some(p),
-            manager: self
+            manager: self,
         })
     }
 
     pub fn new_process<S>(&self, name: S) -> PuddleResult<ProcessId>
-        where S: Into<String>
+    where
+        S: Into<String>,
     {
         let planner = Arc::clone(&self.planner);
         let process = Process::new(name.into(), planner);
@@ -117,7 +118,9 @@ impl Manager {
     }
 
     pub fn get_new_process<S>(&mut self, name: S) -> ProcessHandle
-        where S: Into<String> {
+    where
+        S: Into<String>,
+    {
         let pid = self.new_process(name).expect("creation failed");
         self.get_process(pid).expect("get failed")
     }

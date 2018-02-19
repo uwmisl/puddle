@@ -77,7 +77,6 @@ build_rpc_trait! {
 }
 
 impl Rpc for Arc<Manager> {
-
     //
     // process management commands
     //

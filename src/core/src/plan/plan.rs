@@ -35,7 +35,6 @@ impl Planner {
     }
 
     pub fn plan<C: Command>(&mut self, cmd: C) -> Result<(), PlanError> {
-
         debug!("placing (trusted = {}) {:?}", cmd.trust_placement(), cmd);
         let placement = if cmd.trust_placement() {
             // if we are trusting placement, just use an identity map
@@ -75,11 +74,12 @@ impl Planner {
         debug!("routing {:?}", cmd);
         let paths = match self.gridview.route() {
             Some(p) => p,
-            None => return Err(PlanError::RouteError {
-                placement: placement,
-                droplets: self.gridview.droplets.values()
-                    .map(|d| d.clone()).collect(),
-            })
+            None => {
+                return Err(PlanError::RouteError {
+                    placement: placement,
+                    droplets: self.gridview.droplets.values().map(|d| d.clone()).collect(),
+                })
+            }
         };
         debug!("route for {:?}: {:?}", cmd, paths);
 

@@ -2,9 +2,9 @@ extern crate puddle_core;
 
 extern crate jsonrpc_core;
 
+extern crate clap;
 #[macro_use]
 extern crate rouille;
-extern crate clap;
 
 use std::fs::File;
 use std::io::Read;
@@ -16,7 +16,7 @@ use rouille::{Request, Response};
 
 use jsonrpc_core::IoHandler;
 
-use clap::{ArgMatches, App, Arg};
+use clap::{App, Arg, ArgMatches};
 
 use puddle_core::*;
 
@@ -29,9 +29,9 @@ fn handle(ioh: &IoHandler, req: &Request) -> Response {
     eprintln!("req: ({})", &req_string);
 
     // handle the request with jsonrpc, then convert to IronResult
-    let resp_data = &ioh.handle_request_sync(&req_string).expect("handle failed!");
-    let resp = Response::from_data("application/json",
-                                   resp_data.bytes().collect::<Vec<_>>());
+    let resp_data = &ioh.handle_request_sync(&req_string)
+        .expect("handle failed!");
+    let resp = Response::from_data("application/json", resp_data.bytes().collect::<Vec<_>>());
     // eprintln!("Resp: {:?}", resp_data);
     resp
 }

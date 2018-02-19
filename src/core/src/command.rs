@@ -255,11 +255,11 @@ impl Command for Mix {
         let mut acts = vec![
             Action::MoveDroplet {
                 id: self.inputs[1],
-                location: Location {y: 1, x: 0},
+                location: Location { y: 1, x: 0 },
             },
             Action::MoveDroplet {
                 id: self.inputs[1],
-                location: Location {y: 0, x: 0},
+                location: Location { y: 0, x: 0 },
             },
             Action::Mix {
                 in0: self.inputs[0],

@@ -2,7 +2,7 @@ use std::io::Read;
 use serde_json;
 
 use util::collections::Map;
-use super::{Location, Droplet, DropletId};
+use super::{Droplet, DropletId, Location};
 
 #[derive(Debug, PartialEq, Eq, Hash, Serialize, Deserialize, Clone, Copy)]
 pub struct Cell {
@@ -77,7 +77,6 @@ impl Grid {
         Box::new(iter)
     }
 
-
     /// Tests if this grid is compatible within `bigger` when `offset` is applied
     /// to `self`
     fn is_compatible_within(
@@ -89,11 +88,10 @@ impl Grid {
         self.locations().all(|(loc, my_cell)| {
             let their_loc = &loc + &offset;
             bigger.get_cell(&their_loc).map_or(false, |theirs| {
-                my_cell.is_compatible(&theirs) &&
-                    !droplets.values().any(|droplet| {
-                        (their_loc.x - droplet.location.x).abs() < 3 &&
-                            (their_loc.y - droplet.location.y).abs() < 3
-                    })
+                my_cell.is_compatible(&theirs) && !droplets.values().any(|droplet| {
+                    (their_loc.x - droplet.location.x).abs() < 3
+                        && (their_loc.y - droplet.location.y).abs() < 3
+                })
             })
         })
     }
@@ -123,27 +121,20 @@ impl Grid {
             .iter()
             .enumerate()
             .flat_map(move |(i, row)| {
-                (0..row.len()).map(move |j| {
-                    Location {
-                        y: i as i32,
-                        x: j as i32,
-                    }
+                (0..row.len()).map(move |j| Location {
+                    y: i as i32,
+                    x: j as i32,
                 })
             })
-            .find(|&offset| {
-                smaller.is_compatible_within(offset, self, droplets)
-            });
+            .find(|&offset| smaller.is_compatible_within(offset, self, droplets));
 
-        offset_found.map(|offset| {
-            smaller.mapping_into_other_from_offset(offset, self)
-        })
+        offset_found.map(|offset| smaller.mapping_into_other_from_offset(offset, self))
     }
 
     pub fn from_function<F>(mut f: F, height: usize, width: usize) -> Grid
     where
         F: FnMut(Location) -> Option<Cell>,
     {
-
         Grid {
             vec: (0..height)
                 .map(move |i| {
@@ -168,9 +159,9 @@ impl Grid {
         }
         let i = loc.y as usize;
         let j = loc.x as usize;
-        self.vec.get(i).and_then(|row| {
-            row.get(j).and_then(|cell_opt| cell_opt.as_ref())
-        })
+        self.vec
+            .get(i)
+            .and_then(|row| row.get(j).and_then(|cell_opt| cell_opt.as_ref()))
     }
 
     fn locations_from_offsets<'a, I>(&self, loc: &Location, offsets: I) -> Vec<Location>
@@ -198,14 +189,12 @@ impl Grid {
     }
 }
 
-
 #[cfg(test)]
 use std::collections::HashSet;
 
 #[cfg(test)]
 impl Grid {
     pub fn is_connected(&self) -> bool {
-
         let first = self.locations().next();
 
         if first.is_none() {
@@ -237,8 +226,6 @@ impl Grid {
     }
 }
 
-
-
 #[cfg(test)]
 pub mod tests {
 
@@ -251,13 +238,15 @@ pub mod tests {
     use proptest::collection::vec;
     use proptest::option::weighted;
 
-
     #[test]
     fn test_connected() {
-
         let cell = Some(Cell { pin: 0 });
-        let grid1 = Grid { vec: vec![vec![None, cell], vec![cell, None]] };
-        let grid2 = Grid { vec: vec![vec![cell, cell], vec![None, None]] };
+        let grid1 = Grid {
+            vec: vec![vec![None, cell], vec![cell, None]],
+        };
+        let grid2 = Grid {
+            vec: vec![vec![cell, cell], vec![None, None]],
+        };
 
         assert!(!grid1.is_connected());
         assert!(grid2.is_connected())

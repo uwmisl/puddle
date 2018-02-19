@@ -1,5 +1,5 @@
 use std::sync::{Arc, Mutex};
-use std::sync::mpsc::{channel};
+use std::sync::mpsc::channel;
 use std::sync::atomic::AtomicUsize;
 use std::sync::atomic::Ordering::Relaxed;
 
@@ -27,8 +27,7 @@ pub type ProcessId = Uuid;
 
 pub struct Process {
     id: ProcessId,
-    #[allow(dead_code)]
-    name: String,
+    #[allow(dead_code)] name: String,
     next_droplet_id: AtomicUsize,
     planner: Arc<Mutex<Planner>>,
     // TODO we probably want something like this for more precise flushing
@@ -63,7 +62,6 @@ impl Process {
 }
 
 impl Process {
-
     pub fn flush(&self) -> PuddleResult<()> {
         let (tx, rx) = channel();
         let flush_cmd = command::Flush::new(tx);

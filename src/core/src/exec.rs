@@ -1,4 +1,4 @@
-use std::sync::mpsc::{Sender, Receiver};
+use std::sync::mpsc::{Receiver, Sender};
 
 use util::endpoint::Endpoint;
 use grid::{DropletId, DropletInfo, Grid, GridView, Location};
@@ -44,17 +44,23 @@ impl Action {
     pub fn translate(&mut self, placement: &Placement) {
         use self::Action::*;
         match *self {
-            AddDroplet { id, ref mut location } => {
+            AddDroplet {
+                id,
+                ref mut location,
+            } => {
                 *location = placement[location];
             }
             RemoveDroplet { id } => {}
             Mix { in0, in1, out } => {}
             Split { inp, out0, out1 } => {}
             UpdateDroplet { old_id, new_id } => {}
-            MoveDroplet { id, ref mut location } => {
+            MoveDroplet {
+                id,
+                ref mut location,
+            } => {
                 *location = placement[location];
             }
-            Tick => {},
+            Tick => {}
             Ping { ref tx } => {}
         }
     }
@@ -82,7 +88,7 @@ impl Executor {
                 true
             }
             &Tick => false,
-            _ => true
+            _ => true,
         };
         self.gridview.execute(action);
         keep_going
@@ -93,8 +99,8 @@ impl Executor {
             // wait on the visualizer then reply
             if self.blocking {
                 match endpoint.recv() {
-                    Ok(()) => {},
-                    Err(_) => return
+                    Ok(()) => {}
+                    Err(_) => return,
                 }
                 endpoint.send(self.gridview.droplet_info(None)).unwrap();
             }
@@ -104,7 +110,7 @@ impl Executor {
             while keep_going {
                 let action = match action_rx.recv() {
                     Ok(action) => action,
-                    Err(_) => return
+                    Err(_) => return,
                 };
                 keep_going = self.execute(&action);
             }

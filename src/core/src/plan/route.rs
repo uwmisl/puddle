@@ -1,8 +1,7 @@
-
 use std::collections::HashSet;
 
 use plan::minheap::MinHeap;
-use grid::{Location, Droplet, DropletId, GridView, Grid};
+use grid::{Droplet, DropletId, Grid, GridView, Location};
 use exec::Action;
 
 use util::collections::{Map, Set};
@@ -74,28 +73,24 @@ impl AvoidanceSet {
     }
 
     fn collides_with_final(&self, node: &Node) -> bool {
-        self.finals.get(&node.location).map_or(false, |&final_t| {
-            node.time >= final_t
-        })
+        self.finals
+            .get(&node.location)
+            .map_or(false, |&final_t| node.time >= final_t)
     }
 
     fn would_finally_collide(&self, node: &Node) -> bool {
         (node.time..self.max_time)
-            .map(|t| {
-                Node {
-                    time: t,
-                    location: node.location,
-                }
+            .map(|t| Node {
+                time: t,
+                location: node.location,
             })
             .any(|future_node| self.collides(&future_node))
     }
 
     fn avoid_path(&mut self, path: &Path, grid: &Grid) {
-        let node_path = path.clone().into_iter().enumerate().map(|(i, loc)| {
-            Node {
-                time: i as Time,
-                location: loc,
-            }
+        let node_path = path.clone().into_iter().enumerate().map(|(i, loc)| Node {
+            time: i as Time,
+            location: loc,
         });
         for node in node_path {
             self.avoid_node(grid, node);
@@ -116,12 +111,10 @@ impl AvoidanceSet {
                 if time < 0 {
                     continue;
                 }
-                self.present.insert(
-                    Node {
-                        location: loc,
-                        time: time as Time,
-                    },
-                );
+                self.present.insert(Node {
+                    location: loc,
+                    time: time as Time,
+                });
             }
         }
     }
@@ -183,11 +176,12 @@ fn route_many(droplets: &[(&DropletId, &Droplet)], grid: &Grid) -> Option<Map<Dr
             &droplet,
             num_cells as Time + max_t,
             |node| av_set.filter(node.expand(grid)),
-            |node| node.location == match droplet.destination {
-                Some(x) => x,
-                None => droplet.location
-            }
-            && !av_set.would_finally_collide(node)
+            |node| {
+                node.location == match droplet.destination {
+                    Some(x) => x,
+                    None => droplet.location,
+                } && !av_set.would_finally_collide(node)
+            },
         );
         let path = match result {
             None => return None,
@@ -213,8 +207,14 @@ where
     FNext: FnMut(&Node) -> NextVec,
     FDone: FnMut(&Node) -> bool,
 {
-    trace!("Routing droplet {} from {} to {}", droplet.id.id, droplet.location,
-           droplet.destination.map_or("nowhere".into(), |dst| format!("{}", dst)));
+    trace!(
+        "Routing droplet {} from {} to {}",
+        droplet.id.id,
+        droplet.location,
+        droplet
+            .destination
+            .map_or("nowhere".into(), |dst| format!("{}", dst))
+    );
 
     let mut todo: MinHeap<Cost, Node> = MinHeap::new();
     let mut best_so_far: Map<Node, Cost> = Map::new();
@@ -238,7 +238,6 @@ where
     let heuristic = |node: Node| -> Cost { dest.distance_to(&node.location) };
 
     while let Some((_, node)) = todo.pop() {
-
         if done_fn(&node) {
             let path = build_path(came_from, node);
             return Some(path);
@@ -254,7 +253,6 @@ where
         let node_cost: Cost = *best_so_far.get(&node).unwrap();
 
         for (edge_cost, next) in next_fn(&node) {
-
             if done.contains(&next) {
                 continue;
             }
@@ -280,7 +278,6 @@ where
             let next_cost_est = next_cost + heuristic(next);
             todo.push(next_cost_est, next)
         }
-
     }
 
     None
@@ -312,7 +309,6 @@ pub mod tests {
     }
 
     fn uncrowded_arch_from_grid(grid: Grid) -> BoxedStrategy<GridView> {
-
         let height = grid.vec.len();
         let width = grid.vec.iter().map(|row| row.len()).min().unwrap();
         let max_dim = height.min(width) / 2;

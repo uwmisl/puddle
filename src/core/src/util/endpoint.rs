@@ -1,4 +1,4 @@
-use std::sync::mpsc::{Receiver, RecvError, Sender, SendError, channel};
+use std::sync::mpsc::{channel, Receiver, RecvError, SendError, Sender};
 
 pub struct Endpoint<S, R> {
     sender: Sender<S>,
@@ -10,13 +10,13 @@ where
     S: Send,
     R: Send,
 {
-    pub fn pair() -> (Endpoint<S,R>, Endpoint<R,S>) {
+    pub fn pair() -> (Endpoint<S, R>, Endpoint<R, S>) {
         let (tx1, rx1) = channel();
         let (tx2, rx2) = channel();
 
         let e1 = Endpoint {
-                sender: tx1,
-                receiver: rx2,
+            sender: tx1,
+            receiver: rx2,
         };
         let e2 = Endpoint {
             sender: tx2,

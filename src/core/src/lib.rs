@@ -1,8 +1,8 @@
 extern crate rand;
 
+extern crate serde;
 #[macro_use]
 extern crate serde_derive;
-extern crate serde;
 
 extern crate serde_json;
 
@@ -16,16 +16,16 @@ extern crate proptest;
 #[macro_use]
 extern crate lazy_static;
 
+extern crate jsonrpc_core;
 #[macro_use]
 extern crate jsonrpc_macros;
-extern crate jsonrpc_core;
 
 extern crate uuid;
 
-#[macro_use]
-extern crate log;
 #[cfg(test)]
 extern crate env_logger;
+#[macro_use]
+extern crate log;
 
 // these need to be pub until we have an api
 mod grid;
@@ -35,5 +35,5 @@ mod plan;
 mod command;
 mod process;
 
-pub use grid::{Grid, DropletId, DropletInfo, Location};
+pub use grid::{DropletId, DropletInfo, Grid, Location};
 pub use process::*;

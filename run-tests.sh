@@ -3,7 +3,14 @@
 set -ev
 
 # test the core
-(cd src/core/ && cargo test)
+pushd src/core/
+cargo test
+# check for formatting
+cargo fmt -- --write-mode diff
+popd
 
 # test the python bindings
-(cd src/python/ && pipenv install --dev && pipenv run pytest)
+pushd src/python/
+pipenv install --dev
+pipenv run pytest
+popd
