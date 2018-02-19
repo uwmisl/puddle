@@ -13,6 +13,8 @@ before_install:
   # pipenv will use pyenv to automatically install python if needed
   - curl -L https://raw.githubusercontent.com/pyenv/pyenv-installer/master/bin/pyenv-installer | bash
   - pip install --user pipenv
+  # get rustfmt so we can check code style
+  - rustup component add rustfmt-preview
 
 script: ./run-tests.sh
 
