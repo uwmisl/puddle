@@ -22,6 +22,11 @@ extern crate jsonrpc_core;
 
 extern crate uuid;
 
+#[macro_use]
+extern crate log;
+#[cfg(test)]
+extern crate env_logger;
+
 // these need to be pub until we have an api
 mod grid;
 mod util;

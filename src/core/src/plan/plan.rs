@@ -34,10 +34,11 @@ impl Planner {
     }
 
     pub fn plan<C: Command>(&mut self, cmd: C) -> Result<(), PlanError> {
-        eprintln!("Running: {:?}", cmd);
 
+        debug!("pre planning {:?}", cmd);
         cmd.pre_plan(&mut self.gridview);
 
+        debug!("placing (trusted = {}) {:?}", cmd.trust_placement(), cmd);
         let placement = if cmd.trust_placement() {
             // if we are trusting placement, just use an identity map
             self.gridview
@@ -53,7 +54,7 @@ impl Planner {
                 .ok_or(PlanError::PlaceError)?
         };
 
-        eprintln!("Placement: {:?}", placement);
+        debug!("placement for {:?}: {:?}", cmd, placement);
 
         let in_locs = cmd.input_locations();
         let in_ids = cmd.input_droplets();
@@ -73,6 +74,7 @@ impl Planner {
             droplet.destination = Some(*mapped_loc);
         }
 
+        debug!("routing {:?}", cmd);
         let paths = match self.gridview.route() {
             None => {
                 return Err(PlanError::RouteError {
@@ -82,6 +84,7 @@ impl Planner {
             }
             Some(p) => p,
         };
+        debug!("route for {:?}: {:?}", cmd, paths);
 
         assert_eq!(
             self.gridview.droplets.keys().collect::<Set<&DropletId>>(),
@@ -106,7 +109,6 @@ impl Planner {
         for mut a in &mut cmd_actions {
             a.translate(&placement);
         }
-        eprintln!("{:?}", cmd_actions);
         actions.append(&mut cmd_actions);
 
         for ref a in &actions {

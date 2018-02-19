@@ -2,11 +2,14 @@ use std::collections::HashMap;
 
 extern crate puddle_core;
 
+extern crate env_logger;
+
 use puddle_core::{Grid, Location, Manager, ProcessHandle, DropletId, DropletInfo};
 
 fn manager_from_rect<'a>(rows: usize, cols: usize) -> Manager {
     let grid = Grid::rectangle(rows, cols);
     let man = Manager::new(false, grid);
+    let _ = env_logger::try_init();
     man
 }
 

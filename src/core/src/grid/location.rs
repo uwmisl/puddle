@@ -1,4 +1,5 @@
 use std::ops::{Add, Sub};
+use std::fmt;
 
 #[derive(PartialEq, Eq, PartialOrd, Ord, Hash, Clone, Copy, Debug, Serialize, Deserialize)]
 pub struct Location {
@@ -32,5 +33,11 @@ impl<'a> Sub for &'a Location {
             y: self.y - other.y,
             x: self.x - other.x,
         }
+    }
+}
+
+impl fmt::Display for Location {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "({}, {})", self.y, self.x)
     }
 }

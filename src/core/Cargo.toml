@@ -19,7 +19,9 @@ jsonrpc-macros = "^8.0.0"
 rouille = "^2.0"
 
 clap = "^2.29.4"
+log = "^0.4.1"
 
 [dev-dependencies]
 proptest = "^0.4"
 glob = "^0.2"
+env_logger = "^0.5.3"

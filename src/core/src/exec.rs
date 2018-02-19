@@ -83,6 +83,7 @@ impl Executor {
     }
 
     fn execute(&mut self, action: Action) {
+        debug!("executing {:?}", action);
         use self::Action::*;
         match &action {
             &Ping { ref tx } => {

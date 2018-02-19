@@ -133,7 +133,6 @@ impl Grid {
             .find(|&offset| {
                 smaller.is_compatible_within(offset, self, droplets)
             });
-        println!("Placing with offset: {:?}", offset_found);
 
         offset_found.map(|offset| {
             smaller.mapping_into_other_from_offset(offset, self)

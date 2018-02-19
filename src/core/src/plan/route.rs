@@ -146,12 +146,13 @@ impl GridView {
     pub fn route(&self) -> Option<Map<DropletId, Path>> {
         let mut droplets = self.droplets.iter().collect::<Vec<_>>();
         let mut rng = thread_rng();
-        for _ in 1..50 {
+        for i in 1..50 {
             rng.shuffle(&mut droplets);
             let result = route_many(&droplets, &self.grid);
             if result.is_some() {
                 return result;
             }
+            trace!("route failed, trying iteration {}", i);
         }
 
         None
@@ -201,6 +202,9 @@ where
     FNext: FnMut(&Node) -> NextVec,
     FDone: FnMut(&Node) -> bool,
 {
+    trace!("Routing droplet {} from {} to {}", droplet.id.id, droplet.location,
+           droplet.destination.map_or("nowhere".into(), |dst| format!("{}", dst)));
+
     let mut todo: MinHeap<Cost, Node> = MinHeap::new();
     let mut best_so_far: Map<Node, Cost> = Map::new();
     let mut came_from: Map<Node, Node> = Map::new();
@@ -273,6 +277,8 @@ where
 
 #[cfg(test)]
 pub mod tests {
+    use env_logger;
+
     use super::*;
 
     use proptest::prelude::*;
@@ -311,6 +317,7 @@ pub mod tests {
                 .prop_filter("not connected", |ref g| g.is_connected())
                 .prop_flat_map(move |g| arb_gridview(g, 1..2)))
         {
+            let _ = env_logger::try_init();
             let droplet = arch.droplets.values().next().unwrap();
             let num_cells = arch.grid.locations().count();
 
@@ -338,6 +345,7 @@ pub mod tests {
                              |ref a| a.get_destination_collision().is_none())
         )
         {
+            let _ = env_logger::try_init();
             let arch = rarch.clone();
             prop_assume!(arch.route().is_some());
             let paths = arch.route().unwrap();
