@@ -1,3 +1,5 @@
+# Puddle doc/papers .gitignore
+
 # latex output
 *.run.xml
 *.aux_lock
