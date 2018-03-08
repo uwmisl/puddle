@@ -173,16 +173,14 @@ function parse_data(data, text_status) {
  */
 function add_drop(json) {
     let s = game.add.sprite((json.location.x * CELL_SIZE) + CELL_SIZE,
-        (json.location.y * CELL_SIZE) + CELL_SIZE);
-    for (let cell of json.shape) {
-        let graphics = game.add.graphics(0, 0);
-        let y = cell.y * CELL_SIZE;
-        let x = cell.y * CELL_SIZE;
-        graphics.beginFill(0x006699)
-            .drawCircle(x, y, Math.sqrt(json.volume) * CELL_SIZE)
-            .endFill();
-        s.addChild(graphics);
-    }
+        (json.location.y * CELL_SIZE)+ CELL_SIZE);
+    let graphics = game.add.graphics(0, 0);
+    let width = Math.sqrt(json.volume) * CELL_SIZE * json.dimensions.x;
+    let height = Math.sqrt(json.volume) * CELL_SIZE * json.dimensions.y;
+    graphics.beginFill(0x006699)
+        .drawRoundedRect(0, 0, width, height, width)
+        .endFill();
+    s.addChild(graphics);
     let tween = game.add.tween(s);
     let drop = {
         sprite: s,
