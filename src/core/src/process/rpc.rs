@@ -48,7 +48,8 @@ build_rpc_trait! {
         fn input(
             &self,
             ProcessId,
-            Option<Location>
+            Option<Location>,
+            f64
         ) -> PuddleResult<DropletId>;
 
         #[rpc(name = "move")]
@@ -115,9 +116,9 @@ impl Rpc for Arc<Manager> {
         p.flush()
     }
 
-    fn input(&self, pid: ProcessId, loc: Option<Location>) -> PuddleResult<DropletId> {
+    fn input(&self, pid: ProcessId, loc: Option<Location>, vol: f64) -> PuddleResult<DropletId> {
         let p = self.get_process(pid)?;
-        p.input(loc)
+        p.input(loc, vol)
     }
 
     fn move_droplet(&self, pid: ProcessId, d: DropletId, loc: Location) -> PuddleResult<DropletId> {

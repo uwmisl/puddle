@@ -122,9 +122,9 @@ class Session:
     def _flush(self):
         self._rpc("flush", self.pid)
 
-    def input(self, location, **kwargs):
+    def input(self, location, volume, **kwargs):
         droplet_class = kwargs.pop('droplet_class', Droplet)
-        result_id = self._rpc("input", self.pid, to_location(location) if location else None)
+        result_id = self._rpc("input", self.pid, to_location(location) if location else None, volume)
         return droplet_class(self, result_id, **kwargs, i_know_what_im_doing=True)
 
     # just call the droplet methods

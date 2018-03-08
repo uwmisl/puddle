@@ -108,20 +108,23 @@ impl GridView {
                 id,
                 location,
                 dimensions,
-            } => self.insert(Droplet::new(id, location, dimensions)),
+                volume,
+            } => self.insert(Droplet::new(id, volume, location, dimensions)),
             RemoveDroplet { id } => {
                 self.remove(id);
             }
             Mix { in0, in1, out } => {
                 let d0 = self.remove(in0);
                 let d1 = self.remove(in1);
+                let vol = d0.volume + d1.volume;
                 assert_eq!(d0.location, d1.location);
-                self.insert(Droplet::new(out, d0.location, Location { y: 1, x: 1 }))
+                self.insert(Droplet::new(out, vol, d0.location, Location { y: 1, x: 1 }));
             }
             Split { inp, out0, out1 } => {
                 let d = self.remove(inp);
-                self.insert(Droplet::new(out0, d.location, Location { y: 1, x: 1 }));
-                self.insert(Droplet::new(out1, d.location, Location { y: 1, x: 1 }));
+                let vol = d.volume / 2.0;
+                self.insert(Droplet::new(out0, vol, d.location, Location { y: 1, x: 1 }));
+                self.insert(Droplet::new(out1, vol, d.location, Location { y: 1, x: 1 }));
             }
             UpdateDroplet { old_id, new_id } => {
                 let mut d = self.remove(old_id);
@@ -186,6 +189,7 @@ pub mod tests {
                 id: id,
                 location: loc,
                 dimensions: Location {y: 1, x: 1},
+                volume: 1.0,
                 destination: Some(dest),
                 collision_group: cg,
             }

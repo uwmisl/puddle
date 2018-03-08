@@ -50,15 +50,17 @@ pub struct Input {
     inputs: Vec<DropletId>,
     outputs: Vec<DropletId>,
     location: Vec<Location>,
+    volume: f64,
     trusted: bool,
 }
 
 impl Input {
-    pub fn new(loc: Option<Location>, out_id: DropletId) -> PuddleResult<Input> {
+    pub fn new(loc: Option<Location>, vol: f64, out_id: DropletId) -> PuddleResult<Input> {
         Ok(Input {
             inputs: vec![],
             outputs: vec![out_id],
             location: vec![loc.unwrap_or(Location { y: 0, x: 0 })],
+            volume: vol,
             trusted: loc.is_some(),
         })
     }
@@ -95,6 +97,7 @@ impl Command for Input {
                 id: self.outputs[0],
                 location: self.location[0],
                 dimensions: Location { y: 1, x: 1 },
+                volume: self.volume,
             },
             Action::Tick,
         ]
