@@ -27,6 +27,8 @@ extern crate env_logger;
 #[macro_use]
 extern crate log;
 
+extern crate crossbeam;
+
 // these need to be pub until we have an api
 mod grid;
 mod util;

@@ -21,6 +21,8 @@ rouille = "^2.0"
 clap = "^2.29.4"
 log = "^0.4.1"
 
+crossbeam = "0.3.2"
+
 [dev-dependencies]
 proptest = "^0.4"
 glob = "^0.2"

@@ -4,8 +4,10 @@ use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 #[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
 enum Mark {
-    #[serde(rename = " ")] Empty,
-    #[serde(rename = "a")] Auto,
+    #[serde(rename = " ")]
+    Empty,
+    #[serde(rename = "a")]
+    Auto,
 }
 
 #[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]

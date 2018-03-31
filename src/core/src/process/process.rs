@@ -27,7 +27,8 @@ pub type ProcessId = Uuid;
 
 pub struct Process {
     id: ProcessId,
-    #[allow(dead_code)] name: String,
+    #[allow(dead_code)]
+    name: String,
     next_droplet_id: AtomicUsize,
     planner: Arc<Mutex<Planner>>,
     // TODO we probably want something like this for more precise flushing

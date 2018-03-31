@@ -117,7 +117,7 @@ impl Manager {
         Ok(())
     }
 
-    pub fn get_new_process<S>(&mut self, name: S) -> ProcessHandle
+    pub fn get_new_process<S>(&self, name: S) -> ProcessHandle
     where
         S: Into<String>,
     {

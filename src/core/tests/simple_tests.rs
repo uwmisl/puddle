@@ -2,6 +2,8 @@ use std::collections::{HashMap, HashSet};
 
 extern crate puddle_core;
 
+extern crate crossbeam;
+
 extern crate env_logger;
 
 use puddle_core::{DropletId, DropletInfo, Grid, Location, Manager, ProcessHandle};
@@ -28,7 +30,7 @@ fn float_epsilon_equal(float1: f64, float2: f64) -> bool {
 
 #[test]
 fn input_some_droplets() {
-    let mut man = manager_from_rect(1, 4);
+    let man = manager_from_rect(1, 4);
     let p = man.get_new_process("test");
 
     let loc = Location { y: 0, x: 0 };
@@ -51,7 +53,7 @@ fn input_some_droplets() {
 
 #[test]
 fn move_droplet() {
-    let mut man = manager_from_rect(1, 4);
+    let man = manager_from_rect(1, 4);
     let p = man.get_new_process("test");
 
     let loc1 = Location { y: 0, x: 0 };
@@ -68,7 +70,7 @@ fn move_droplet() {
 
 #[test]
 fn mix3() {
-    let mut man = manager_from_rect(9, 9);
+    let man = manager_from_rect(9, 9);
     let p = man.get_new_process("test");
 
     let id1 = p.input(None, 1.0).unwrap();
@@ -87,7 +89,7 @@ fn mix3() {
 
 #[test]
 fn mix_split() {
-    let mut man = manager_from_rect(9, 9);
+    let man = manager_from_rect(9, 9);
     let p = man.get_new_process("test");
 
     let id1 = p.input(None, 1.0).unwrap();
@@ -107,4 +109,34 @@ fn mix_split() {
 
     assert!(float_epsilon_equal(droplets[&id3].volume, 1.0));
     assert!(float_epsilon_equal(droplets[&id5].volume, 0.5));
+}
+
+#[test]
+#[should_panic(expected = "assertion failed")]
+fn process_isolation() {
+    // Spawn 6 processes
+    let num_processes = 6;
+
+    let manager = manager_from_rect(3, 3);
+
+    let ps = (0..num_processes).map(|i| manager.get_new_process(format!("test-{}", i)));
+
+    // Attempt to create one droplet in every process
+    let mut droplet_counter = 0;
+
+    crossbeam::scope(|scope| {
+        for p in ps {
+            scope.spawn(move || {
+                let _id = p.input(None, 1.0);
+                p.flush().unwrap();
+                let dict = info_dict(&p);
+                for _ in dict.values() {
+                    droplet_counter += 1;
+                }
+            });
+        }
+    });
+
+    // Currently failing; should create 6 droplets
+    assert_eq!(droplet_counter, num_processes);
 }
