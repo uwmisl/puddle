@@ -112,31 +112,29 @@ fn mix_split() {
 }
 
 #[test]
-#[should_panic(expected = "assertion failed")]
 fn process_isolation() {
     // Spawn 6 processes
     let num_processes = 6;
 
-    let manager = manager_from_rect(3, 3);
-
+    let manager = manager_from_rect(9, 9);
     let ps = (0..num_processes).map(|i| manager.get_new_process(format!("test-{}", i)));
-
-    // Attempt to create one droplet in every process
-    let mut droplet_counter = 0;
 
     crossbeam::scope(|scope| {
         for p in ps {
             scope.spawn(move || {
-                let _id = p.input(None, 1.0);
+                let _drop_id = p.input(None, 1.0).unwrap();
                 p.flush().unwrap();
-                let dict = info_dict(&p);
-                for _ in dict.values() {
-                    droplet_counter += 1;
-                }
             });
         }
     });
+}
 
-    // Currently failing; should create 6 droplets
-    assert_eq!(droplet_counter, num_processes);
+#[test]
+#[should_panic(expected = "PlanError(PlaceError)")]
+fn grid_size_3() {
+    let man = manager_from_rect(3, 3);
+    let p = man.get_new_process("test");
+
+    let _id1 = p.input(None, 1.0).unwrap();
+    let _id2 = p.input(None, 1.0).unwrap();
 }
