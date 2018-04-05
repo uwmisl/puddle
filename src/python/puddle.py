@@ -48,14 +48,18 @@ def to_location(loc):
 class RPCError(Exception):
     pass
 
+
 class RequestError(Exception):
     pass
+
 
 class SessionError(Exception):
     pass
 
+
 class DropletConsumed(Exception):
     pass
+
 
 class Session:
 
@@ -129,7 +133,9 @@ class Session:
 
     # just call the droplet methods
     def move (self, droplet, *args, **kwargs): return droplet.move (*args, **kwargs)
+
     def mix  (self, droplet, *args, **kwargs): return droplet.mix  (*args, **kwargs)
+
     def split(self, droplet, *args, **kwargs): return droplet.split(*args, **kwargs)
 
 
@@ -159,13 +165,13 @@ def mk_session(
 
     # build the server command and run it
     cmd = 'cargo run --manifest-path {cargo_toml} -- ' \
-        '--static {static_dir} --host {host} --port {port} {arch_file}'.format(
-            cargo_toml = root + '/src/core/Cargo.toml',
-            arch_file = arch_file,
-            static_dir = root + '/src/web',
-            host = host,
-            port = port,
-    )
+          '--static {static_dir} --host {host} --port {port} {arch_file}'.format(
+              cargo_toml = root + '/src/core/Cargo.toml',
+              arch_file = arch_file,
+              static_dir = root + '/src/web',
+              host = host,
+              port = port,
+          )
     popen = Popen(args=shlex.split(cmd), stdout=PIPE)
 
     # wait for the server to print 'Listening' so we know it's ready

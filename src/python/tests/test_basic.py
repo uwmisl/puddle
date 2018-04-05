@@ -26,6 +26,7 @@ def test_consumed(session):
     a = session.input((1,1), 1.0)
     b = session.input((3,3), 1.0)
     c = a.mix(b)
+    assert c
 
     with pytest.raises(puddle.DropletConsumed):
         a.mix(b)

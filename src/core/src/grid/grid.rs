@@ -284,13 +284,13 @@ pub mod tests {
 
     proptest! {
         #[test]
-        fn grid_self_compatible(ref grid in arb_grid((1..10), (1..10), 0.5)) {
+        fn grid_self_compatible(ref grid in arb_grid(1..10, 1..10, 0.5)) {
             let zero = Location {x: 0, y: 0};
             prop_assert!(grid.is_compatible_within(zero, &grid, &Map::new()))
         }
 
         #[test]
-        fn grid_self_place(ref grid in arb_grid((1..10), (1..10), 0.5)) {
+        fn grid_self_place(ref grid in arb_grid(1..10, 1..10, 0.5)) {
             let num_cells = grid.locations().count();
             prop_assume!( num_cells > 5 );
 

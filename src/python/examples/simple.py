@@ -1,7 +1,5 @@
-from puddle import mk_session, Session
+from puddle import mk_session
 
-# session = Session('http://localhost:3000')
-# if True:
 with mk_session('../../tests/arches/arch02.json') as session:
 
     a = session.input(location=None, volume=1.0)

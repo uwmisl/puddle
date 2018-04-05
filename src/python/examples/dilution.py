@@ -1,9 +1,10 @@
 import networkx as nx
 
-from puddle import Session, mk_session, Droplet
+from puddle import mk_session, Droplet
 
 min_volume = 1.0
 max_volume = 4.0
+
 
 def plan(low, high, target, epsilon=0.01):
     graph = nx.DiGraph()
@@ -43,10 +44,6 @@ def plan(low, high, target, epsilon=0.01):
         assert not ins or out_amt <= in_amt
 
     return graph
-
-
-def test_plan():
-    g = plan(0, 1, 0.1, epsilon=.001)
 
 
 def dilute(session, d_low_factory, d_high_factory, c_target,

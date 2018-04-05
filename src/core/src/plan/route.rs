@@ -326,7 +326,7 @@ pub mod tests {
 
         #[test]
         fn route_one_connected(
-            ref gv in arb_grid((5..10), (5..10), 0.95)
+            ref gv in arb_grid(5..10, 5..10, 0.95)
                 .prop_filter("not connected", |ref g| g.is_connected())
                 .prop_flat_map(move |g| arb_gridview(g, 1..2)))
         {
@@ -349,7 +349,7 @@ pub mod tests {
 
         #[test]
         fn route_connected(
-            ref gv in arb_grid((5..10), (5..10), 0.95)
+            ref gv in arb_grid(5..10, 5..10, 0.95)
                 .prop_filter("not connected", |ref g| g.is_connected())
                 .prop_flat_map(uncrowded_arch_from_grid)
                 .prop_filter("starting collision",
