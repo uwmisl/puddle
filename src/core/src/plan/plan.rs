@@ -1,7 +1,6 @@
-use grid::{Droplet, DropletInfo, GridView, Location};
+use grid::{Droplet, GridView, Location};
 use exec::Action;
 use std::sync::mpsc::Sender;
-use process::ProcessId;
 use command::Command;
 use util::collections::Map;
 use plan::route::paths_to_actions;
@@ -28,10 +27,6 @@ impl Planner {
             gridview: gridview,
             exec_tx: exec_tx,
         }
-    }
-
-    pub fn droplet_info(&self, pid: ProcessId) -> Vec<DropletInfo> {
-        self.gridview.droplet_info(Some(pid))
     }
 
     pub fn plan<C: Command>(&mut self, cmd: C) -> Result<(), PlanError> {

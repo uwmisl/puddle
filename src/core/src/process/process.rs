@@ -63,14 +63,14 @@ impl Process {
 }
 
 impl Process {
-    pub fn flush(&self) -> PuddleResult<()> {
+    pub fn flush(&self) -> PuddleResult<Vec<DropletInfo>> {
         let (tx, rx) = channel();
-        let flush_cmd = command::Flush::new(tx);
+        let flush_cmd = command::Flush::new(self.id, tx);
 
         self.plan(flush_cmd)?;
-        rx.recv().unwrap();
+        let info = rx.recv().unwrap();
 
-        Ok(())
+        Ok(info)
     }
 
     pub fn input(&self, loc: Option<Location>, vol: f64) -> PuddleResult<DropletId> {
@@ -100,14 +100,6 @@ impl Process {
         let split_cmd = command::Split::new(d, out1, out2)?;
         self.plan(split_cmd)?;
         Ok((out1, out2))
-    }
-
-    pub fn droplet_info(&self) -> PuddleResult<Vec<DropletInfo>> {
-        // TODO do we need to flush here?
-        // self.flush()?;
-
-        let planner = self.planner.lock().unwrap();
-        Ok(planner.droplet_info(self.id))
     }
 }
 

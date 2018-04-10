@@ -16,11 +16,7 @@ fn manager_from_rect<'a>(rows: usize, cols: usize) -> Manager {
 }
 
 fn info_dict(p: &ProcessHandle) -> HashMap<DropletId, DropletInfo> {
-    p.droplet_info()
-        .unwrap()
-        .into_iter()
-        .map(|d| (d.id, d))
-        .collect()
+    p.flush().unwrap().into_iter().map(|d| (d.id, d)).collect()
 }
 
 fn float_epsilon_equal(float1: f64, float2: f64) -> bool {

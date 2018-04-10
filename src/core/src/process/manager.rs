@@ -59,7 +59,8 @@ impl Manager {
         let (cmd_tx, cmd_rx) = channel();
         let (mine, execs) = Endpoint::pair();
 
-        let mut executor = Executor::new(blocking, grid.clone());
+        let exec_gridview = GridView::new(grid.clone());
+        let mut executor = Executor::new(blocking, exec_gridview);
 
         let exec_thread = thread::Builder::new()
             .name("exec".into())

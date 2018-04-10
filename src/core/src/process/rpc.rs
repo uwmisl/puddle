@@ -98,7 +98,7 @@ impl Rpc for Arc<Manager> {
 
     fn droplet_info(&self, pid: ProcessId) -> PuddleResult<Vec<DropletInfo>> {
         let p = self.get_process(pid)?;
-        p.droplet_info()
+        p.flush()
     }
 
     fn visualizer_droplet_info(&self) -> PuddleResult<Vec<DropletInfo>> {
@@ -113,7 +113,7 @@ impl Rpc for Arc<Manager> {
 
     fn flush(&self, pid: ProcessId) -> PuddleResult<()> {
         let p = self.get_process(pid)?;
-        p.flush()
+        p.flush().map(|_result| ())
     }
 
     fn input(&self, pid: ProcessId, loc: Option<Location>, vol: f64) -> PuddleResult<DropletId> {

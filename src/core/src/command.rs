@@ -1,10 +1,10 @@
 use std::fmt::Debug;
 use std::sync::mpsc::Sender;
 
-use grid::{DropletId, Grid, Location};
+use grid::{DropletId, DropletInfo, Grid, Location};
 use exec::Action;
 
-use process::PuddleResult;
+use process::{ProcessId, PuddleResult};
 
 static EMPTY_IDS: &[DropletId] = &[];
 static EMPTY_LOCATIONS: &[Location] = &[];
@@ -115,12 +115,13 @@ lazy_static! {
 
 #[derive(Debug)]
 pub struct Flush {
-    tx: Sender<()>,
+    pid: ProcessId,
+    tx: Sender<Vec<DropletInfo>>,
 }
 
 impl Flush {
-    pub fn new(tx: Sender<()>) -> Flush {
-        Flush { tx }
+    pub fn new(pid: ProcessId, tx: Sender<Vec<DropletInfo>>) -> Flush {
+        Flush { pid, tx }
     }
 }
 
@@ -131,6 +132,7 @@ impl Command for Flush {
     fn actions(&self) -> Vec<Action> {
         vec![
             Action::Ping {
+                pid: self.pid,
                 tx: self.tx.clone(),
             },
         ]

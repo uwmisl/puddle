@@ -1,8 +1,9 @@
 use std::sync::mpsc::{Receiver, Sender};
 
 use util::endpoint::Endpoint;
-use grid::{DropletId, DropletInfo, Grid, GridView, Location};
+use grid::{DropletId, DropletInfo, GridView, Location};
 use plan::plan::Placement;
+use process::ProcessId;
 
 #[derive(Debug)]
 pub enum Action {
@@ -37,7 +38,8 @@ pub enum Action {
     Tick,
     // TODO should be more general
     Ping {
-        tx: Sender<()>,
+        pid: ProcessId,
+        tx: Sender<Vec<DropletInfo>>,
     },
 }
 
@@ -65,7 +67,7 @@ impl Action {
                 *location = placement[location];
             }
             Tick => {}
-            Ping { ref tx } => {}
+            Ping { pid, ref tx } => {}
         }
     }
 }
@@ -76,19 +78,17 @@ pub struct Executor {
 }
 
 impl Executor {
-    pub fn new(blocking: bool, grid: Grid) -> Self {
-        Executor {
-            blocking: blocking,
-            gridview: GridView::new(grid),
-        }
+    pub fn new(blocking: bool, gridview: GridView) -> Self {
+        Executor { blocking, gridview }
     }
 
     fn execute(&mut self, action: &Action) -> bool {
         debug!("executing {:?}", action);
         use self::Action::*;
         let keep_going = match action {
-            &Ping { ref tx } => {
-                tx.send(()).unwrap();
+            &Ping { pid, ref tx } => {
+                let info = self.gridview.droplet_info(Some(pid));
+                tx.send(info).unwrap();
                 true
             }
             &Tick => false,

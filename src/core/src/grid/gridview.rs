@@ -146,7 +146,7 @@ impl GridView {
                 });
             }
             // NOTE: ping does nothing here by default
-            Ping { tx: _ } => {}
+            Ping { .. } => {}
         }
     }
 }
