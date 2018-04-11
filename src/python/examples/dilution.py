@@ -125,12 +125,13 @@ with mk_session('../../tests/arches/arch-big.json') as session:
     c_high = 1
 
     c_target = .37
-    eps = 0.01
+    eps = 0.1
 
     def d_low_factory():
         return session.input(
             location = None,
             volume = 1,
+            dimensions = None,
             concentration = c_low,
             droplet_class = VolConcDroplet,
         )
@@ -139,6 +140,7 @@ with mk_session('../../tests/arches/arch-big.json') as session:
         return session.input(
             location = None,
             volume = 1,
+            dimensions = None,
             concentration = c_high,
             droplet_class = VolConcDroplet,
         )

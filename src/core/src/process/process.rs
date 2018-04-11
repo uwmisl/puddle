@@ -73,9 +73,14 @@ impl Process {
         Ok(info)
     }
 
-    pub fn input(&self, loc: Option<Location>, vol: f64) -> PuddleResult<DropletId> {
+    pub fn input(
+        &self,
+        loc: Option<Location>,
+        vol: f64,
+        dim: Option<Location>,
+    ) -> PuddleResult<DropletId> {
         let output = self.new_droplet_id();
-        let input_cmd = command::Input::new(loc, vol, output)?;
+        let input_cmd = command::Input::new(loc, vol, dim, output)?;
         self.plan(input_cmd)?;
         Ok(output)
     }

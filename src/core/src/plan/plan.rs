@@ -31,6 +31,7 @@ impl Planner {
 
     pub fn plan<C: Command>(&mut self, cmd: C) -> Result<(), PlanError> {
         debug!("placing (trusted = {}) {:?}", cmd.trust_placement(), cmd);
+        let command_info = cmd.dynamic_info(&self.gridview);
         let placement = if cmd.trust_placement() {
             // if we are trusting placement, just use an identity map
             self.gridview
@@ -42,13 +43,13 @@ impl Planner {
             // TODO place should be a method of gridview
             self.gridview
                 .grid
-                .place(cmd.shape(), &self.gridview.droplets)
+                .place(&command_info.shape, &self.gridview.droplets)
                 .ok_or(PlanError::PlaceError)?
         };
 
         debug!("placement for {:?}: {:?}", cmd, placement);
 
-        let in_locs = cmd.input_locations();
+        let in_locs = command_info.input_locations;
         let in_ids = cmd.input_droplets();
 
         assert_eq!(in_locs.len(), in_ids.len());
@@ -79,7 +80,7 @@ impl Planner {
         debug!("route for {:?}: {:?}", cmd, paths);
 
         let mut actions = paths_to_actions(paths);
-        let mut cmd_actions = cmd.actions();
+        let mut cmd_actions = command_info.actions;
         for mut a in &mut cmd_actions {
             a.translate(&placement);
         }

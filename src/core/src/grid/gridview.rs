@@ -134,8 +134,12 @@ impl GridView {
                 let d0 = self.remove(in0);
                 let d1 = self.remove(in1);
                 let vol = d0.volume + d1.volume;
+                let dim = Location {
+                    y: d0.dimensions.y + d1.dimensions.y,
+                    x: d0.dimensions.x + d1.dimensions.x,
+                };
                 assert_eq!(d0.location, d1.location);
-                self.insert(Droplet::new(out, vol, d0.location, Location { y: 1, x: 1 }));
+                self.insert(Droplet::new(out, vol, d0.location, dim));
             }
             Split { inp, out0, out1 } => {
                 let d = self.remove(inp);
@@ -145,21 +149,18 @@ impl GridView {
                     self.rng.sample(dist).min(d.volume).max(-d.volume)
                 });
 
+                // TODO: this should be related to volume in some fashion
+                // currently, take the ceiling of the division of the split by two
+                let dim = Location {
+                    y: (d.dimensions.y + 2 - 1) / 2,
+                    x: (d.dimensions.x + 2 - 1) / 2,
+                };
+
                 let vol0 = vol - err;
                 let vol1 = vol + err;
 
-                self.insert(Droplet::new(
-                    out0,
-                    vol0,
-                    d.location,
-                    Location { y: 1, x: 1 },
-                ));
-                self.insert(Droplet::new(
-                    out1,
-                    vol1,
-                    d.location,
-                    Location { y: 1, x: 1 },
-                ));
+                self.insert(Droplet::new(out0, vol0, d.location, dim));
+                self.insert(Droplet::new(out1, vol1, d.location, dim));
             }
             UpdateDroplet { old_id, new_id } => {
                 let mut d = self.remove(old_id);

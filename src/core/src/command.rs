@@ -1,3 +1,4 @@
+use grid::gridview::GridView;
 use std::fmt::Debug;
 use std::sync::mpsc::Sender;
 
@@ -7,7 +8,9 @@ use exec::Action;
 use process::{ProcessId, PuddleResult};
 
 static EMPTY_IDS: &[DropletId] = &[];
-static EMPTY_LOCATIONS: &[Location] = &[];
+
+const MIX_PADDING: usize = 3;
+const SPLIT_PADDING: usize = 4;
 
 // Send and 'static here are necessary to move trait objects around
 // TODO is that necessary
@@ -15,22 +18,13 @@ pub trait Command: Debug + Send + 'static {
     fn input_droplets(&self) -> &[DropletId] {
         EMPTY_IDS
     }
-    fn input_locations(&self) -> &[Location] {
-        EMPTY_LOCATIONS
-    }
     fn output_droplets(&self) -> &[DropletId] {
         EMPTY_IDS
     }
-    fn output_locations(&self) -> &[Location] {
-        EMPTY_LOCATIONS
-    }
-    fn shape(&self) -> &Grid;
-    fn actions(&self) -> Vec<Action>;
-
+    fn dynamic_info(&self, &GridView) -> DynamicCommandInfo;
     fn is_blocking(&self) -> bool {
         false
     }
-
     fn trust_placement(&self) -> bool {
         false
     }
@@ -40,26 +34,36 @@ pub trait Command: Debug + Send + 'static {
 //  Input
 //
 
-lazy_static! {
-    static ref INPUT_SHAPE: Grid = Grid::rectangle(1,1);
-    static ref INPUT_INPUT_LOCS: Vec<Location> = vec![];
-}
-
 #[derive(Debug)]
 pub struct Input {
     inputs: Vec<DropletId>,
     outputs: Vec<DropletId>,
     location: Vec<Location>,
+    dimensions: Vec<Location>,
     volume: f64,
     trusted: bool,
 }
 
+#[derive(Debug)]
+pub struct DynamicCommandInfo {
+    pub shape: Grid,
+    pub input_locations: Vec<Location>,
+    pub actions: Vec<Action>,
+}
+
+// TODO: dimensions probably shouldn't be optional?
 impl Input {
-    pub fn new(loc: Option<Location>, vol: f64, out_id: DropletId) -> PuddleResult<Input> {
+    pub fn new(
+        loc: Option<Location>,
+        vol: f64,
+        dim: Option<Location>,
+        out_id: DropletId,
+    ) -> PuddleResult<Input> {
         Ok(Input {
             inputs: vec![],
             outputs: vec![out_id],
             location: vec![loc.unwrap_or(Location { y: 0, x: 0 })],
+            dimensions: vec![dim.unwrap_or(Location { y: 1, x: 1 })],
             volume: vol,
             trusted: loc.is_some(),
         })
@@ -75,43 +79,35 @@ impl Command for Input {
         self.outputs.as_slice()
     }
 
-    fn input_locations(&self) -> &[Location] {
-        INPUT_INPUT_LOCS.as_slice()
-    }
+    fn dynamic_info(&self, _gridview: &GridView) -> DynamicCommandInfo {
+        let dim = self.dimensions[0];
+        let grid = Grid::rectangle(dim.y as usize, dim.x as usize);
 
-    fn output_locations(&self) -> &[Location] {
-        &self.location
-    }
+        let actions = vec![
+            Action::AddDroplet {
+                id: self.outputs[0],
+                location: self.location[0],
+                dimensions: dim,
+                volume: self.volume,
+            },
+            Action::Tick,
+        ];
 
-    fn shape(&self) -> &Grid {
-        &INPUT_SHAPE
+        DynamicCommandInfo {
+            shape: grid,
+            input_locations: vec![],
+            actions: actions,
+        }
     }
 
     fn trust_placement(&self) -> bool {
         self.trusted
-    }
-
-    fn actions(&self) -> Vec<Action> {
-        vec![
-            Action::AddDroplet {
-                id: self.outputs[0],
-                location: self.location[0],
-                dimensions: Location { y: 1, x: 1 },
-                volume: self.volume,
-            },
-            Action::Tick,
-        ]
     }
 }
 
 //
 // Flush
 //
-
-lazy_static! {
-    /// Flush shape is just empty because it doesn't need to be placed
-    static ref FLUSH_SHAPE: Grid = Grid::rectangle(0,0);
-}
 
 #[derive(Debug)]
 pub struct Flush {
@@ -126,26 +122,24 @@ impl Flush {
 }
 
 impl Command for Flush {
-    fn shape(&self) -> &Grid {
-        &FLUSH_SHAPE
-    }
-    fn actions(&self) -> Vec<Action> {
-        vec![
+    fn dynamic_info(&self, _gridview: &GridView) -> DynamicCommandInfo {
+        let actions = vec![
             Action::Ping {
                 pid: self.pid,
                 tx: self.tx.clone(),
             },
-        ]
+        ];
+        DynamicCommandInfo {
+            shape: Grid::rectangle(0, 0),
+            input_locations: vec![],
+            actions: actions,
+        }
     }
 }
 
 //
 //  Move
 //
-
-lazy_static! {
-    static ref MOVE_SHAPE: Grid = Grid::rectangle(0,0);
-}
 
 #[derive(Debug)]
 pub struct Move {
@@ -173,26 +167,19 @@ impl Command for Move {
         self.outputs.as_slice()
     }
 
-    fn input_locations(&self) -> &[Location] {
-        &self.destination
-    }
-
-    fn output_locations(&self) -> &[Location] {
-        &self.destination
-    }
-
-    fn shape(&self) -> &Grid {
-        &MOVE_SHAPE
+    fn dynamic_info(&self, _gridview: &GridView) -> DynamicCommandInfo {
+        let old_id = self.inputs[0];
+        let new_id = self.outputs[0];
+        let actions = vec![Action::UpdateDroplet { old_id, new_id }];
+        DynamicCommandInfo {
+            shape: Grid::rectangle(0, 0),
+            input_locations: vec![self.destination[0]],
+            actions: actions,
+        }
     }
 
     fn trust_placement(&self) -> bool {
         true
-    }
-
-    fn actions(&self) -> Vec<Action> {
-        let old_id = self.inputs[0];
-        let new_id = self.outputs[0];
-        vec![Action::UpdateDroplet { old_id, new_id }]
     }
 }
 
@@ -201,16 +188,7 @@ impl Command for Move {
 //
 
 lazy_static! {
-    static ref MIX_SHAPE: Grid = Grid::rectangle(3,2);
-    static ref MIX_INPUT_LOCS: Vec<Location> =
-        vec![
-            Location {y: 0, x: 0},
-            Location {y: 2, x: 0},
-        ];
-    static ref MIX_OUTPUT_LOCS: Vec<Location> =
-        vec![
-            Location {y: 0, x: 0},
-        ];
+
     static ref MIX_LOOP: Vec<Location> =
         vec![(0,0), (0,1), (1,1), (2,1), (2,0), (1,0), (0,0)]
         .iter()
@@ -242,38 +220,43 @@ impl Command for Mix {
         self.outputs.as_slice()
     }
 
-    fn input_locations(&self) -> &[Location] {
-        MIX_INPUT_LOCS.as_slice()
-    }
+    fn dynamic_info(&self, gridview: &GridView) -> DynamicCommandInfo {
+        let droplets = &gridview.droplets;
 
-    fn output_locations(&self) -> &[Location] {
-        MIX_OUTPUT_LOCS.as_slice()
-    }
+        // defines grid shape
+        let d0 = droplets.get(&self.inputs[0]).unwrap();
+        let d1 = droplets.get(&self.inputs[1]).unwrap();
+        let x_dim = (d0.dimensions.x as usize) + (d1.dimensions.x as usize) + MIX_PADDING;
+        let y_dim = (d0.dimensions.y as usize) + (d1.dimensions.y as usize) + MIX_PADDING;
+        let grid = Grid::rectangle(y_dim, x_dim);
 
-    fn shape(&self) -> &Grid {
-        &MIX_SHAPE
-    }
+        let start_d1 = d0.dimensions.y + 1;
 
-    fn actions(&self) -> Vec<Action> {
+        let input_locations = vec![Location { y: 0, x: 0 }, Location { y: start_d1, x: 0 }];
+
         let out = self.outputs[0];
+
         // this first set of actions moves d1 into d0 and performs the combine
         // we cannot tick in between; it would cause a collision
-        let mut acts = vec![
-            Action::MoveDroplet {
+        let mut acts = vec![];
+
+        // TODO: switch to inclusive range syntax once stable
+        for dim in 1..(start_d1 + 1) {
+            acts.push(Action::MoveDroplet {
                 id: self.inputs[1],
-                location: Location { y: 1, x: 0 },
-            },
-            Action::MoveDroplet {
-                id: self.inputs[1],
-                location: Location { y: 0, x: 0 },
-            },
-            Action::Mix {
-                in0: self.inputs[0],
-                in1: self.inputs[1],
-                out: out,
-            },
-            Action::Tick,
-        ];
+                location: Location {
+                    y: (start_d1 - dim),
+                    x: 0,
+                },
+            });
+        }
+
+        acts.push(Action::Mix {
+            in0: self.inputs[0],
+            in1: self.inputs[1],
+            out: out,
+        });
+        acts.push(Action::Tick);
 
         for loc in MIX_LOOP.iter() {
             acts.push(Action::MoveDroplet {
@@ -282,36 +265,18 @@ impl Command for Mix {
             });
             acts.push(Action::Tick);
         }
-        acts
+
+        DynamicCommandInfo {
+            shape: grid,
+            input_locations: input_locations,
+            actions: acts,
+        }
     }
 }
 
 //
 //  Split
 //
-
-lazy_static! {
-    static ref SPLIT_SHAPE: Grid = Grid::rectangle(1,5);
-    static ref SPLIT_INPUT_LOCS: Vec<Location> =
-        vec![
-            Location {y: 0, x: 2},
-        ];
-    static ref SPLIT_OUTPUT_LOCS: Vec<Location> =
-        vec![
-            Location {y: 0, x: 0},
-            Location {y: 0, x: 4},
-        ];
-    static ref SPLIT_PATH0: Vec<Location> =
-        vec![
-            Location {y: 0, x: 1},
-            Location {y: 0, x: 0},
-        ];
-    static ref SPLIT_PATH1: Vec<Location> =
-        vec![
-            Location {y: 0, x: 3},
-            Location {y: 0, x: 4},
-        ];
-}
 
 #[derive(Debug)]
 pub struct Split {
@@ -337,19 +302,20 @@ impl Command for Split {
         self.outputs.as_slice()
     }
 
-    fn input_locations(&self) -> &[Location] {
-        SPLIT_INPUT_LOCS.as_slice()
-    }
+    fn dynamic_info(&self, gridview: &GridView) -> DynamicCommandInfo {
+        let droplets = &gridview.droplets;
+        let d0 = droplets.get(&self.inputs[0]).unwrap();
+        let x_dim = (d0.dimensions.x as usize) + SPLIT_PADDING;
+        let y_dim = (d0.dimensions.y as usize) + SPLIT_PADDING;
+        let grid = Grid::rectangle(y_dim, x_dim);
 
-    fn output_locations(&self) -> &[Location] {
-        SPLIT_OUTPUT_LOCS.as_slice()
-    }
+        let input_locations = vec![
+            Location {
+                y: 0,
+                x: d0.dimensions.x,
+            },
+        ];
 
-    fn shape(&self) -> &Grid {
-        &SPLIT_SHAPE
-    }
-
-    fn actions(&self) -> Vec<Action> {
         let inp = self.inputs[0];
         let mut acts = vec![
             Action::Split {
@@ -359,23 +325,34 @@ impl Command for Split {
             },
         ];
 
+        let mid = d0.dimensions.x;
+
         // NOTE
         // we cannot tick here because a collision will happen!
         // only tick after they've moved apart
         // TODO incorporate this into split somehow?
-
-        for (l0, l1) in SPLIT_PATH0.iter().zip(SPLIT_PATH1.iter()) {
+        for dim in 1..(mid + 1) {
             acts.push(Action::MoveDroplet {
                 id: self.outputs[0],
-                location: *l0,
+                location: Location {
+                    y: 0,
+                    x: (mid - dim),
+                },
             });
             acts.push(Action::MoveDroplet {
                 id: self.outputs[1],
-                location: *l1,
+                location: Location {
+                    y: 0,
+                    x: (mid + dim),
+                },
             });
             acts.push(Action::Tick);
         }
 
-        acts
+        DynamicCommandInfo {
+            shape: grid,
+            input_locations: input_locations,
+            actions: acts,
+        }
     }
 }

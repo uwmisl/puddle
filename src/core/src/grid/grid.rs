@@ -90,8 +90,16 @@ impl Grid {
             let their_loc = &loc + &offset;
             bigger.get_cell(&their_loc).map_or(false, |theirs| {
                 my_cell.is_compatible(&theirs) && !droplets.values().any(|droplet| {
-                    (their_loc.x - droplet.location.x).abs() < 3
-                        && (their_loc.y - droplet.location.y).abs() < 3
+                    let mut threshold_x = 3;
+                    let mut threshold_y = 3;
+                    if droplet.dimensions.x >= 3 {
+                        threshold_x = droplet.dimensions.x + 1;
+                    }
+                    if droplet.dimensions.y >= 3 {
+                        threshold_y = droplet.dimensions.y + 1;
+                    }
+                    (their_loc.x - droplet.location.x).abs() < threshold_x
+                        && (their_loc.y - droplet.location.y).abs() < threshold_y
                 })
             })
         })
