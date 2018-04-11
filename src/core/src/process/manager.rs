@@ -4,7 +4,7 @@ use std::sync::mpsc::channel;
 use std::ops::{Deref, DerefMut, Drop};
 
 use process::{Process, ProcessId, PuddleError, PuddleResult};
-use grid::{DropletInfo, Grid, GridView};
+use grid::{DropletInfo, ErrorOptions, Grid, GridView};
 use exec::Executor;
 
 use util::collections::Map;
@@ -55,11 +55,12 @@ pub struct Manager {
 // TODO impl drop
 
 impl Manager {
-    pub fn new(blocking: bool, grid: Grid) -> Manager {
+    pub fn new(blocking: bool, grid: Grid, err_opts: ErrorOptions) -> Manager {
         let (cmd_tx, cmd_rx) = channel();
         let (mine, execs) = Endpoint::pair();
 
-        let exec_gridview = GridView::new(grid.clone());
+        // the executor's gridview *does* care about error
+        let exec_gridview = GridView::new(grid.clone(), err_opts);
         let mut executor = Executor::new(blocking, exec_gridview);
 
         let exec_thread = thread::Builder::new()
@@ -67,8 +68,9 @@ impl Manager {
             .spawn(move || executor.run(cmd_rx, execs))
             .expect("Execution thread failed to start!");
 
-        let gridview = GridView::new(grid);
-        let planner = Planner::new(gridview, cmd_tx);
+        // the planning gridview doesn't have any error on its own
+        let plan_gridview = GridView::new_with_defaults(grid);
+        let planner = Planner::new(plan_gridview, cmd_tx);
 
         Manager {
             exec_thread: exec_thread,

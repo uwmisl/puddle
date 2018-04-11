@@ -6,5 +6,5 @@ mod parse;
 
 pub use self::droplet::*;
 pub use self::grid::{Cell, Grid};
-pub use self::gridview::GridView;
+pub use self::gridview::{ErrorOptions, GridView};
 pub use self::location::Location;

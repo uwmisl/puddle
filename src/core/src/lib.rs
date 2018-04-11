@@ -37,5 +37,5 @@ mod plan;
 mod command;
 mod process;
 
-pub use grid::{DropletId, DropletInfo, Grid, Location};
+pub use grid::{DropletId, DropletInfo, ErrorOptions, Grid, Location};
 pub use process::*;

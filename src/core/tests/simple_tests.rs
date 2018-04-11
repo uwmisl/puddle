@@ -6,11 +6,18 @@ extern crate crossbeam;
 
 extern crate env_logger;
 
-use puddle_core::{DropletId, DropletInfo, Grid, Location, Manager, ProcessHandle};
+use puddle_core::*;
 
 fn manager_from_rect<'a>(rows: usize, cols: usize) -> Manager {
+    manager_from_rect_with_error(rows, cols, 0.0)
+}
+
+fn manager_from_rect_with_error<'a>(rows: usize, cols: usize, split_err: f64) -> Manager {
     let grid = Grid::rectangle(rows, cols);
-    let man = Manager::new(false, grid);
+    let err_opts = ErrorOptions {
+        split_error_stdev: split_err,
+    };
+    let man = Manager::new(false, grid, err_opts);
     let _ = env_logger::try_init();
     man
 }
@@ -105,6 +112,20 @@ fn mix_split() {
 
     assert!(float_epsilon_equal(droplets[&id3].volume, 1.0));
     assert!(float_epsilon_equal(droplets[&id5].volume, 0.5));
+}
+
+#[test]
+fn split_with_error() {
+    let man = manager_from_rect_with_error(5, 5, 0.1);
+    let p = man.get_new_process("test");
+
+    let id0 = p.input(None, 1.0).unwrap();
+    let (id1, id2) = p.split(id0).unwrap();
+
+    let droplets = info_dict(&p);
+
+    // there is basically 0 chance that an error did not occur
+    assert_ne!(droplets[&id1].volume, droplets[&id2].volume);
 }
 
 #[test]

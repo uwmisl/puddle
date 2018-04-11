@@ -1,3 +1,6 @@
+use rand::{IsaacRng, Rng};
+use rand::distributions::Normal;
+
 use super::{Droplet, DropletId, DropletInfo, Grid, Location};
 
 use exec::Action;
@@ -9,14 +12,28 @@ use util::collections::Map;
 pub struct GridView {
     pub grid: Grid,
     pub droplets: Map<DropletId, Droplet>,
+    rng: IsaacRng,
+    split_error_stdev: Option<Normal>,
+}
+
+#[derive(Default, Deserialize)]
+pub struct ErrorOptions {
+    #[serde(default)]
+    pub split_error_stdev: f64,
 }
 
 impl GridView {
-    pub fn new(grid: Grid) -> GridView {
+    pub fn new(grid: Grid, opts: ErrorOptions) -> GridView {
         GridView {
             grid: grid,
             droplets: Map::new(),
+            rng: IsaacRng::new_from_u64(0),
+            split_error_stdev: Some(Normal::new(0.0, opts.split_error_stdev)),
         }
+    }
+
+    pub fn new_with_defaults(grid: Grid) -> GridView {
+        GridView::new(grid, ErrorOptions::default())
     }
 
     /// Returns an invalid droplet, if any.
@@ -123,8 +140,26 @@ impl GridView {
             Split { inp, out0, out1 } => {
                 let d = self.remove(inp);
                 let vol = d.volume / 2.0;
-                self.insert(Droplet::new(out0, vol, d.location, Location { y: 1, x: 1 }));
-                self.insert(Droplet::new(out1, vol, d.location, Location { y: 1, x: 1 }));
+                // create the error and clamp it to reasonable values
+                let err = self.split_error_stdev.map_or(0.0, |dist| {
+                    self.rng.sample(dist).min(d.volume).max(-d.volume)
+                });
+
+                let vol0 = vol - err;
+                let vol1 = vol + err;
+
+                self.insert(Droplet::new(
+                    out0,
+                    vol0,
+                    d.location,
+                    Location { y: 1, x: 1 },
+                ));
+                self.insert(Droplet::new(
+                    out1,
+                    vol1,
+                    d.location,
+                    Location { y: 1, x: 1 },
+                ));
             }
             UpdateDroplet { old_id, new_id } => {
                 let mut d = self.remove(old_id);
@@ -203,9 +238,10 @@ pub mod tests {
             droplet_gen.prop_map(|ds| ds.iter().map(|d| (d.id, d.clone())).collect());
         // can't use prop_compose! because we need to move the map here
         droplet_map_gen
-            .prop_map(move |dmap| GridView {
-                grid: grid.clone(),
-                droplets: dmap,
+            .prop_map(move |dmap| {
+                let mut g = GridView::new_with_defaults(grid.clone());
+                g.droplets = dmap;
+                g
             })
             .boxed()
     }
