@@ -300,20 +300,6 @@ pub mod tests {
     use grid::grid::tests::arb_grid;
     use grid::gridview::tests::arb_gridview;
 
-    pub fn check_path_on_grid(droplet: &Droplet, path: &Path, grid: &Grid) {
-        assert_eq!(droplet.location, path[0]);
-        let dest = match droplet.destination {
-            Some(x) => x,
-            None => droplet.location,
-        };
-        assert_eq!(dest, path[path.len() - 1]);
-        for win in path.windows(2) {
-            assert!(grid.get_cell(&win[0]).is_some());
-            assert!(grid.get_cell(&win[1]).is_some());
-            assert!(win[0].distance_to(&win[1]) <= 1);
-        }
-    }
-
     fn uncrowded_arch_from_grid(grid: Grid) -> BoxedStrategy<GridView> {
         let height = grid.vec.len();
         let width = grid.vec.iter().map(|row| row.len()).min().unwrap();
@@ -331,7 +317,9 @@ pub mod tests {
                 .prop_flat_map(move |g| arb_gridview(g, 1..2)))
         {
             let _ = env_logger::try_init();
-            let droplet = gv.droplets.values().next().unwrap();
+            let mut gv = gv.clone();
+            // have to clone here so we can mutate gv later
+            let droplet = gv.droplets.values().next().unwrap().clone();
             let num_cells = gv.grid.locations().count();
 
             let path = route_one(
@@ -342,9 +330,13 @@ pub mod tests {
                         Some(x) => x,
                         None => droplet.location
                     }
-            )
-                .unwrap();
-            check_path_on_grid(&droplet, &path, &gv.grid)
+            ).unwrap();
+
+            let mut path_map = Map::new();
+            path_map.insert(droplet.id, path);
+            for a in &paths_to_actions(path_map) {
+                gv.execute(a);
+            }
         }
 
         #[test]
@@ -359,15 +351,18 @@ pub mod tests {
         )
         {
             let _ = env_logger::try_init();
-            let gv = gv.clone();
+            let mut gv = gv.clone();
+            let route_result = gv.route();
+
             debug!("Running test with {} droplets, routes={}",
-                   gv.droplets.len(),
-                   gv.route().is_some());
-            prop_assume!(gv.route().is_some());
-            let paths = gv.route().unwrap();
+                   gv.droplets.len(), route_result.is_some());
+
+            let paths = route_result.unwrap();
             prop_assert_eq!(paths.len(), gv.droplets.len());
-            // FIXME!!
-            // arch.take_paths(paths, || {})
+
+            for a in &paths_to_actions(paths) {
+                gv.execute(a);
+            }
         }
     }
 }
