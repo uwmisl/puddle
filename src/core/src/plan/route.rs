@@ -130,7 +130,7 @@ impl Node {
             .iter()
             .map(|&location| {
                 (
-                    1,
+                    100,
                     Node {
                         location,
                         time: self.time + 1,
@@ -140,7 +140,7 @@ impl Node {
             .collect();
 
         vec.push((
-            100,
+            1,
             Node {
                 location: self.location,
                 time: self.time + 1,
