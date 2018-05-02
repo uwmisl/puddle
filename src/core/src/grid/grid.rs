@@ -242,11 +242,6 @@ pub mod tests {
     use super::*;
 
     use std::iter::FromIterator;
-    use std::ops::Range;
-
-    use proptest::prelude::*;
-    use proptest::collection::vec;
-    use proptest::option::weighted;
 
     #[test]
     fn test_connected() {
@@ -262,45 +257,22 @@ pub mod tests {
         assert!(grid2.is_connected())
     }
 
-    prop_compose! {
-        fn arb_cell()(pin in prop::num::u32::ANY) -> Cell {
-            Cell { pin: pin }
-        }
+    #[test]
+    fn grid_self_compatible() {
+        let g1 = Grid::rectangle(5, 4);
+        let g2 = Grid::rectangle(5, 4);
+        let zero = Location { x: 0, y: 0 };
+        assert!(g1.is_compatible_within(zero, &g2, &Map::new()))
     }
 
-    prop_compose! {
-        [pub] fn arb_grid (height_range: Range<usize>, width_range: Range<usize>,
-                           density: f64)
-            (v in vec(vec(weighted(density, arb_cell()),
-                          width_range),
-                      height_range))
-             -> Grid
-        {
-            Grid {
-                vec: v,
-            }
-        }
-    }
+    #[test]
+    fn grid_self_place() {
+        let grid = Grid::rectangle(5, 4);
 
-    proptest! {
-        #[test]
-        fn grid_self_compatible(ref grid in arb_grid(1..10, 1..10, 0.5)) {
-            let zero = Location {x: 0, y: 0};
-            prop_assert!(grid.is_compatible_within(zero, &grid, &Map::new()))
-        }
+        let map = grid.place(&grid, &Map::new()).unwrap();
 
-        #[test]
-        fn grid_self_place(ref grid in arb_grid(1..10, 1..10, 0.5)) {
-            let num_cells = grid.locations().count();
-            prop_assume!( num_cells > 5 );
-
-            let map = grid.place(&grid, &Map::new()).unwrap();
-
-            let my_locs: Map<Location, Location> = Map::from_iter(
-                grid.locations()
-                    .map(|(loc, _)| (loc, loc))
-            );
-            prop_assert_eq!(&my_locs, &map);
-        }
+        let identity_locs: Map<Location, Location> =
+            Map::from_iter(grid.locations().map(|(loc, _)| (loc, loc)));
+        assert_eq!(&identity_locs, &map);
     }
 }

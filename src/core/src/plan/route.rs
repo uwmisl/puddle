@@ -291,78 +291,7 @@ where
 
 #[cfg(test)]
 pub mod tests {
-    use env_logger;
 
-    use super::*;
+    // TODO make some tests
 
-    use proptest::prelude::*;
-
-    use grid::grid::tests::arb_grid;
-    use grid::gridview::tests::arb_gridview;
-
-    fn uncrowded_arch_from_grid(grid: Grid) -> BoxedStrategy<GridView> {
-        let height = grid.vec.len();
-        let width = grid.vec.iter().map(|row| row.len()).min().unwrap();
-        let max_dim = height.min(width) / 2;
-        let max_droplets = (max_dim as usize).max(1);
-        arb_gridview(grid, 0..max_droplets)
-    }
-
-    proptest! {
-
-        #[test]
-        fn route_one_connected(
-            ref gv in arb_grid(5..10, 5..10, 0.95)
-                .prop_filter("not connected", |ref g| g.is_connected())
-                .prop_flat_map(move |g| arb_gridview(g, 1..2)))
-        {
-            let _ = env_logger::try_init();
-            let mut gv = gv.clone();
-            // have to clone here so we can mutate gv later
-            let droplet = gv.droplets.values().next().unwrap().clone();
-            let num_cells = gv.grid.locations().count();
-
-            let path = route_one(
-                &droplet,
-                num_cells as Time,
-                |node| node.expand(&gv.grid),
-                |node| node.location == match droplet.destination {
-                        Some(x) => x,
-                        None => droplet.location
-                    }
-            ).unwrap();
-
-            let mut path_map = Map::new();
-            path_map.insert(droplet.id, path);
-            for a in &paths_to_actions(path_map) {
-                gv.execute(a);
-            }
-        }
-
-        #[test]
-        fn route_connected(
-            ref gv in arb_grid(5..10, 5..10, 0.95)
-                .prop_filter("not connected", |ref g| g.is_connected())
-                .prop_flat_map(uncrowded_arch_from_grid)
-                .prop_filter("starting collision",
-                             |ref gv| gv.get_collision().is_none())
-                .prop_filter("ending collision",
-                             |ref gv| gv.get_destination_collision().is_none())
-        )
-        {
-            let _ = env_logger::try_init();
-            let mut gv = gv.clone();
-            let route_result = gv.route();
-
-            debug!("Running test with {} droplets, routes={}",
-                   gv.droplets.len(), route_result.is_some());
-
-            let paths = route_result.unwrap();
-            prop_assert_eq!(paths.len(), gv.droplets.len());
-
-            for a in &paths_to_actions(paths) {
-                gv.execute(a);
-            }
-        }
-    }
 }

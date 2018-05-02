@@ -9,10 +9,6 @@ extern crate serde_json;
 #[cfg(test)]
 extern crate glob;
 
-#[cfg(test)]
-#[macro_use]
-extern crate proptest;
-
 #[macro_use]
 extern crate lazy_static;
 

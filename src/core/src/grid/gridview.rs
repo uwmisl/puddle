@@ -188,61 +188,7 @@ impl GridView {
 
 #[cfg(test)]
 pub mod tests {
-    use super::*;
-    use Location;
 
-    use process::tests::*;
+    // TODO make some unit tests
 
-    use proptest::prelude::*;
-    use proptest::collection::vec;
-    use proptest::sample::select;
-
-    use std::ops::Range;
-
-    prop_compose! {
-        fn arb_droplet_id()
-            (id in prop::num::usize::ANY,
-             pid in arb_process_id())
-             -> DropletId
-        {
-            DropletId {
-                id: id,
-                process_id: pid
-            }
-        }
-    }
-
-    prop_compose! {
-        fn arb_droplet(locations: Vec<Location>)
-            (loc  in select(locations.clone()),
-             id in arb_droplet_id(),
-             dest in select(locations),
-             cg in prop::num::usize::ANY)
-            -> Droplet
-        {
-            Droplet {
-                id: id,
-                location: loc,
-                dimensions: Location {y: 1, x: 1},
-                volume: 1.0,
-                destination: Some(dest),
-                collision_group: cg,
-            }
-        }
-    }
-
-    pub fn arb_gridview(grid: Grid, n_droplets: Range<usize>) -> BoxedStrategy<GridView> {
-        let locs = grid.locations().map(|(loc, _)| loc).collect();
-        let droplet_gen = vec(arb_droplet(locs), n_droplets);
-        let droplet_map_gen =
-            droplet_gen.prop_map(|ds| ds.iter().map(|d| (d.id, d.clone())).collect());
-        // can't use prop_compose! because we need to move the map here
-        droplet_map_gen
-            .prop_map(move |dmap| {
-                let mut g = GridView::new_with_defaults(grid.clone());
-                g.droplets = dmap;
-                g
-            })
-            .boxed()
-    }
 }

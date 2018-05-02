@@ -105,16 +105,5 @@ impl Process {
 
 #[cfg(test)]
 pub mod tests {
-    use super::*;
-    use proptest::prelude::*;
-    use proptest::num::u8::ANY as u8ANY;
-
-    prop_compose! {
-        [pub] fn arb_process_id()
-            (vec in prop::collection::vec(u8ANY, 16..17))
-             -> ProcessId
-        {
-            Uuid::from_bytes(&vec).unwrap()
-        }
-    }
+    // TODO do we need tests here?
 }

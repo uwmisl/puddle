@@ -22,8 +22,7 @@ clap = "^2.29.4"
 log = "^0.4.1"
 
 crossbeam = "0.3.2"
+env_logger = "^0.5.3"
 
 [dev-dependencies]
-proptest = "^0.4"
 glob = "^0.2"
-env_logger = "^0.5.3"

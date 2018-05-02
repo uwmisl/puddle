@@ -6,6 +6,10 @@ extern crate clap;
 #[macro_use]
 extern crate rouille;
 
+extern crate env_logger;
+#[macro_use]
+extern crate log;
+
 use std::fs::File;
 use std::io::Read;
 use std::sync::Arc;
@@ -26,13 +30,13 @@ fn handle(ioh: &IoHandler, req: &Request) -> Response {
     let mut body = req.data().expect("body already retrieved!");
     body.read_to_string(&mut req_string).expect("read failed");
 
-    eprintln!("req: ({})", &req_string);
+    info!("req: ({})", &req_string);
 
     // handle the request with jsonrpc, then convert to IronResult
     let resp_data = &ioh.handle_request_sync(&req_string)
         .expect("handle failed!");
     let resp = Response::from_data("application/json", resp_data.bytes().collect::<Vec<_>>());
-    // eprintln!("Resp: {:?}", resp_data);
+    debug!("Resp: {:?}", resp_data);
     resp
 }
 
@@ -61,6 +65,8 @@ fn run(matches: ArgMatches) -> Result<(), Box<::std::error::Error>> {
     let host = matches.value_of("host").unwrap();
     let port = matches.value_of("port").unwrap();
     let address = format!("{}:{}", host, port);
+
+    // this has to be a print, not a log, because the python lib looks for it
     println!("Listening on http://{}", address);
 
     rouille::start_server(address, move |request| {
@@ -101,6 +107,9 @@ fn check_dir(dir: String) -> Result<(), String> {
 }
 
 fn main() {
+    // enable logging
+    let _ = env_logger::try_init();
+
     let matches = App::new("puddle")
         .version("0.1")
         .author("Max Willsey <me@mwillsey.com>")
@@ -142,7 +151,7 @@ fn main() {
     ::std::process::exit(match run(matches) {
         Ok(_) => 0,
         Err(err) => {
-            eprintln!("error: {}", err);
+            error!("error: {}", err);
             1
         }
     });
