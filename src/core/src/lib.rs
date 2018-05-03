@@ -16,8 +16,6 @@ extern crate jsonrpc_core;
 #[macro_use]
 extern crate jsonrpc_macros;
 
-extern crate uuid;
-
 #[cfg(test)]
 extern crate env_logger;
 #[macro_use]

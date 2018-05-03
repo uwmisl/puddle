@@ -3,8 +3,6 @@ use std::sync::mpsc::channel;
 use std::sync::atomic::AtomicUsize;
 use std::sync::atomic::Ordering::Relaxed;
 
-use uuid::Uuid;
-
 use grid::{DropletId, DropletInfo, Location};
 
 use command;
@@ -23,7 +21,7 @@ use PuddleError::*;
 
 pub type PuddleResult<T> = Result<T, PuddleError>;
 
-pub type ProcessId = Uuid;
+pub type ProcessId = usize;
 
 pub struct Process {
     id: ProcessId,
@@ -35,10 +33,12 @@ pub struct Process {
     // unresolved_droplet_ids: Mutex<Set<DropletId>>,
 }
 
+static NEXT_PROCESS_ID: AtomicUsize = AtomicUsize::new(0);
+
 impl Process {
     pub fn new(name: String, planner: Arc<Mutex<Planner>>) -> Process {
         Process {
-            id: Uuid::new_v4(),
+            id: NEXT_PROCESS_ID.fetch_add(1, Relaxed),
             name: name,
             next_droplet_id: AtomicUsize::new(0),
             planner: planner,

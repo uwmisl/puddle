@@ -104,8 +104,6 @@ impl Droplet {
 
 #[cfg(test)]
 pub mod tests {
-    use uuid::Uuid;
-
     use super::{Droplet, DropletId, Location};
 
     #[test]
@@ -114,7 +112,7 @@ pub mod tests {
         Droplet::new(
             DropletId {
                 id: 0,
-                process_id: Uuid::new_v4(),
+                process_id: 0,
             },
             1.0,
             Location { y: 0, x: 0 },
