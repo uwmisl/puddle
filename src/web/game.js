@@ -175,8 +175,12 @@ function add_drop(json) {
     let s = game.add.sprite((json.location.x * CELL_SIZE) + CELL_SIZE,
         (json.location.y * CELL_SIZE)+ CELL_SIZE);
     let graphics = game.add.graphics(0, 0);
-    let width = Math.sqrt(json.volume) * CELL_SIZE * json.dimensions.x;
-    let height = Math.sqrt(json.volume) * CELL_SIZE * json.dimensions.y;
+
+    // increase the volume proportional to the sqrt of how much bigger the area is than the volume
+    let area = json.dimensions.x * json.dimensions.y;
+    let vol_bump = Math.sqrt(area / json.volume);
+    let width = vol_bump * CELL_SIZE * json.dimensions.x;
+    let height = vol_bump * CELL_SIZE * json.dimensions.y;
     graphics.beginFill(0x006699)
         .drawRoundedRect(0, 0, width, height, width)
         .endFill();
