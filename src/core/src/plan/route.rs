@@ -1,4 +1,5 @@
 use std::collections::HashSet;
+use std::time::Instant;
 
 use plan::minheap::MinHeap;
 use grid::{Droplet, DropletId, Grid, GridView, Location};
@@ -48,6 +49,9 @@ struct Node {
 
 type Time = u32;
 type Cost = u32;
+const MOVE_COST: Cost = 100;
+const STAY_COST: Cost = 1;
+
 type NextVec = Vec<(Cost, Node)>;
 
 #[derive(Default)]
@@ -130,7 +134,7 @@ impl Node {
             .iter()
             .map(|&location| {
                 (
-                    100,
+                    MOVE_COST,
                     Node {
                         location,
                         time: self.time + 1,
@@ -140,7 +144,7 @@ impl Node {
             .collect();
 
         vec.push((
-            1,
+            STAY_COST,
             Node {
                 location: self.location,
                 time: self.time + 1,
@@ -213,20 +217,14 @@ where
     FNext: FnMut(&Node) -> NextVec,
     FDone: FnMut(&Node) -> bool,
 {
-    trace!(
-        "Routing droplet {} from {} to {}",
-        droplet.id.id,
-        droplet.location,
-        droplet
-            .destination
-            .map_or("nowhere".into(), |dst| format!("{}", dst))
-    );
+    let start_time = Instant::now();
 
     let mut todo: MinHeap<Cost, Node> = MinHeap::new();
     let mut best_so_far: Map<Node, Cost> = Map::new();
     let mut came_from: Map<Node, Node> = Map::new();
     // TODO remove done in favor of came_from
     let mut done: HashSet<Node> = HashSet::new();
+    let mut n_explored = 0;
 
     let start_node = Node {
         location: droplet.location,
@@ -241,12 +239,22 @@ where
     };
 
     // use manhattan distance from goal as the heuristic
-    let heuristic = |node: Node| -> Cost { dest.distance_to(&node.location) };
+    let heuristic = |node: Node| -> Cost { dest.distance_to(&node.location) * MOVE_COST };
 
-    while let Some((_, node)) = todo.pop() {
+    let result = loop {
+        let node = match todo.pop() {
+            Some((_, node)) => node,
+            _ => {
+                trace!("Routing failed!");
+                break None;
+            }
+        };
+
+        n_explored += 1;
+
         if done_fn(&node) {
             let path = build_path(came_from, node);
-            return Some(path);
+            break Some(path);
         }
 
         // insert returns false if value was already there
@@ -284,9 +292,25 @@ where
             let next_cost_est = next_cost + heuristic(next);
             todo.push(next_cost_est, next)
         }
-    }
+    };
 
-    None
+    trace!(
+        "Routing droplet {id} from {src} to {dst}",
+        id = droplet.id.id,
+        src = droplet.location,
+        dst = droplet
+            .destination
+            .map_or("nowhere".into(), |dst| format!("{}", dst))
+    );
+    let duration = start_time.elapsed();
+    trace!(
+        "I saw {} nodes in {}.{:03} sec",
+        n_explored,
+        duration.as_secs(),
+        duration.subsec_nanos() / 1_000_000
+    );
+
+    result
 }
 
 #[cfg(test)]
