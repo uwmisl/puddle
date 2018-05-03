@@ -156,13 +156,9 @@ fn grid_size_3() {
     let _id2 = p.input(None, 1.0, None).unwrap();
 }
 
-#[test]
-fn mix_dimensions_success() {
+fn check_mix_dimensions(dim1: Location, dim2: Location, dim_result: Location) {
     let man = manager_from_rect(9, 9);
     let p = man.get_new_process("test");
-
-    let dim1 = Location { y: 1, x: 1 };
-    let dim2 = Location { y: 2, x: 1 };
 
     let id1 = p.input(None, 1.0, Some(dim1)).unwrap();
     let id2 = p.input(None, 1.0, Some(dim2)).unwrap();
@@ -171,31 +167,56 @@ fn mix_dimensions_success() {
 
     let droplets = info_dict(&p);
 
-    let expected_result_dim = Location {
-        y: dim1.y + dim2.y,
-        x: dim1.x + dim2.x,
-    };
     assert_eq!(droplets.len(), 1);
-    assert_eq!(droplets[&id12].dimensions, expected_result_dim);
+    assert_eq!(droplets[&id12].dimensions, dim_result);
 }
 
 #[test]
 fn mix_dimensions_size() {
+    check_mix_dimensions(
+        Location { y: 1, x: 1 },
+        Location { y: 1, x: 2 },
+        Location { y: 1, x: 3 },
+    );
+    check_mix_dimensions(
+        Location { y: 2, x: 1 },
+        Location { y: 1, x: 2 },
+        Location { y: 2, x: 3 },
+    );
+}
+
+fn check_split_dimensions(dim: Location, dim1: Location, dim2: Location) {
     let man = manager_from_rect(9, 9);
     let p = man.get_new_process("test");
 
-    let dim1 = Location { y: 2, x: 1 };
-    let dim2 = Location { y: 1, x: 2 };
+    let id = p.input(None, 1.0, Some(dim)).unwrap();
 
-    let id1 = p.input(None, 1.0, Some(dim1)).unwrap();
-    let id2 = p.input(None, 1.0, Some(dim2)).unwrap();
+    let (id1, id2) = p.split(id).unwrap();
 
-    let _id12 = p.mix(id1, id2).unwrap();
+    let droplets = info_dict(&p);
+
+    assert_eq!(droplets.len(), 2);
+    assert_eq!(droplets[&id1].dimensions, dim1);
+    assert_eq!(droplets[&id2].dimensions, dim2);
+}
+
+#[test]
+fn split_dimensions_size() {
+    check_split_dimensions(
+        Location { y: 1, x: 1 },
+        Location { y: 1, x: 1 },
+        Location { y: 1, x: 1 },
+    );
+    check_split_dimensions(
+        Location { y: 1, x: 3 },
+        Location { y: 1, x: 2 },
+        Location { y: 1, x: 2 },
+    );
 }
 
 #[test]
 #[should_panic(expected = "collision")]
-fn mix_dimensions_failure_overlap() {
+fn input_dimensions_failure_overlap() {
     let man = manager_from_rect(9, 9);
     let p = man.get_new_process("test");
 
@@ -205,10 +226,8 @@ fn mix_dimensions_failure_overlap() {
     let loc1 = Location { y: 0, x: 1 };
     let loc2 = Location { y: 1, x: 3 };
 
-    let id1 = p.input(Some(loc1), 1.0, Some(dim1)).unwrap();
-    let id2 = p.input(Some(loc2), 1.0, Some(dim2)).unwrap();
-
-    let _id12 = p.mix(id1, id2).unwrap();
+    let _id1 = p.input(Some(loc1), 1.0, Some(dim1)).unwrap();
+    let _id2 = p.input(Some(loc2), 1.0, Some(dim2)).unwrap();
 }
 
 #[test]
@@ -227,8 +246,6 @@ fn input_dimension() {
 }
 
 #[test]
-#[should_panic(expected = "collision")]
-// TODO: This test should not be failing. Issue lies in grid.rs:83
 fn mix_larger_droplets() {
     let man = manager_from_rect(100, 100);
     let p = man.get_new_process("test");

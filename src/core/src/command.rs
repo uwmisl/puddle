@@ -7,19 +7,14 @@ use exec::Action;
 
 use process::{ProcessId, PuddleResult};
 
-static EMPTY_IDS: &[DropletId] = &[];
-
-const MIX_PADDING: usize = 3;
-const SPLIT_PADDING: usize = 4;
-
 // Send and 'static here are necessary to move trait objects around
 // TODO is that necessary
 pub trait Command: Debug + Send + 'static {
     fn input_droplets(&self) -> &[DropletId] {
-        EMPTY_IDS
+        &[]
     }
     fn output_droplets(&self) -> &[DropletId] {
-        EMPTY_IDS
+        &[]
     }
     fn dynamic_info(&self, &GridView) -> DynamicCommandInfo;
     fn is_blocking(&self) -> bool {
@@ -190,7 +185,7 @@ impl Command for Move {
 lazy_static! {
 
     static ref MIX_LOOP: Vec<Location> =
-        vec![(0,0), (0,1), (1,1), (2,1), (2,0), (1,0), (0,0)]
+        vec![(0,0), (1,0), (1,1), (1,2), (0,2), (0,1), (0,0)]
         .iter()
         .map(|&(y,x)| Location {y, x})
         .collect();
@@ -211,6 +206,8 @@ impl Mix {
     }
 }
 
+const MIX_PADDING: usize = 1;
+
 impl Command for Mix {
     fn input_droplets(&self) -> &[DropletId] {
         self.inputs.as_slice()
@@ -226,13 +223,13 @@ impl Command for Mix {
         // defines grid shape
         let d0 = droplets.get(&self.inputs[0]).unwrap();
         let d1 = droplets.get(&self.inputs[1]).unwrap();
+        let y_dim = (d0.dimensions.y.max(d1.dimensions.y) as usize) + MIX_PADDING;
         let x_dim = (d0.dimensions.x as usize) + (d1.dimensions.x as usize) + MIX_PADDING;
-        let y_dim = (d0.dimensions.y as usize) + (d1.dimensions.y as usize) + MIX_PADDING;
         let grid = Grid::rectangle(y_dim, x_dim);
 
-        let start_d1 = d0.dimensions.y + 1;
+        let start_d1 = d0.dimensions.x + 1;
 
-        let input_locations = vec![Location { y: 0, x: 0 }, Location { y: start_d1, x: 0 }];
+        let input_locations = vec![Location { y: 0, x: 0 }, Location { y: 0, x: start_d1 }];
 
         let out = self.outputs[0];
 
@@ -240,16 +237,14 @@ impl Command for Mix {
         // we cannot tick in between; it would cause a collision
         let mut acts = vec![];
 
-        // TODO: switch to inclusive range syntax once stable
-        for dim in 1..(start_d1 + 1) {
-            acts.push(Action::MoveDroplet {
-                id: self.inputs[1],
-                location: Location {
-                    y: (start_d1 - dim),
-                    x: 0,
-                },
-            });
-        }
+        // move the right droplet one to the left
+        acts.push(Action::MoveDroplet {
+            id: self.inputs[1],
+            location: Location {
+                y: 0,
+                x: start_d1 - 1,
+            },
+        });
 
         acts.push(Action::Mix {
             in0: self.inputs[0],
@@ -293,6 +288,8 @@ impl Split {
     }
 }
 
+const SPLIT_PADDING: usize = 4;
+
 impl Command for Split {
     fn input_droplets(&self) -> &[DropletId] {
         self.inputs.as_slice()
@@ -305,16 +302,12 @@ impl Command for Split {
     fn dynamic_info(&self, gridview: &GridView) -> DynamicCommandInfo {
         let droplets = &gridview.droplets;
         let d0 = droplets.get(&self.inputs[0]).unwrap();
+        // we only split in the x right now, so we don't need y padding
         let x_dim = (d0.dimensions.x as usize) + SPLIT_PADDING;
-        let y_dim = (d0.dimensions.y as usize) + SPLIT_PADDING;
+        let y_dim = d0.dimensions.y as usize;
         let grid = Grid::rectangle(y_dim, x_dim);
 
-        let input_locations = vec![
-            Location {
-                y: 0,
-                x: d0.dimensions.x,
-            },
-        ];
+        let input_locations = vec![Location { y: 0, x: 2 }];
 
         let inp = self.inputs[0];
         let mut acts = vec![
@@ -325,26 +318,22 @@ impl Command for Split {
             },
         ];
 
-        let mid = d0.dimensions.x;
+        let mid = (x_dim / 2) as i32;
 
         // NOTE
         // we cannot tick here because a collision will happen!
         // only tick after they've moved apart
         // TODO incorporate this into split somehow?
-        for dim in 1..(mid + 1) {
+        for dim in 1..(SPLIT_PADDING as i32 / 2 + 1) {
             acts.push(Action::MoveDroplet {
                 id: self.outputs[0],
-                location: Location {
-                    y: 0,
-                    x: (mid - dim),
-                },
+                // this droplets starts at offset 2, moving left
+                location: Location { y: 0, x: 2 - dim },
             });
             acts.push(Action::MoveDroplet {
                 id: self.outputs[1],
-                location: Location {
-                    y: 0,
-                    x: (mid + dim),
-                },
+                // this droplets starts at offset mid, moving right
+                location: Location { y: 0, x: mid + dim },
             });
             acts.push(Action::Tick);
         }

@@ -57,6 +57,14 @@ impl Grid {
         Grid::from_function(always_cell, h, w)
     }
 
+    pub fn max_height(&self) -> usize {
+        self.vec.len()
+    }
+
+    pub fn max_width(&self) -> usize {
+        self.vec.iter().map(|row| row.len()).max().unwrap_or(0)
+    }
+
     pub fn from_reader<R: Read>(reader: R) -> Result<Grid, serde_json::Error> {
         serde_json::from_reader(reader)
     }

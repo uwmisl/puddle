@@ -32,6 +32,21 @@ impl Planner {
     pub fn plan<C: Command>(&mut self, cmd: C) -> Result<(), PlanError> {
         debug!("placing (trusted = {}) {:?}", cmd.trust_placement(), cmd);
         let command_info = cmd.dynamic_info(&self.gridview);
+
+        debug!(
+            "Command requests a shape of w={w},h={h}",
+            w = command_info.shape.max_width(),
+            h = command_info.shape.max_height(),
+        );
+
+        debug!(
+            "Input droplets: {:?}",
+            cmd.input_droplets()
+                .iter()
+                .map(|id| &self.gridview.droplets[id])
+                .collect::<Vec<_>>()
+        );
+
         let placement = if cmd.trust_placement() {
             // if we are trusting placement, just use an identity map
             self.gridview
