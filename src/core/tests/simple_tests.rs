@@ -148,8 +148,8 @@ fn process_isolation() {
 
 #[test]
 #[should_panic(expected = "PlanError(PlaceError)")]
-fn grid_size_3() {
-    let man = manager_from_rect(3, 3);
+fn input_does_not_fit() {
+    let man = manager_from_rect(2, 2);
     let p = man.get_new_process("test");
 
     let _id1 = p.input(None, 1.0, None).unwrap();

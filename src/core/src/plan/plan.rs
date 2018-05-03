@@ -30,6 +30,7 @@ impl Planner {
     }
 
     pub fn plan<C: Command>(&mut self, cmd: C) -> Result<(), PlanError> {
+        info!("Planning {:?}", cmd);
         debug!("placing (trusted = {}) {:?}", cmd.trust_placement(), cmd);
         let command_info = cmd.dynamic_info(&self.gridview);
 

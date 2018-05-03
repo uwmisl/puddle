@@ -46,16 +46,7 @@ impl GridView {
                 if droplet1.collision_group == droplet2.collision_group {
                     continue;
                 }
-
-                let collide = self.grid
-                    .neighbors_dimensions(&droplet1.location, &droplet1.dimensions)
-                    .into_iter()
-                    .any(|loc| {
-                        Droplet::get_locations(&droplet2.location, &droplet2.dimensions)
-                            .contains(&loc)
-                    });
-
-                if collide {
+                if droplet1.collision_distance(droplet2) <= 0 {
                     return Some((*id1, *id2));
                 }
             }
@@ -64,28 +55,30 @@ impl GridView {
     }
 
     pub fn get_destination_collision(&self) -> Option<(DropletId, DropletId)> {
-        for (id1, droplet1) in self.droplets.iter() {
-            for (id2, droplet2) in self.droplets.iter() {
+        let dest_droplets = self.droplets
+            .iter()
+            .filter_map(|(id, d)| {
+                d.destination.map(|dest| {
+                    (
+                        *id,
+                        Droplet {
+                            location: dest,
+                            ..d.clone()
+                        },
+                    )
+                })
+            })
+            .collect::<Vec<(DropletId, Droplet)>>();
+
+        for &(ref id1, ref droplet1) in dest_droplets.iter() {
+            for &(ref id2, ref droplet2) in dest_droplets.iter() {
                 if id1 == id2 {
                     continue;
                 }
                 if droplet1.collision_group == droplet2.collision_group {
                     continue;
                 }
-
-                if droplet1.destination.is_none() || droplet2.destination.is_none() {
-                    continue;
-                }
-
-                let dest1 = droplet1.destination.unwrap();
-                let dest2 = droplet2.destination.unwrap();
-
-                let collide = self.grid
-                    .neighbors_dimensions(&dest1, &droplet1.dimensions)
-                    .into_iter()
-                    .any(|loc| Droplet::get_locations(&dest2, &droplet2.dimensions).contains(&loc));
-
-                if collide {
+                if droplet1.collision_distance(&droplet2) <= 0 {
                     return Some((*id1, *id2));
                 }
             }

@@ -98,16 +98,9 @@ impl Grid {
             let their_loc = &loc + &offset;
             bigger.get_cell(&their_loc).map_or(false, |theirs| {
                 my_cell.is_compatible(&theirs) && !droplets.values().any(|droplet| {
-                    let mut threshold_x = 3;
-                    let mut threshold_y = 3;
-                    if droplet.dimensions.x >= 3 {
-                        threshold_x = droplet.dimensions.x + 1;
-                    }
-                    if droplet.dimensions.y >= 3 {
-                        threshold_y = droplet.dimensions.y + 1;
-                    }
-                    (their_loc.x - droplet.location.x).abs() < threshold_x
-                        && (their_loc.y - droplet.location.y).abs() < threshold_y
+                    let corner1 = droplet.location;
+                    let corner2 = &droplet.location + &droplet.dimensions;
+                    their_loc.min_distance_to_box(corner1, corner2) <= 0
                 })
             })
         })
@@ -145,7 +138,21 @@ impl Grid {
             })
             .find(|&offset| smaller.is_compatible_within(offset, self, droplets));
 
-        offset_found.map(|offset| smaller.mapping_into_other_from_offset(offset, self))
+        let result =
+            offset_found.map(|offset| smaller.mapping_into_other_from_offset(offset, self));
+
+        // verify the mapping by checking that each space is far enough away from the droplets
+        result.as_ref().map(|mapping| {
+            for droplet in droplets.values() {
+                let corner1 = droplet.location;
+                let corner2 = &droplet.location + &droplet.dimensions;
+                for loc in mapping.values() {
+                    assert!(loc.min_distance_to_box(corner1, corner2) > 0);
+                }
+            }
+        });
+
+        result
     }
 
     pub fn from_function<F>(mut f: F, height: usize, width: usize) -> Grid
