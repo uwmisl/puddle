@@ -33,8 +33,8 @@ pub trait Command: Debug + Send + 'static {
 pub struct Input {
     inputs: Vec<DropletId>,
     outputs: Vec<DropletId>,
-    location: Vec<Location>,
-    dimensions: Vec<Location>,
+    location: Location,
+    dimensions: Location,
     volume: f64,
     trusted: bool,
 }
@@ -57,8 +57,8 @@ impl Input {
         Ok(Input {
             inputs: vec![],
             outputs: vec![out_id],
-            location: vec![loc.unwrap_or(Location { y: 0, x: 0 })],
-            dimensions: vec![dim.unwrap_or(Location { y: 1, x: 1 })],
+            location: loc.unwrap_or(Location { y: 0, x: 0 }),
+            dimensions: dim.unwrap_or(Location { y: 1, x: 1 }),
             volume: vol,
             trusted: loc.is_some(),
         })
@@ -75,14 +75,13 @@ impl Command for Input {
     }
 
     fn dynamic_info(&self, _gridview: &GridView) -> DynamicCommandInfo {
-        let dim = self.dimensions[0];
-        let grid = Grid::rectangle(dim.y as usize, dim.x as usize);
+        let grid = Grid::rectangle(self.dimensions.y as usize, self.dimensions.x as usize);
 
         let actions = vec![
             Action::AddDroplet {
                 id: self.outputs[0],
-                location: self.location[0],
-                dimensions: dim,
+                location: self.location,
+                dimensions: self.dimensions,
                 volume: self.volume,
             },
             Action::Tick,
@@ -162,12 +161,13 @@ impl Command for Move {
         self.outputs.as_slice()
     }
 
-    fn dynamic_info(&self, _gridview: &GridView) -> DynamicCommandInfo {
+    fn dynamic_info(&self, gridview: &GridView) -> DynamicCommandInfo {
         let old_id = self.inputs[0];
         let new_id = self.outputs[0];
+        let dim = gridview.droplets[&old_id].dimensions;
         let actions = vec![Action::UpdateDroplet { old_id, new_id }];
         DynamicCommandInfo {
-            shape: Grid::rectangle(0, 0),
+            shape: Grid::rectangle(dim.y as usize, dim.x as usize),
             input_locations: vec![self.destination[0]],
             actions: actions,
         }
