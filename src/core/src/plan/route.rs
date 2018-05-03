@@ -103,7 +103,10 @@ impl AvoidanceSet {
         // Add last element to finals
         let last = path.len() - 1;
         for loc in grid.neighbors_dimensions(&path[last], droplet_dimensions) {
-            self.finals.insert(loc, last as Time);
+            let earliest_time = self.finals
+                .get(&loc)
+                .map_or(last as Time, |&prev| prev.min(last as Time));
+            self.finals.insert(loc, earliest_time);
         }
 
         self.max_time = self.max_time.max(last as Time)
