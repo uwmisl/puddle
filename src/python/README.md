@@ -5,10 +5,8 @@ This the Python front end for the [Puddle] system.
 ## Installation
 
 You'll need Python 3.6 for this project.
-
-We use [pipenv] to manage dependencies. I'm also a fan of [pipsi] to install
-Python scripts. You can [install them both][fancy-pipenv] in a way that doesn't
-mess with your Python installation.
+We use [pipenv] to manage dependencies.
+Make sure you have [Git LFS][lfs] installed before cloning.
 
 Once you have Python 3.6 and `pipenv`, do the following to setup the project:
 ```shell
@@ -43,6 +41,5 @@ The environment `PUDDLE_VIZ` controls whether the visualization server runs.
 It's off by default.
 
 [pipenv]: https://docs.pipenv.org
-[pipsi]: https://github.com/mitsuhiko/pipsi
-[fancy-pipenv]: https://docs.pipenv.org/install.html#fancy-installation-of-pipenv
 [puddle]: http://misl.cs.washington.edu/projects/puddle.html
+[lfs]: https://git-lfs.github.com/
