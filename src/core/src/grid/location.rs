@@ -29,6 +29,34 @@ impl Location {
             dy.max(0) + dx.max(0)
         }
     }
+
+    pub fn north(&self) -> Location {
+        Location {
+            y: self.y - 1,
+            x: self.x,
+        }
+    }
+
+    pub fn west(&self) -> Location {
+        Location {
+            y: self.y,
+            x: self.x - 1,
+        }
+    }
+
+    pub fn south(&self) -> Location {
+        Location {
+            y: self.y + 1,
+            x: self.x,
+        }
+    }
+
+    pub fn east(&self) -> Location {
+        Location {
+            y: self.y,
+            x: self.x + 1,
+        }
+    }
 }
 
 impl<'a> Add for &'a Location {
@@ -58,8 +86,62 @@ impl fmt::Display for Location {
 }
 
 #[cfg(test)]
-mod tests {
+pub mod tests {
     use super::*;
+    use std::collections::HashMap;
+
+    use ena::unify::{InPlaceUnificationTable, UnifyKey};
+
+    #[derive(Copy, Clone, Debug, Hash, PartialEq, Eq)]
+    struct IntKey(u32);
+
+    impl UnifyKey for IntKey {
+        type Value = ();
+        fn index(&self) -> u32 {
+            self.0
+        }
+        fn from_index(u: u32) -> IntKey {
+            IntKey(u)
+        }
+        fn tag() -> &'static str {
+            "IntKey"
+        }
+    }
+
+    pub fn connected_components<'a, I>(locs: I) -> HashMap<Location, u32>
+    where
+        I: Iterator<Item = Location>,
+    {
+        // inputs must be in row major order
+        let mut labels = HashMap::new();
+        let mut equivs = InPlaceUnificationTable::<IntKey>::new();
+
+        for loc in locs {
+            let l_north = labels.get(&loc.north()).cloned();
+            let l_west = labels.get(&loc.west()).cloned();
+
+            let label = match (l_north, l_west) {
+                (None, None) => equivs.new_key(()),
+                (None, Some(l)) => l,
+                (Some(l), None) => l,
+                (Some(l1), Some(l2)) => {
+                    equivs.union(l1, l2);
+                    l2 // could be l1 too, doesn't matter
+                }
+            };
+
+            labels.insert(loc, label);
+        }
+
+        // return all the locations associated with their root key
+        labels
+            .iter()
+            .map(|(k, v)| {
+                let vv = equivs.find(*v).index();
+                (*k, vv)
+            })
+            .collect()
+    }
 
     type Pt = (i32, i32);
     fn dist_to_box(p: Pt, c1: Pt, c2: Pt) -> i32 {
@@ -78,5 +160,29 @@ mod tests {
         assert_eq!(dist_to_box((0, 2), (1, 1), (2, 2)), 0);
         assert_eq!(dist_to_box((1, 2), (1, 1), (2, 2)), 0);
         assert_eq!(dist_to_box((2, 2), (1, 1), (2, 2)), 0);
+    }
+
+    #[test]
+    fn test_connected_components() {
+        // check that diagonal is not connected, but adjacent is
+        let la = [
+            Location { y: 0, x: 0 },
+            Location { y: 0, x: 1 },
+            Location { y: 1, x: 2 },
+        ];
+        let ca = connected_components(la.iter().cloned());
+        assert_eq!(ca[&la[0]], ca[&la[1]]);
+        assert_ne!(ca[&la[1]], ca[&la[2]]);
+
+        // check that a connected shape is connected
+        let lb = [
+            Location { y: 0, x: 0 },
+            Location { y: 0, x: 1 },
+            Location { y: 1, x: 0 },
+            Location { y: 2, x: 0 },
+            Location { y: 2, x: 1 },
+        ];
+        let cb = connected_components(lb.iter().cloned());
+        assert!(cb.values().all(|v| *v == 0));
     }
 }

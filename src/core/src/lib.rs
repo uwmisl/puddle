@@ -23,6 +23,8 @@ extern crate log;
 
 extern crate crossbeam;
 
+extern crate ena;
+
 // these need to be pub until we have an api
 mod grid;
 mod util;

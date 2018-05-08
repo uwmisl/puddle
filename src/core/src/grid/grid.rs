@@ -229,34 +229,10 @@ impl Grid {
 #[cfg(test)]
 impl Grid {
     pub fn is_connected(&self) -> bool {
-        let first = self.locations().next();
-
-        if first.is_none() {
-            // no cells, it's vacuously connected
-            return true;
-        }
-
-        let mut todo = vec![first.unwrap().0];
-        let mut seen = HashSet::new();
-
-        while let Some(loc) = todo.pop() {
-            // insert returns false if it was already there
-            if seen.insert(loc) {
-                for next in self.neighbors4(&loc) {
-                    if !seen.contains(&next) {
-                        todo.push(next)
-                    }
-                }
-            }
-        }
-
-        let s = seen.len();
-        let t = self.locations().count();
-
-        for x in seen.iter() {
-            assert!(self.get_cell(x).is_some())
-        }
-        s == t
+        use grid::location::tests::connected_components;
+        let locs = self.locations().map(|(loc, _cell)| loc);
+        let label_map = connected_components(locs);
+        label_map.values().all(|v| *v == 0)
     }
 }
 
