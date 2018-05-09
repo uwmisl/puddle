@@ -1,8 +1,8 @@
 use std::sync::atomic::AtomicUsize;
 use std::sync::atomic::Ordering::Relaxed;
 
-use process::ProcessId;
 use super::Location;
+use process::ProcessId;
 
 static NEXT_COLLISION_GROUP: AtomicUsize = AtomicUsize::new(0);
 

@@ -1,9 +1,9 @@
-use std::io::Read;
 use serde_json;
 use std::collections::HashSet;
+use std::io::Read;
 
-use util::collections::Map;
 use super::{Droplet, DropletId, Location};
+use util::collections::Map;
 
 #[derive(Debug, PartialEq, Eq, Hash, Serialize, Deserialize, Clone, Copy)]
 pub struct Cell {

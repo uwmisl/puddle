@@ -20,8 +20,8 @@ enum CellIndex {
     // Index(u32),
 }
 
-use self::Mark::*;
 use self::CellIndex::*;
+use self::Mark::*;
 
 type ParsedGridVec = Vec<Vec<CellIndex>>;
 type GridVec = Vec<Vec<Option<Cell>>>;
@@ -75,8 +75,8 @@ mod tests {
 
     use super::*;
 
-    use std::fs::File;
     use glob::glob;
+    use std::fs::File;
 
     use serde_json as sj;
 

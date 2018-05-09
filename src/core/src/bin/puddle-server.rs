@@ -10,11 +10,11 @@ extern crate env_logger;
 #[macro_use]
 extern crate log;
 
+use std::env;
 use std::fs::File;
 use std::io::Read;
-use std::sync::Arc;
 use std::path::{Path, PathBuf};
-use std::env;
+use std::sync::Arc;
 
 use rouille::{Request, Response};
 

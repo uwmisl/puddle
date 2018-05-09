@@ -1,7 +1,7 @@
-use std::sync::{Arc, Mutex};
-use std::sync::mpsc::channel;
 use std::sync::atomic::AtomicUsize;
 use std::sync::atomic::Ordering::Relaxed;
+use std::sync::mpsc::channel;
+use std::sync::{Arc, Mutex};
 
 use grid::{DropletId, DropletInfo, Location};
 
@@ -56,7 +56,7 @@ impl Process {
         }
     }
 
-    fn plan<C: Command>(&self, cmd: C) -> PuddleResult<()> {
+    fn plan(&self, cmd: Box<Command>) -> PuddleResult<()> {
         let mut planner = self.planner.lock().unwrap();
         planner.plan(cmd).map_err(PlanError)
     }
@@ -67,7 +67,7 @@ impl Process {
         let (tx, rx) = channel();
         let flush_cmd = command::Flush::new(self.id, tx);
 
-        self.plan(flush_cmd)?;
+        self.plan(Box::new(flush_cmd))?;
         let info = rx.recv().unwrap();
 
         Ok(info)
@@ -81,21 +81,21 @@ impl Process {
     ) -> PuddleResult<DropletId> {
         let output = self.new_droplet_id();
         let input_cmd = command::Input::new(loc, vol, dim, output)?;
-        self.plan(input_cmd)?;
+        self.plan(Box::new(input_cmd))?;
         Ok(output)
     }
 
     pub fn move_droplet(&self, d1: DropletId, loc: Location) -> PuddleResult<DropletId> {
         let output = self.new_droplet_id();
         let move_cmd = command::Move::new(d1, loc, output)?;
-        self.plan(move_cmd)?;
+        self.plan(Box::new(move_cmd))?;
         Ok(output)
     }
 
     pub fn mix(&self, d1: DropletId, d2: DropletId) -> PuddleResult<DropletId> {
         let output = self.new_droplet_id();
         let mix_cmd = command::Mix::new(d1, d2, output)?;
-        self.plan(mix_cmd)?;
+        self.plan(Box::new(mix_cmd))?;
         Ok(output)
     }
 
@@ -103,7 +103,7 @@ impl Process {
         let out1 = self.new_droplet_id();
         let out2 = self.new_droplet_id();
         let split_cmd = command::Split::new(d, out1, out2)?;
-        self.plan(split_cmd)?;
+        self.plan(Box::new(split_cmd))?;
         Ok((out1, out2))
     }
 }

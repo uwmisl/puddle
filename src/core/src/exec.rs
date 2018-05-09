@@ -1,122 +1,56 @@
-use std::sync::mpsc::{Receiver, Sender};
+use std::sync::mpsc::Receiver;
 
+use command::Command;
+use grid::{DropletId, DropletInfo, PreGridSubView, RootGridView};
+use plan::Path;
+use util::collections::Map;
 use util::endpoint::Endpoint;
-use grid::{DropletId, DropletInfo, GridView, Location};
-use plan::plan::Placement;
-use process::ProcessId;
-
-#[derive(Debug)]
-pub enum Action {
-    AddDroplet {
-        id: DropletId,
-        location: Location,
-        dimensions: Location,
-        volume: f64,
-    },
-    RemoveDroplet {
-        id: DropletId,
-    },
-    Mix {
-        in0: DropletId,
-        in1: DropletId,
-        out: DropletId,
-    },
-    Split {
-        inp: DropletId,
-        out0: DropletId,
-        out1: DropletId,
-    },
-    UpdateDroplet {
-        old_id: DropletId,
-        new_id: DropletId,
-        // TODO take a closure here
-    },
-    MoveDroplet {
-        id: DropletId,
-        location: Location,
-    },
-    Tick,
-    // TODO should be more general
-    Ping {
-        pid: ProcessId,
-        tx: Sender<Vec<DropletInfo>>,
-    },
-}
-
-impl Action {
-    #[allow(unused_variables)]
-    pub fn translate(&mut self, placement: &Placement) {
-        use self::Action::*;
-        match *self {
-            AddDroplet {
-                id,
-                ref mut location,
-                dimensions,
-                volume,
-            } => {
-                *location = placement[location];
-            }
-            RemoveDroplet { id } => {}
-            Mix { in0, in1, out } => {}
-            Split { inp, out0, out1 } => {}
-            UpdateDroplet { old_id, new_id } => {}
-            MoveDroplet {
-                id,
-                ref mut location,
-            } => {
-                *location = placement[location];
-            }
-            Tick => {}
-            Ping { pid, ref tx } => {}
-        }
-    }
-}
 
 pub struct Executor {
     blocking: bool,
-    gridview: GridView,
+    gridview: RootGridView,
+}
+
+pub struct ExecItem {
+    pub routes: Map<DropletId, Path>,
+    pub command: Box<Command>,
+    pub placement: PreGridSubView,
 }
 
 impl Executor {
-    pub fn new(blocking: bool, gridview: GridView) -> Self {
+    pub fn new(blocking: bool, gridview: RootGridView) -> Self {
         Executor { blocking, gridview }
     }
 
-    fn execute(&mut self, action: &Action) -> bool {
-        debug!("executing {:?}", action);
-        use self::Action::*;
-        let keep_going = match action {
-            &Ping { pid, ref tx } => {
-                let info = self.gridview.droplet_info(Some(pid));
-                tx.send(info).unwrap();
-                true
-            }
-            &Tick => false,
-            _ => true,
-        };
-        self.gridview.execute(action);
-        keep_going
-    }
-
-    pub fn run(&mut self, action_rx: Receiver<Action>, endpoint: Endpoint<Vec<DropletInfo>, ()>) {
-        loop {
-            // wait on the visualizer then reply
-            if self.blocking {
+    pub fn run(&mut self, action_rx: Receiver<ExecItem>, endpoint: Endpoint<Vec<DropletInfo>, ()>) {
+        let should_block = self.blocking;
+        let block = move |gv: &RootGridView| {
+            if should_block {
+                // wait on the visualizer then reply
                 match endpoint.recv() {
                     Ok(()) => {}
                     Err(_) => return,
                 }
-                endpoint.send(self.gridview.droplet_info(None)).unwrap();
+                endpoint.send(gv.droplet_info(None)).unwrap();
             }
+        };
 
-            // now execute until we see a tick
-            let mut keep_going = true;
-            while keep_going {
-                let action = match action_rx.recv() {
-                    Ok(action) => action,
-                    Err(_) => return,
-                };
-                keep_going = self.execute(&action);
+        loop {
+            let item = match action_rx.recv() {
+                Ok(item) => item,
+                Err(_) => return,
+            };
+
+            self.gridview.take_paths(&item.routes, &block);
+
+            // NOTE: invariant
+            // this gridview (the executor's) should be identical to the
+            // Planner's gridview at the time this thing was planned
+            let info = item.command.dynamic_info(&self.gridview);
+            let mut subview = item.placement.back(&mut self.gridview);
+
+            for action in info.actions {
+                subview.run_action(action);
             }
         }
     }

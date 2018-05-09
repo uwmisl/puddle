@@ -1,5 +1,5 @@
-use std::sync::Arc;
 use jsonrpc_core as rpc;
+use std::sync::Arc;
 
 use ::*;
 

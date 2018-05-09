@@ -1,9 +1,8 @@
-use grid::{Droplet, GridView, Location};
-use exec::Action;
-use std::sync::mpsc::Sender;
 use command::Command;
-use util::collections::Map;
-use plan::route::paths_to_actions;
+use exec::ExecItem;
+use grid::{Droplet, Location, PreGridSubView, RootGridView};
+use std::sync::mpsc::Sender;
+use util::collections::{Map, Set};
 
 #[derive(Debug)]
 pub enum PlanError {
@@ -17,27 +16,32 @@ pub enum PlanError {
 pub type Placement = Map<Location, Location>;
 
 pub struct Planner {
-    gridview: GridView,
-    exec_tx: Sender<Action>,
+    gridview: RootGridView,
+    exec_tx: Sender<ExecItem>,
 }
 
 impl Planner {
-    pub fn new(gridview: GridView, exec_tx: Sender<Action>) -> Planner {
+    pub fn new(gridview: RootGridView, exec_tx: Sender<ExecItem>) -> Planner {
         Planner {
             gridview: gridview,
             exec_tx: exec_tx,
         }
     }
 
-    pub fn plan<C: Command>(&mut self, cmd: C) -> Result<(), PlanError> {
+    pub fn plan(&mut self, cmd: Box<Command>) -> Result<(), PlanError> {
         info!("Planning {:?}", cmd);
         debug!("placing (trusted = {}) {:?}", cmd.trust_placement(), cmd);
-        let command_info = cmd.dynamic_info(&self.gridview);
+
+        let in_ids = cmd.input_droplets();
+        let (shape, in_locs) = {
+            let command_info = cmd.dynamic_info(&self.gridview);
+            (command_info.shape, command_info.input_locations)
+        };
 
         debug!(
             "Command requests a shape of w={w},h={h}",
-            w = command_info.shape.max_width(),
-            h = command_info.shape.max_height(),
+            w = shape.max_width(),
+            h = shape.max_height(),
         );
 
         debug!(
@@ -59,22 +63,19 @@ impl Planner {
             // TODO place should be a method of gridview
             self.gridview
                 .grid
-                .place(&command_info.shape, &self.gridview.droplets)
+                .place(&shape, &self.gridview.droplets)
                 .ok_or(PlanError::PlaceError)?
         };
 
         debug!("placement for {:?}: {:?}", cmd, placement);
 
-        let in_locs = command_info.input_locations;
-        let in_ids = cmd.input_droplets();
-
         assert_eq!(in_locs.len(), in_ids.len());
 
-        for (loc, id) in in_locs.iter().zip(in_ids) {
+        for (loc, id) in in_locs.iter().zip(&in_ids) {
             // this should have been put to none last time
             let droplet = self.gridview
                 .droplets
-                .get_mut(id)
+                .get_mut(&id)
                 .expect("Command gave back and invalid DropletId");
             assert!(droplet.destination.is_none());
             let mapped_loc = placement
@@ -95,29 +96,44 @@ impl Planner {
         };
         debug!("route for {:?}: {:?}", cmd, paths);
 
-        let mut actions = paths_to_actions(paths);
-        let mut cmd_actions = command_info.actions;
-        for mut a in &mut cmd_actions {
-            a.translate(&placement);
-        }
-        actions.append(&mut cmd_actions);
+        let pre_subview = PreGridSubView {
+            mapping: placement,
+            ids: in_ids.iter().cloned().collect::<Set<_>>(),
+        };
 
-        for ref a in &actions {
-            self.gridview.execute(a);
-        }
+        // for ref a in &actions {
+        //     self.gridview.execute(a);
+        // }
 
-        for a in actions {
-            self.exec_tx.send(a).unwrap();
+        let do_nothing = |_: &RootGridView| {};
+        self.gridview.take_paths(&paths, do_nothing);
+
+        {
+            // scope here to limit the range of the self.gridview borrow
+            let info = cmd.dynamic_info(&self.gridview);
+            let mut subview = pre_subview.clone().back(&mut self.gridview);
+
+            for action in info.actions {
+                subview.run_action(action);
+            }
         }
 
         // teardown destinations if the droplets are still there
         // TODO is this ever going to be true?
         for id in in_ids {
-            self.gridview.droplets.get_mut(id).map(|droplet| {
+            self.gridview.droplets.get_mut(&id).map(|droplet| {
                 assert_eq!(Some(droplet.location), droplet.destination);
                 droplet.destination = None;
             });
         }
+
+        let item = ExecItem {
+            routes: paths,
+            command: cmd,
+            placement: pre_subview,
+        };
+
+        self.exec_tx.send(item).unwrap();
 
         Ok(())
     }

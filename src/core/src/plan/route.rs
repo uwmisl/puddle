@@ -1,16 +1,15 @@
 use std::collections::HashSet;
 use std::time::Instant;
 
+use grid::{Droplet, DropletId, Grid, Location, RootGridView};
 use plan::minheap::MinHeap;
-use grid::{Droplet, DropletId, Grid, GridView, Location};
-use exec::Action;
 
-use util::collections::{Map, Set};
 use util::collections::Entry::*;
+use util::collections::{Map, Set};
 
 use rand::{thread_rng, Rng};
 
-type Path = Vec<Location>;
+pub type Path = Vec<Location>;
 
 fn build_path(mut came_from: Map<Node, Node>, end_node: Node) -> Path {
     let mut path = Vec::new();
@@ -22,23 +21,6 @@ fn build_path(mut came_from: Map<Node, Node>, end_node: Node) -> Path {
     path.push(current.location);
     path.reverse();
     path
-}
-
-pub fn paths_to_actions(paths: Map<DropletId, Path>) -> Vec<Action> {
-    let max_len = paths.values().map(|p| p.len()).max().unwrap_or(0);
-    let mut acts = Vec::new();
-    for i in 0..max_len {
-        for (id, path) in paths.iter() {
-            if i < path.len() {
-                acts.push(Action::MoveDroplet {
-                    id: *id,
-                    location: path[i],
-                });
-            }
-        }
-        acts.push(Action::Tick);
-    }
-    acts
 }
 
 #[derive(PartialEq, Eq, PartialOrd, Ord, Hash, Clone, Copy, Debug)]
@@ -158,7 +140,7 @@ impl Node {
     }
 }
 
-impl GridView {
+impl RootGridView {
     pub fn route(&self) -> Option<Map<DropletId, Path>> {
         let mut droplets = self.droplets.iter().collect::<Vec<_>>();
         let mut rng = thread_rng();

@@ -1,7 +1,7 @@
-use std::ops::{Add, Sub};
 use std::fmt;
+use std::ops::{Add, Sub};
 
-#[derive(PartialEq, Eq, PartialOrd, Ord, Hash, Clone, Copy, Debug, Serialize, Deserialize)]
+#[derive(PartialEq, Eq, PartialOrd, Ord, Hash, Clone, Copy, Serialize, Deserialize)]
 pub struct Location {
     pub y: i32,
     pub x: i32,
@@ -76,6 +76,12 @@ impl<'a> Sub for &'a Location {
             y: self.y - other.y,
             x: self.x - other.x,
         }
+    }
+}
+
+impl fmt::Debug for Location {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "({}, {})", self.y, self.x)
     }
 }
 
