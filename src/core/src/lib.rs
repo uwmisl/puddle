@@ -22,6 +22,10 @@ extern crate crossbeam;
 
 extern crate ena;
 
+extern crate pathfinding;
+
+extern crate float_ord;
+
 // these need to be pub until we have an api
 mod command;
 mod exec;
@@ -30,5 +34,6 @@ mod plan;
 mod process;
 mod util;
 
+pub use grid::parse;
 pub use grid::{DropletId, DropletInfo, Grid, Location};
 pub use process::*;
