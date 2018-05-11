@@ -52,38 +52,6 @@ impl RootGridView {
         None
     }
 
-    pub fn get_destination_collision(&self) -> Option<(DropletId, DropletId)> {
-        let dest_droplets = self.droplets
-            .iter()
-            .filter_map(|(id, d)| {
-                d.destination.map(|dest| {
-                    (
-                        *id,
-                        Droplet {
-                            location: dest,
-                            ..d.clone()
-                        },
-                    )
-                })
-            })
-            .collect::<Vec<(DropletId, Droplet)>>();
-
-        for &(ref id1, ref droplet1) in dest_droplets.iter() {
-            for &(ref id2, ref droplet2) in dest_droplets.iter() {
-                if id1 == id2 {
-                    continue;
-                }
-                if droplet1.collision_group == droplet2.collision_group {
-                    continue;
-                }
-                if droplet1.collision_distance(&droplet2) <= 0 {
-                    return Some((*id1, *id2));
-                }
-            }
-        }
-        None
-    }
-
     pub fn droplet_info(&self, pid_option: Option<ProcessId>) -> Vec<DropletInfo> {
         self.droplets
             .values()
