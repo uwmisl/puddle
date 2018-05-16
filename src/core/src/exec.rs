@@ -40,7 +40,7 @@ impl Executor {
                     // TODO the callbacks could probably be called by the gv itself
                     if self.blocking {
                         // only reply after we have the gridview lock
-                        endpoint.send(gv.droplet_info(None)).unwrap()
+                        endpoint.send(gv.exec_droplet_info(None)).unwrap()
                     }
                 }
                 NotReady => {

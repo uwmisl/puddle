@@ -147,6 +147,15 @@ impl GridView {
         func(droplet);
     }
 
+    pub fn exec_droplet_info(&self, pid_option: Option<ProcessId>) -> Vec<DropletInfo> {
+        // gets from the planner for now
+        self.history[self.exec_time]
+            .values()
+            .filter(|&d| pid_option.map_or(true, |pid| d.id.process_id == pid))
+            .map(|d| d.info())
+            .collect()
+    }
+
     pub fn droplet_info(&self, pid_option: Option<ProcessId>) -> Vec<DropletInfo> {
         // gets from the planner for now
         self.history
