@@ -150,7 +150,6 @@ def mk_session(
         arch_file = None,
         host = 'localhost',
         port = '3000',
-        split_error = None,
 ):
 
     # make sure there aren't any puddle servers running now
@@ -173,9 +172,6 @@ def mk_session(
               host = host,
               port = port,
           )
-
-    if split_error is not None:
-        cmd += ' --split-error-stdev {}'.format(split_error)
 
     popen = Popen(args=shlex.split(cmd), stdout=PIPE)
 

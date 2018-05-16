@@ -1,10 +1,9 @@
 use std::ops::{Deref, DerefMut, Drop};
-use std::sync::mpsc::channel;
 use std::sync::{Arc, Mutex};
 use std::thread;
 
 use exec::Executor;
-use grid::{DropletInfo, ErrorOptions, Grid, RootGridView};
+use grid::{DropletInfo, Grid, GridView};
 use process::{Process, ProcessId, PuddleError, PuddleResult};
 
 use util::collections::Map;
@@ -55,22 +54,19 @@ pub struct Manager {
 // TODO impl drop
 
 impl Manager {
-    pub fn new(blocking: bool, grid: Grid, err_opts: ErrorOptions) -> Manager {
-        let (cmd_tx, cmd_rx) = channel();
+    pub fn new(blocking: bool, grid: Grid) -> Manager {
         let (mine, execs) = Endpoint::pair();
 
-        // the executor's gridview *does* care about error
-        let exec_gridview = RootGridView::new(grid.clone(), err_opts, true);
-        let mut executor = Executor::new(blocking, exec_gridview);
+        let gridview = GridView::new(grid);
+        let gv_lock = Arc::new(Mutex::new(gridview));
+        let mut executor = Executor::new(blocking, gv_lock.clone());
 
         let exec_thread = thread::Builder::new()
             .name("exec".into())
-            .spawn(move || executor.run(cmd_rx, execs))
+            .spawn(move || executor.run(execs))
             .expect("Execution thread failed to start!");
 
-        // the planning gridview doesn't have any error on its own
-        let plan_gridview = RootGridView::new(grid, ErrorOptions::default(), false);
-        let planner = Planner::new(plan_gridview, cmd_tx);
+        let planner = Planner::new(gv_lock);
 
         Manager {
             exec_thread: exec_thread,

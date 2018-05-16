@@ -43,16 +43,3 @@ def test_volume(session):
 
     assert session.droplets()[a_split._id]['volume'] == 1.5
     assert session.droplets()[b_split._id]['volume'] == 1.5
-
-
-def test_split_error():
-
-    with puddle.mk_session(split_error=0.1) as session:
-
-        a = session.input(None, 1.0, (1,1))
-        a1, a2 = a.split()
-
-        droplets = session.droplets()
-
-        # with any error, these should not be precisely the same
-        assert droplets[a1._id]['volume'] != droplets[a2._id]['volume']

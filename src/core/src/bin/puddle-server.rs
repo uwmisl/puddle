@@ -49,13 +49,13 @@ fn run(matches: ArgMatches) -> Result<(), Box<::std::error::Error>> {
 
     let should_sync = matches.occurrences_of("sync") > 0 || env::var("PUDDLE_VIZ").is_ok();
 
-    let mut manager_opts = ErrorOptions::default();
-    if let Some(err) = matches.value_of("split-error") {
-        manager_opts.split_error_stdev = err.parse()?;
-    };
+    // let mut manager_opts = ErrorOptions::default();
+    // if let Some(err) = matches.value_of("split-error") {
+    //     manager_opts.split_error_stdev = err.parse()?;
+    // };
 
     let grid = Grid::from_reader(reader)?;
-    let manager = Manager::new(should_sync, grid, manager_opts);
+    let manager = Manager::new(should_sync, grid);
     let arc = Arc::new(manager);
 
     let mut ioh = IoHandler::new();

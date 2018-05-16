@@ -1,7 +1,7 @@
 use std::collections::HashSet;
 use std::time::Instant;
 
-use grid::{Droplet, DropletId, Grid, Location, RootGridView};
+use grid::{Droplet, DropletId, Grid, GridView, Location};
 use plan::minheap::MinHeap;
 
 use util::collections::Entry::*;
@@ -140,9 +140,9 @@ impl Node {
     }
 }
 
-impl RootGridView {
+impl GridView {
     pub fn route(&self) -> Option<Map<DropletId, Path>> {
-        let mut droplets = self.droplets.iter().collect::<Vec<_>>();
+        let mut droplets = self.droplets().iter().collect::<Vec<_>>();
         let mut rng = thread_rng();
         for i in 1..50 {
             rng.shuffle(&mut droplets);

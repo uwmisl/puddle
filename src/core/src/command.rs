@@ -1,8 +1,6 @@
-use grid::gridview::{GridSubView, RootGridView};
+use grid::gridview::{GridSubView, GridView};
 use std::fmt;
 use std::sync::mpsc::Sender;
-
-use rand::Rng;
 
 use grid::{Droplet, DropletId, DropletInfo, Grid, Location};
 
@@ -15,7 +13,8 @@ pub trait Command: fmt::Debug + Send {
     fn output_droplets(&self) -> Vec<DropletId> {
         vec![]
     }
-    fn dynamic_info(&self, &RootGridView) -> DynamicCommandInfo;
+    fn dynamic_info(&self, &GridView) -> DynamicCommandInfo;
+    fn run(&self, &mut GridSubView);
     fn is_blocking(&self) -> bool {
         false
     }
@@ -39,21 +38,9 @@ pub struct Input {
 }
 
 #[derive(Debug)]
-pub struct DynamicCommandInfo<'a> {
+pub struct DynamicCommandInfo {
     pub shape: Grid,
     pub input_locations: Vec<Location>,
-    pub actions: Vec<Action<'a>>,
-}
-
-pub struct Action<'a> {
-    pub func: Box<'a + Fn(&mut GridSubView)>,
-    pub description: &'static str,
-}
-
-impl<'a> fmt::Debug for Action<'a> {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "Action {{ {} }}", self.description)
-    }
 }
 
 // TODO: dimensions probably shouldn't be optional?
@@ -75,13 +62,6 @@ impl Input {
     }
 }
 
-fn mk_act<'a, F: 'a + Fn(&mut GridSubView)>(desc: &'static str, func: F) -> Action<'a> {
-    Action {
-        description: desc,
-        func: Box::new(func),
-    }
-}
-
 impl Command for Input {
     fn input_droplets(&self) -> Vec<DropletId> {
         self.inputs.clone()
@@ -91,25 +71,23 @@ impl Command for Input {
         self.outputs.clone()
     }
 
-    fn dynamic_info(&self, _gridview: &RootGridView) -> DynamicCommandInfo {
+    fn dynamic_info(&self, _gridview: &GridView) -> DynamicCommandInfo {
         let grid = Grid::rectangle(self.dimensions.y as usize, self.dimensions.x as usize);
-
-        let actions = vec![
-            mk_act("input droplet", move |gv| {
-                gv.insert(Droplet::new(
-                    self.outputs[0],
-                    self.volume,
-                    self.location,
-                    self.dimensions,
-                ))
-            }),
-        ];
 
         DynamicCommandInfo {
             shape: grid,
             input_locations: vec![],
-            actions: actions,
         }
+    }
+
+    fn run(&self, gridview: &mut GridSubView) {
+        gridview.insert(Droplet::new(
+            self.outputs[0],
+            self.volume,
+            self.location,
+            self.dimensions,
+        ));
+        gridview.tick();
     }
 
     fn trust_placement(&self) -> bool {
@@ -134,20 +112,21 @@ impl Flush {
 }
 
 impl Command for Flush {
-    fn dynamic_info(&self, _gridview: &RootGridView) -> DynamicCommandInfo {
-        let actions = vec![
-            mk_act("flush", move |gv| {
-                if gv.is_exec() {
-                    let info = gv.droplet_info(Some(self.pid));
-                    self.tx.send(info).unwrap();
-                }
-            }),
-        ];
+    fn dynamic_info(&self, _gridview: &GridView) -> DynamicCommandInfo {
         DynamicCommandInfo {
             shape: Grid::rectangle(0, 0),
             input_locations: vec![],
-            actions: actions,
         }
+    }
+
+    fn run(&self, gridview: &mut GridSubView) {
+        let tx = self.tx.clone();
+        let pid = self.pid;
+        gridview.register(Box::new(move |gv| {
+            let info = gv.droplet_info(Some(pid));
+            tx.send(info).unwrap();
+        }));
+        gridview.tick();
     }
 }
 
@@ -181,23 +160,23 @@ impl Command for Move {
         self.outputs.clone()
     }
 
-    fn dynamic_info(&self, gridview: &RootGridView) -> DynamicCommandInfo {
+    fn dynamic_info(&self, gridview: &GridView) -> DynamicCommandInfo {
         let old_id = self.inputs[0];
-        let new_id = self.outputs[0];
-        let dim = gridview.droplets[&old_id].dimensions;
-        let actions = vec![
-            mk_act("change droplet id for move", move |gv| {
-                let mut d = gv.remove(old_id);
-                // NOTE this is pretty much the only place it's ok to change an id
-                d.id = new_id;
-                gv.insert(d);
-            }),
-        ];
+        let dim = gridview.droplets()[&old_id].dimensions;
         DynamicCommandInfo {
             shape: Grid::rectangle(dim.y as usize, dim.x as usize),
             input_locations: vec![self.destination[0]],
-            actions: actions,
         }
+    }
+
+    fn run(&self, gridview: &mut GridSubView) {
+        let old_id = self.inputs[0];
+        let new_id = self.outputs[0];
+        let mut d = gridview.remove(&old_id);
+        // NOTE this is pretty much the only place it's ok to change an id
+        d.id = new_id;
+        gridview.insert(d);
+        gridview.tick()
     }
 
     fn trust_placement(&self) -> bool {
@@ -235,12 +214,8 @@ impl Command for Mix {
         self.outputs.clone()
     }
 
-    fn dynamic_info(&self, gridview: &RootGridView) -> DynamicCommandInfo {
-        let droplets = &gridview.droplets;
-
-        let in0 = self.inputs[0];
-        let in1 = self.inputs[1];
-        let out = self.outputs[0];
+    fn dynamic_info(&self, gridview: &GridView) -> DynamicCommandInfo {
+        let droplets = &gridview.droplets();
 
         // define the grid shape now based on the droplets in the *predicted* gridview
         let (grid, input_locations) = {
@@ -257,44 +232,43 @@ impl Command for Mix {
             )
         };
 
-        // this first set of actions moves d1 into d0 and performs the combine
-        // we cannot tick in between; it would cause a collision
-        let acts = vec![
-            mk_act("do mix", move |gv| {
-                gv.move_west(in1);
-
-                let d0 = gv.remove(in0);
-                let d1 = gv.remove(in1);
-                let vol = d0.volume + d1.volume;
-                // TODO right now this only mixes horizontally
-                // it should somehow communicate with the Mix command to control the mixed droplets dimensions
-                let dim = Location {
-                    y: d0.dimensions.y.max(d1.dimensions.y),
-                    x: d0.dimensions.x + d1.dimensions.x,
-                };
-                assert_eq!(d0.location.y, d1.location.y);
-                assert_eq!(d0.location.x + d0.dimensions.x, d1.location.x);
-                gv.insert(Droplet::new(out, vol, d0.location, dim));
-            }),
-            mk_act("move", move |gv| {
-                gv.move_south(out);
-            }),
-            mk_act("move", move |gv| {
-                gv.move_east(out);
-            }),
-            mk_act("move", move |gv| {
-                gv.move_north(out);
-            }),
-            mk_act("move", move |gv| {
-                gv.move_west(out);
-            }),
-        ];
-
         DynamicCommandInfo {
             shape: grid,
             input_locations: input_locations,
-            actions: acts,
         }
+    }
+
+    fn run(&self, gridview: &mut GridSubView) {
+        let in0 = self.inputs[0];
+        let in1 = self.inputs[1];
+        let out = self.outputs[0];
+
+        // this first set of actions moves d1 into d0 and performs the combine
+        // we cannot tick in between; it would cause a collision
+        gridview.move_west(in1);
+
+        let d0 = gridview.remove(&in0);
+        let d1 = gridview.remove(&in1);
+        let vol = d0.volume + d1.volume;
+        // TODO right now this only mixes horizontally
+        // it should somehow communicate with the Mix command to control the mixed droplets dimensions
+        let dim = Location {
+            y: d0.dimensions.y.max(d1.dimensions.y),
+            x: d0.dimensions.x + d1.dimensions.x,
+        };
+        assert_eq!(d0.location.y, d1.location.y);
+        assert_eq!(d0.location.x + d0.dimensions.x, d1.location.x);
+        gridview.insert(Droplet::new(out, vol, d0.location, dim));
+
+        gridview.tick();
+        gridview.move_south(out);
+        gridview.tick();
+        gridview.move_east(out);
+        gridview.tick();
+        gridview.move_north(out);
+        gridview.tick();
+        gridview.move_west(out);
+        gridview.tick();
     }
 }
 
@@ -328,8 +302,8 @@ impl Command for Split {
         self.outputs.clone()
     }
 
-    fn dynamic_info(&self, gridview: &RootGridView) -> DynamicCommandInfo {
-        let d0 = gridview.droplets.get(&self.inputs[0]).unwrap();
+    fn dynamic_info(&self, gridview: &GridView) -> DynamicCommandInfo {
+        let d0 = gridview.droplets().get(&self.inputs[0]).unwrap();
         // we only split in the x right now, so we don't need y padding
         let x_dim = (d0.dimensions.x as usize) + SPLIT_PADDING;
         let y_dim = d0.dimensions.y as usize;
@@ -337,54 +311,45 @@ impl Command for Split {
 
         let input_locations = vec![Location { y: 0, x: 2 }];
 
+        DynamicCommandInfo {
+            shape: grid,
+            input_locations: input_locations,
+        }
+    }
+
+    fn run(&self, gridview: &mut GridSubView) {
+        let x_dim = {
+            // limit the scope of d0 borrow
+            let d0 = gridview.get(&self.inputs[0]);
+            (d0.dimensions.x as usize) + SPLIT_PADDING
+        };
+
         let inp = self.inputs[0];
         let out0 = self.outputs[0];
         let out1 = self.outputs[1];
 
-        let acts = vec![
-            mk_act("split", move |gv| {
-                let d = gv.remove(inp);
-                let vol = d.volume / 2.0;
-                // create the error and clamp it to reasonable values
-                let err = gv.backing_gridview.split_error_stdev.map_or(0.0, |dist| {
-                    gv.backing_gridview
-                        .rng
-                        .sample(dist)
-                        .min(d.volume)
-                        .max(-d.volume)
-                });
+        let d = gridview.remove(&inp);
+        let vol = d.volume / 2.0;
 
-                // TODO: this should be related to volume in some fashion
-                // currently, take the ceiling of the division of the split by two
-                let dim = Location {
-                    y: d.dimensions.y,
-                    x: (d.dimensions.x + 1) / 2,
-                };
+        // TODO: this should be related to volume in some fashion
+        // currently, take the ceiling of the division of the split by two
+        let dim = Location {
+            y: d.dimensions.y,
+            x: (d.dimensions.x + 1) / 2,
+        };
 
-                let vol0 = vol - err;
-                let vol1 = vol + err;
+        let loc0 = Location { y: 0, x: 1 };
+        let loc1 = Location {
+            y: 0,
+            x: x_dim as i32 - (dim.x + 1),
+        };
 
-                let loc0 = Location { y: 0, x: 1 };
-                let loc1 = Location {
-                    y: 0,
-                    x: x_dim as i32 - (dim.x + 1),
-                };
+        gridview.insert(Droplet::new(out0, vol, loc0, dim));
+        gridview.insert(Droplet::new(out1, vol, loc1, dim));
 
-                gv.insert(Droplet::new(out0, vol0, loc0, dim));
-                gv.insert(Droplet::new(out1, vol1, loc1, dim));
-            }),
-            // TODO: right now we only move once
-            // this should depend on SPLIT_PADDING
-            mk_act("split move", move |gv| {
-                gv.move_west(out0);
-                gv.move_east(out1);
-            }),
-        ];
-
-        DynamicCommandInfo {
-            shape: grid,
-            input_locations: input_locations,
-            actions: acts,
-        }
+        gridview.tick();
+        gridview.move_west(out0);
+        gridview.move_east(out1);
+        gridview.tick();
     }
 }
