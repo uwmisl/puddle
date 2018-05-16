@@ -9,7 +9,7 @@ set -ev
 pushd src/core/
 
 # deny all warnings, converting them to errors
-RUSTFLAGS="-D warnings"
+export RUSTFLAGS="-D warnings"
 
 # try the regular build
 cargo build
