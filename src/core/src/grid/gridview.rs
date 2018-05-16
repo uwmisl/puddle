@@ -16,10 +16,7 @@ pub struct GridView {
 
 #[derive(Debug)]
 pub enum ExecResponse {
-    Step {
-        // droplets: &'a Map<DropletId, Droplet>,
-        // callbacks: &'a [Callback],
-    },
+    Step,
     NotReady,
     Done,
 }
@@ -48,10 +45,7 @@ impl GridView {
             });
 
             self.exec_time += 1;
-
-            Step {
-                // droplets, callbacks
-            }
+            Step
         } else if self.done {
             Done
         } else {
@@ -86,25 +80,7 @@ impl GridView {
         droplets.remove(id).unwrap()
     }
 
-    // fn check_droplet(&mut self, id: DropletId) {
-    //     let droplet = self.backing_gridview.get_mut(id);
-    //     let mapped_to: Set<_> = self.mapping.values().collect();
-    //     // TODO this is pretty slow
-    //     for i in 0..droplet.dimensions.y {
-    //         for j in 0..droplet.dimensions.x {
-    //             let loc = Location {
-    //                 y: droplet.location.y + i,
-    //                 x: droplet.location.x + j,
-    //             };
-    //             if !mapped_to.contains(&loc) {
-    //                 panic!("{} was unmapped!, mapping: {:#?}", loc, self.mapping);
-    //             }
-    //         }
-    //     }
-    // }
-
     fn tick(&mut self) {
-        //FIXME copy the stuff over
         let now = self.history.len() - 1;
         self.get_collision_at_time(now).map(|col| {
             panic!("collision: {:#?}", col);
@@ -203,7 +179,6 @@ impl GridView {
 }
 
 pub struct GridSubView<'a> {
-    // FIXME this shoudn't be pub
     backing_gridview: &'a mut GridView,
     mapping: Map<Location, Location>,
     ids: Set<DropletId>,
