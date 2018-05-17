@@ -2,7 +2,7 @@ use grid::gridview::{GridSubView, GridView};
 use std::fmt;
 use std::sync::mpsc::Sender;
 
-use grid::{Droplet, DropletId, DropletInfo, Grid, Location};
+use grid::{Droplet, DropletId, DropletInfo, Grid, Location, Snapshot};
 
 use process::{ProcessId, PuddleResult};
 
@@ -21,6 +21,7 @@ pub trait Command: fmt::Debug + Send {
     fn trust_placement(&self) -> bool {
         false
     }
+    fn finalize(&mut self, &Snapshot) {}
 }
 
 //
@@ -120,13 +121,12 @@ impl Command for Flush {
     }
 
     fn run(&self, gridview: &mut GridSubView) {
-        let tx = self.tx.clone();
-        let pid = self.pid;
-        gridview.register(Box::new(move |gv| {
-            let info = gv.droplet_info(Some(pid));
-            tx.send(info).unwrap();
-        }));
         gridview.tick();
+    }
+
+    fn finalize(&mut self, gv: &Snapshot) {
+        let info = gv.droplet_info(Some(self.pid));
+        self.tx.send(info).unwrap();
     }
 }
 

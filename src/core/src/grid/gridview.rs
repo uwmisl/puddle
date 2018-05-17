@@ -1,22 +1,43 @@
 use super::{Droplet, DropletId, DropletInfo, Grid, Location};
+use command::Command;
 use plan::Path;
 use process::ProcessId;
+use rand::Rng;
 use util::collections::{Map, Set};
-
-// Send + 'static required because of jsonrpc
-type Callback = Box<Fn(&GridView) + Send + 'static>;
 
 pub struct GridView {
     pub grid: Grid,
     history: Vec<Snapshot>,
     exec_time: usize,
-    callbacks: Map<usize, Vec<Callback>>,
     done: bool,
 }
 
-#[derive(Clone, Default)]
+#[derive(Default)]
 pub struct Snapshot {
-    pub droplets: Map<DropletId, Droplet>
+    pub droplets: Map<DropletId, Droplet>,
+    commands_to_finalize: Vec<Box<Command>>,
+}
+
+impl Snapshot {
+    fn finalize(&mut self) {
+        // we need to drain this so we can mutate the command without mutating
+        // self, as we need to pass self into cmd.finalize
+        // this feels pretty ugly....
+        let mut x: Vec<_> = self.commands_to_finalize.drain(..).collect();
+        for cmd in &mut x {
+            debug!("Finalizing command: {:#?}", cmd);
+            cmd.finalize(self)
+        }
+        self.commands_to_finalize = x;
+    }
+
+    pub fn droplet_info(&self, pid_option: Option<ProcessId>) -> Vec<DropletInfo> {
+        self.droplets
+            .values()
+            .filter(|&d| pid_option.map_or(true, |pid| d.id.process_id == pid))
+            .map(|d| d.info())
+            .collect()
+    }
 }
 
 #[derive(Debug)]
@@ -32,7 +53,6 @@ impl GridView {
             grid: grid,
             history: vec![Snapshot::default()],
             exec_time: 0,
-            callbacks: Map::new(),
             done: false,
         }
     }
@@ -43,12 +63,8 @@ impl GridView {
         // compare with len - 1 because we wouldn't want to "write out" a state
         // that hasn't been fully planned
         let resp = if self.exec_time < self.history.len() - 1 {
-            self.callbacks.get(&self.exec_time).map(|cbs| {
-                for cb in cbs {
-                    cb(self)
-                }
-            });
-
+            // TODO should probably do this later when things have been validated
+            self.history[self.exec_time].finalize();
             self.exec_time += 1;
             Step
         } else if self.done {
@@ -92,15 +108,10 @@ impl GridView {
             panic!("collision: {:#?}", col);
         });
 
-        let copy = self.snapshot().clone();
-        self.history.push(copy);
+        let mut new_snapshot = Snapshot::default();
+        new_snapshot.droplets = self.history[now].droplets.clone();
+        self.history.push(new_snapshot);
         trace!("TICK! len={}", self.history.len());
-    }
-
-    pub fn register(&mut self, callback: Callback) {
-        let now = self.history.len() - 1;
-        let cbs = self.callbacks.entry(now).or_insert_with(|| Vec::new());
-        cbs.push(callback);
     }
 
     /// Returns an invalid droplet, if any.
@@ -124,31 +135,20 @@ impl GridView {
 
     fn update(&mut self, id: DropletId, func: impl FnOnce(&mut Droplet)) {
         let now = self.history.last_mut().unwrap();
-        let droplet = now.droplets.get_mut(&id)
+        let droplet = now.droplets
+            .get_mut(&id)
             .unwrap_or_else(|| panic!("Tried to remove a non-existent droplet: {:?}", id));
         func(droplet);
     }
 
     pub fn exec_droplet_info(&self, pid_option: Option<ProcessId>) -> Vec<DropletInfo> {
         // gets from the planner for now
-        self.history[self.exec_time]
-            .droplets
-            .values()
-            .filter(|&d| pid_option.map_or(true, |pid| d.id.process_id == pid))
-            .map(|d| d.info())
-            .collect()
+        self.history[self.exec_time].droplet_info(pid_option)
     }
 
-    pub fn droplet_info(&self, pid_option: Option<ProcessId>) -> Vec<DropletInfo> {
+    pub fn plan_droplet_info(&self, pid_option: Option<ProcessId>) -> Vec<DropletInfo> {
         // gets from the planner for now
-        self.history
-            .last()
-            .unwrap()
-            .droplets
-            .values()
-            .filter(|&d| pid_option.map_or(true, |pid| d.id.process_id == pid))
-            .map(|d| d.info())
-            .collect()
+        self.history.last().unwrap().droplet_info(pid_option)
     }
 
     pub fn take_paths(&mut self, paths: &Map<DropletId, Path>) {
@@ -185,6 +185,44 @@ impl GridView {
             ids: ids.into_iter().collect(),
         }
     }
+
+    pub fn register(&mut self, cmd: Box<Command>) {
+        // this goes in the *just planned* thing, not the one currently being planned.
+        let just_planned = self.history.len() - 2;
+        self.history[just_planned].commands_to_finalize.push(cmd)
+    }
+
+    pub fn rollback(&mut self, snapshot: Snapshot) {
+        self.history.truncate(self.exec_time);
+        self.history[self.exec_time] = snapshot;
+    }
+
+    pub fn perturb(&self, rng: &mut impl Rng) -> Option<Snapshot> {
+        if self.exec_time < 1 {
+            return None;
+        }
+
+        let then = &self.history[self.exec_time - 1];
+        let now = &self.history[self.exec_time];
+
+        let id = {
+            let ids: Vec<_> = now.droplets.keys().collect();
+            match rng.choose(ids.as_slice()) {
+                Some(&&id) => id,
+                None => return None,
+            }
+        };
+
+        let mut now2 = Snapshot::default();
+        now2.droplets = now.droplets.clone();
+
+        if let Some(old_droplet) = then.droplets.get(&id) {
+            let was_there = now2.droplets.insert(id, old_droplet.clone());
+            assert!(was_there.is_some());
+        }
+
+        Some(now2)
+    }
 }
 
 pub struct GridSubView<'a> {
@@ -194,10 +232,6 @@ pub struct GridSubView<'a> {
 }
 
 impl<'a> GridSubView<'a> {
-    pub fn register(&mut self, callback: Callback) {
-        self.backing_gridview.register(callback)
-    }
-
     pub fn tick(&mut self) {
         self.backing_gridview.tick()
     }
@@ -210,7 +244,11 @@ impl<'a> GridSubView<'a> {
 
     fn get_mut(&mut self, id: &DropletId) -> &mut Droplet {
         assert!(self.ids.contains(&id));
-        self.backing_gridview.snapshot_mut().droplets.get_mut(id).unwrap()
+        self.backing_gridview
+            .snapshot_mut()
+            .droplets
+            .get_mut(id)
+            .unwrap()
     }
 
     pub fn insert(&mut self, mut droplet: Droplet) {

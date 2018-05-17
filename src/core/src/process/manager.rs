@@ -59,7 +59,7 @@ impl Manager {
 
         let gridview = GridView::new(grid);
         let gv_lock = Arc::new(Mutex::new(gridview));
-        let mut executor = Executor::new(blocking, gv_lock.clone());
+        let executor = Executor::new(blocking, gv_lock.clone());
 
         let exec_thread = thread::Builder::new()
             .name("exec".into())

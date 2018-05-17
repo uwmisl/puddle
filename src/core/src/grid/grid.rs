@@ -88,12 +88,7 @@ impl Grid {
 
     /// Tests if this grid is compatible within `bigger` when `offset` is applied
     /// to `self`
-    fn is_compatible_within(
-        &self,
-        offset: Location,
-        bigger: &Self,
-        snapshot: &Snapshot,
-    ) -> bool {
+    fn is_compatible_within(&self, offset: Location, bigger: &Self, snapshot: &Snapshot) -> bool {
         self.locations().all(|(loc, my_cell)| {
             let their_loc = &loc + &offset;
             bigger.get_cell(&their_loc).map_or(false, |theirs| {
@@ -122,11 +117,7 @@ impl Grid {
         map
     }
 
-    pub fn place(
-        &self,
-        smaller: &Self,
-        snapshot: &Snapshot,
-    ) -> Option<Map<Location, Location>> {
+    pub fn place(&self, smaller: &Self, snapshot: &Snapshot) -> Option<Map<Location, Location>> {
         let offset_found = self.vec
             .iter()
             .enumerate()

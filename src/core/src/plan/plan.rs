@@ -69,7 +69,8 @@ impl Planner {
 
         for (loc, id) in in_locs.iter().zip(&in_ids) {
             // this should have been put to none last time
-            let droplet = gv.snapshot_mut().droplets
+            let droplet = gv.snapshot_mut()
+                .droplets
                 .get_mut(&id)
                 .expect("Command gave back and invalid DropletId");
             assert!(droplet.destination.is_none());
@@ -96,6 +97,7 @@ impl Planner {
 
         trace!("Running command {:?}", cmd);
         cmd.run(&mut gv.subview(in_ids.iter().cloned(), placement));
+        gv.register(cmd);
 
         // teardown destinations if the droplets are still there
         // TODO is this ever going to be true?

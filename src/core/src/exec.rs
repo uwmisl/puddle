@@ -2,6 +2,9 @@ use std::sync::{Arc, Mutex};
 use std::thread::sleep;
 use std::time::Duration;
 
+use rand::Rng;
+use rand::prelude::thread_rng;
+
 use grid::{DropletInfo, ExecResponse, GridView};
 use util::endpoint::Endpoint;
 
@@ -15,8 +18,10 @@ impl Executor {
         Executor { blocking, gridview }
     }
 
-    pub fn run(&mut self, endpoint: Endpoint<Vec<DropletInfo>, ()>) {
+    pub fn run(&self, endpoint: Endpoint<Vec<DropletInfo>, ()>) {
         let sleep_time = Duration::from_millis(100);
+
+        let mut rng = thread_rng();
 
         loop {
             if self.blocking {
@@ -37,10 +42,16 @@ impl Executor {
             use self::ExecResponse::*;
             match gv.execute() {
                 Step {} => {
-                    // TODO the callbacks could probably be called by the gv itself
                     if self.blocking {
-                        // only reply after we have the gridview lock
                         endpoint.send(gv.exec_droplet_info(None)).unwrap()
+                    }
+
+                    let should_perturb = rng.gen_bool(0.0);
+                    if should_perturb {
+                        if let Some(new_snapshot) = gv.perturb(&mut rng) {
+                            info!("Simulating an error...");
+                            gv.rollback(new_snapshot);
+                        }
                     }
                 }
                 NotReady => {
