@@ -46,7 +46,7 @@ impl Planner {
             "Input droplets: {:?}",
             cmd.input_droplets()
                 .iter()
-                .map(|id| &gv.droplets()[id])
+                .map(|id| &gv.snapshot().droplets[id])
                 .collect::<Vec<_>>()
         );
 
@@ -59,7 +59,7 @@ impl Planner {
         } else {
             // TODO place should be a method of gridview
             gv.grid
-                .place(&shape, gv.droplets())
+                .place(&shape, gv.snapshot())
                 .ok_or(PlanError::PlaceError)?
         };
 
@@ -69,7 +69,7 @@ impl Planner {
 
         for (loc, id) in in_locs.iter().zip(&in_ids) {
             // this should have been put to none last time
-            let droplet = gv.droplets_mut()
+            let droplet = gv.snapshot_mut().droplets
                 .get_mut(&id)
                 .expect("Command gave back and invalid DropletId");
             assert!(droplet.destination.is_none());
@@ -85,7 +85,7 @@ impl Planner {
             None => {
                 return Err(PlanError::RouteError {
                     placement: placement,
-                    droplets: gv.droplets().values().map(|d| d.clone()).collect(),
+                    droplets: gv.snapshot().droplets.values().map(|d| d.clone()).collect(),
                 })
             }
         };
@@ -100,7 +100,7 @@ impl Planner {
         // teardown destinations if the droplets are still there
         // TODO is this ever going to be true?
         for id in in_ids {
-            gv.droplets_mut().get_mut(&id).map(|droplet| {
+            gv.snapshot_mut().droplets.get_mut(&id).map(|droplet| {
                 assert_eq!(Some(droplet.location), droplet.destination);
                 droplet.destination = None;
             });

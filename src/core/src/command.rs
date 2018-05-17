@@ -162,7 +162,7 @@ impl Command for Move {
 
     fn dynamic_info(&self, gridview: &GridView) -> DynamicCommandInfo {
         let old_id = self.inputs[0];
-        let dim = gridview.droplets()[&old_id].dimensions;
+        let dim = gridview.snapshot().droplets[&old_id].dimensions;
         DynamicCommandInfo {
             shape: Grid::rectangle(dim.y as usize, dim.x as usize),
             input_locations: vec![self.destination[0]],
@@ -215,7 +215,7 @@ impl Command for Mix {
     }
 
     fn dynamic_info(&self, gridview: &GridView) -> DynamicCommandInfo {
-        let droplets = &gridview.droplets();
+        let droplets = &gridview.snapshot().droplets;
 
         // define the grid shape now based on the droplets in the *predicted* gridview
         let (grid, input_locations) = {
@@ -303,7 +303,8 @@ impl Command for Split {
     }
 
     fn dynamic_info(&self, gridview: &GridView) -> DynamicCommandInfo {
-        let d0 = gridview.droplets().get(&self.inputs[0]).unwrap();
+        let droplets = &gridview.snapshot().droplets;
+        let d0 = droplets.get(&self.inputs[0]).unwrap();
         // we only split in the x right now, so we don't need y padding
         let x_dim = (d0.dimensions.x as usize) + SPLIT_PADDING;
         let y_dim = d0.dimensions.y as usize;

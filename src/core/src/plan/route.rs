@@ -142,7 +142,7 @@ impl Node {
 
 impl GridView {
     pub fn route(&self) -> Option<Map<DropletId, Path>> {
-        let mut droplets = self.droplets().iter().collect::<Vec<_>>();
+        let mut droplets = self.snapshot().droplets.iter().collect::<Vec<_>>();
         let mut rng = thread_rng();
         for i in 1..50 {
             rng.shuffle(&mut droplets);

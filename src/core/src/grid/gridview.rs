@@ -8,10 +8,15 @@ type Callback = Box<Fn(&GridView) + Send + 'static>;
 
 pub struct GridView {
     pub grid: Grid,
-    history: Vec<Map<DropletId, Droplet>>,
+    history: Vec<Snapshot>,
     exec_time: usize,
     callbacks: Map<usize, Vec<Callback>>,
     done: bool,
+}
+
+#[derive(Clone, Default)]
+pub struct Snapshot {
+    pub droplets: Map<DropletId, Droplet>
 }
 
 #[derive(Debug)]
@@ -25,7 +30,7 @@ impl GridView {
     pub fn new(grid: Grid) -> GridView {
         GridView {
             grid: grid,
-            history: vec![Map::new()],
+            history: vec![Snapshot::default()],
             exec_time: 0,
             callbacks: Map::new(),
             done: false,
@@ -61,23 +66,24 @@ impl GridView {
         resp
     }
 
-    pub fn droplets(&self) -> &Map<DropletId, Droplet> {
+    pub fn snapshot(&self) -> &Snapshot {
         self.history.last().unwrap()
     }
 
-    pub fn droplets_mut(&mut self) -> &mut Map<DropletId, Droplet> {
+    // TODO probably shouldn't provide this
+    pub fn snapshot_mut(&mut self) -> &mut Snapshot {
         self.history.last_mut().unwrap()
     }
 
     fn insert(&mut self, droplet: Droplet) {
-        let droplets = self.history.last_mut().unwrap();
-        let was_there = droplets.insert(droplet.id, droplet);
+        let snapshot = self.history.last_mut().unwrap();
+        let was_there = snapshot.droplets.insert(droplet.id, droplet);
         assert!(was_there.is_none());
     }
 
     fn remove(&mut self, id: &DropletId) -> Droplet {
-        let droplets = self.history.last_mut().unwrap();
-        droplets.remove(id).unwrap()
+        let snapshot = self.history.last_mut().unwrap();
+        snapshot.droplets.remove(id).unwrap()
     }
 
     fn tick(&mut self) {
@@ -86,7 +92,7 @@ impl GridView {
             panic!("collision: {:#?}", col);
         });
 
-        let copy = self.droplets().clone();
+        let copy = self.snapshot().clone();
         self.history.push(copy);
         trace!("TICK! len={}", self.history.len());
     }
@@ -99,7 +105,7 @@ impl GridView {
 
     /// Returns an invalid droplet, if any.
     fn get_collision_at_time(&self, time: usize) -> Option<(DropletId, DropletId)> {
-        let droplets = &self.history[time];
+        let droplets = &self.history[time].droplets;
         for (id1, droplet1) in droplets.iter() {
             for (id2, droplet2) in droplets.iter() {
                 if id1 == id2 {
@@ -118,7 +124,7 @@ impl GridView {
 
     fn update(&mut self, id: DropletId, func: impl FnOnce(&mut Droplet)) {
         let now = self.history.last_mut().unwrap();
-        let droplet = now.get_mut(&id)
+        let droplet = now.droplets.get_mut(&id)
             .unwrap_or_else(|| panic!("Tried to remove a non-existent droplet: {:?}", id));
         func(droplet);
     }
@@ -126,6 +132,7 @@ impl GridView {
     pub fn exec_droplet_info(&self, pid_option: Option<ProcessId>) -> Vec<DropletInfo> {
         // gets from the planner for now
         self.history[self.exec_time]
+            .droplets
             .values()
             .filter(|&d| pid_option.map_or(true, |pid| d.id.process_id == pid))
             .map(|d| d.info())
@@ -137,6 +144,7 @@ impl GridView {
         self.history
             .last()
             .unwrap()
+            .droplets
             .values()
             .filter(|&d| pid_option.map_or(true, |pid| d.id.process_id == pid))
             .map(|d| d.info())
@@ -148,7 +156,8 @@ impl GridView {
 
         // make sure that all droplets start where they are at this time step
         for (id, path) in paths.iter() {
-            let droplet = &self.history.last().unwrap()[&id];
+            let snapshot = self.history.last().unwrap();
+            let droplet = &snapshot.droplets[&id];
             assert_eq!(droplet.location, path[0]);
         }
 
@@ -196,12 +205,12 @@ impl<'a> GridSubView<'a> {
     // TODO: translate or somehow hide the untranslated location of this
     pub fn get(&self, id: &DropletId) -> &Droplet {
         assert!(self.ids.contains(&id));
-        self.backing_gridview.droplets().get(id).unwrap()
+        self.backing_gridview.snapshot().droplets.get(id).unwrap()
     }
 
     fn get_mut(&mut self, id: &DropletId) -> &mut Droplet {
         assert!(self.ids.contains(&id));
-        self.backing_gridview.droplets_mut().get_mut(id).unwrap()
+        self.backing_gridview.snapshot_mut().droplets.get_mut(id).unwrap()
     }
 
     pub fn insert(&mut self, mut droplet: Droplet) {

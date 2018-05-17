@@ -2,7 +2,7 @@ use serde_json;
 use std::collections::HashSet;
 use std::io::Read;
 
-use super::{Droplet, DropletId, Location};
+use super::{Location, Snapshot};
 use util::collections::Map;
 
 #[derive(Debug, PartialEq, Eq, Hash, Serialize, Deserialize, Clone, Copy)]
@@ -92,12 +92,12 @@ impl Grid {
         &self,
         offset: Location,
         bigger: &Self,
-        droplets: &Map<DropletId, Droplet>,
+        snapshot: &Snapshot,
     ) -> bool {
         self.locations().all(|(loc, my_cell)| {
             let their_loc = &loc + &offset;
             bigger.get_cell(&their_loc).map_or(false, |theirs| {
-                my_cell.is_compatible(&theirs) && !droplets.values().any(|droplet| {
+                my_cell.is_compatible(&theirs) && !snapshot.droplets.values().any(|droplet| {
                     let corner1 = droplet.location;
                     let corner2 = &droplet.location + &droplet.dimensions;
                     their_loc.min_distance_to_box(corner1, corner2) <= 0
@@ -125,7 +125,7 @@ impl Grid {
     pub fn place(
         &self,
         smaller: &Self,
-        droplets: &Map<DropletId, Droplet>,
+        snapshot: &Snapshot,
     ) -> Option<Map<Location, Location>> {
         let offset_found = self.vec
             .iter()
@@ -136,14 +136,14 @@ impl Grid {
                     x: j as i32,
                 })
             })
-            .find(|&offset| smaller.is_compatible_within(offset, self, droplets));
+            .find(|&offset| smaller.is_compatible_within(offset, self, snapshot));
 
         let result =
             offset_found.map(|offset| smaller.mapping_into_other_from_offset(offset, self));
 
         // verify the mapping by checking that each space is far enough away from the droplets
         result.as_ref().map(|mapping| {
-            for droplet in droplets.values() {
+            for droplet in snapshot.droplets.values() {
                 let corner1 = droplet.location;
                 let corner2 = &droplet.location + &droplet.dimensions;
                 for loc in mapping.values() {
@@ -261,14 +261,14 @@ pub mod tests {
         let g1 = Grid::rectangle(5, 4);
         let g2 = Grid::rectangle(5, 4);
         let zero = Location { x: 0, y: 0 };
-        assert!(g1.is_compatible_within(zero, &g2, &Map::new()))
+        assert!(g1.is_compatible_within(zero, &g2, &Snapshot::default()))
     }
 
     #[test]
     fn grid_self_place() {
         let grid = Grid::rectangle(5, 4);
 
-        let map = grid.place(&grid, &Map::new()).unwrap();
+        let map = grid.place(&grid, &Snapshot::default()).unwrap();
 
         let identity_locs: Map<Location, Location> =
             Map::from_iter(grid.locations().map(|(loc, _)| (loc, loc)));
