@@ -1,7 +1,7 @@
 use jsonrpc_core as rpc;
 use std::sync::Arc;
 
-use ::*;
+use *;
 
 impl From<PuddleError> for rpc::Error {
     fn from(p_err: PuddleError) -> Self {

@@ -2,8 +2,8 @@ use std::sync::{Arc, Mutex};
 use std::thread::sleep;
 use std::time::Duration;
 
-use rand::Rng;
 use rand::prelude::thread_rng;
+use rand::Rng;
 
 use grid::{DropletInfo, ExecResponse, GridView};
 use util::endpoint::Endpoint;
