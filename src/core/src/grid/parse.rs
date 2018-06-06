@@ -18,10 +18,7 @@ enum Mark {
 #[serde(untagged)]
 enum CellIndex {
     Marked(Mark),
-    // TODO support manually specified pins
-    // but it gets semi-complicated with the interaction of auto pins and
-    // specified pins
-    // Index(u32),
+    Index(u32),
 }
 
 use self::CellIndex::*;
@@ -34,26 +31,33 @@ pub fn deserialize<'de, D>(d: D) -> Result<GridVec, D::Error>
 where
     D: Deserializer<'de>,
 {
-    let pg_vec: ParsedGridVec = try!(Vec::deserialize(d));
-    let mut next_pin = 0;
+    let pg_vec: ParsedGridVec = Vec::deserialize(d)?;
 
-    let vec = pg_vec
+    // find a pin that higher than anything listed
+    let mut next_auto_pin = pg_vec
         .iter()
-        .map(|row| {
-            row.iter()
-                .map(|ci: &CellIndex| match ci {
-                    &Marked(Empty) => None,
-                    &Marked(Auto) => {
-                        let pin = next_pin;
-                        next_pin += 1;
-                        Some(Cell { pin: pin })
-                    }
-                })
-                .collect()
+        .flat_map(|row| row.iter())
+        .filter_map(|ci| match ci {
+            Index(n) => Some(n + 1),
+            _ => None,
         })
-        .collect();
+        .max()
+        .unwrap_or(0);
 
-    Ok(vec)
+    let mut f = |ci: &CellIndex| match ci {
+        &Marked(Empty) => Ok(None),
+        &Marked(Auto) => {
+            let pin = next_auto_pin;
+            next_auto_pin += 1;
+            Ok(Some(Cell { pin: pin }))
+        },
+        &Index(n) => Ok(Some(Cell { pin: n }))
+    };
+
+    pg_vec
+        .iter()
+        .map(|row| row.iter().map(&mut f).collect())
+        .collect()
 }
 
 pub fn serialize<S>(gv: &GridVec, s: S) -> Result<S::Ok, S::Error>
