@@ -1,4 +1,4 @@
-use grid::Cell;
+use grid::Electrode;
 
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
@@ -16,16 +16,16 @@ enum Mark {
 
 #[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(untagged)]
-enum CellIndex {
+enum ElectrodeIndex {
     Marked(Mark),
     Index(u32),
 }
 
-use self::CellIndex::*;
+use self::ElectrodeIndex::*;
 use self::Mark::*;
 
-type ParsedGridVec = Vec<Vec<CellIndex>>;
-type GridVec = Vec<Vec<Option<Cell>>>;
+type ParsedGridVec = Vec<Vec<ElectrodeIndex>>;
+type GridVec = Vec<Vec<Option<Electrode>>>;
 
 pub fn deserialize<'de, D>(d: D) -> Result<GridVec, D::Error>
 where
@@ -44,14 +44,14 @@ where
         .max()
         .unwrap_or(0);
 
-    let mut f = |ci: &CellIndex| match ci {
+    let mut f = |ci: &ElectrodeIndex| match ci {
         &Marked(Empty) => Ok(None),
         &Marked(Auto) => {
             let pin = next_auto_pin;
             next_auto_pin += 1;
-            Ok(Some(Cell { pin: pin }))
-        },
-        &Index(n) => Ok(Some(Cell { pin: n }))
+            Ok(Some(Electrode { pin: pin }))
+        }
+        &Index(n) => Ok(Some(Electrode { pin: n })),
     };
 
     pg_vec
@@ -67,7 +67,7 @@ where
     let pg_vec: ParsedGridVec = gv.iter()
         .map(|row| {
             row.iter()
-                .map(|opt: &Option<Cell>| match opt {
+                .map(|opt: &Option<Electrode>| match opt {
                     &None => Marked(Empty),
                     &Some(_) => Marked(Auto),
                 })
@@ -199,7 +199,7 @@ pub mod tests {
             if cell_locs.contains(&loc) {
                 let pin = next_pin;
                 next_pin += 1;
-                Some(Cell { pin })
+                Some(Electrode { pin })
             } else {
                 None
             }

@@ -6,11 +6,11 @@ use super::{Location, Snapshot};
 use util::collections::Map;
 
 #[derive(Debug, PartialEq, Eq, Hash, Serialize, Deserialize, Clone, Copy)]
-pub struct Cell {
+pub struct Electrode {
     pub pin: u32,
 }
 
-impl Cell {
+impl Electrode {
     #[allow(unused_variables)]
     fn is_compatible(&self, other: &Self) -> bool {
         true
@@ -21,7 +21,7 @@ impl Cell {
 pub struct Grid {
     #[serde(rename = "board")]
     #[serde(with = "super::parse")]
-    pub vec: Vec<Vec<Option<Cell>>>,
+    pub vec: Vec<Vec<Option<Electrode>>>,
 }
 
 #[cfg_attr(rustfmt, rustfmt_skip)]
@@ -50,7 +50,7 @@ impl Grid {
     pub fn rectangle(h: usize, w: usize) -> Self {
         let mut pin = 0;
         let always_cell = |_| {
-            let cell = Some(Cell { pin: pin });
+            let cell = Some(Electrode { pin: pin });
             pin += 1;
             cell
         };
@@ -69,7 +69,7 @@ impl Grid {
         serde_json::from_reader(reader)
     }
 
-    pub fn locations<'a>(&'a self) -> Box<Iterator<Item = (Location, Cell)> + 'a> {
+    pub fn locations<'a>(&'a self) -> Box<Iterator<Item = (Location, Electrode)> + 'a> {
         let iter = self.vec.iter().enumerate().flat_map(move |(i, row)| {
             row.iter().enumerate().filter_map(move |(j, cell_opt)| {
                 cell_opt.map(|cell| {
@@ -148,7 +148,7 @@ impl Grid {
 
     pub fn from_function<F>(mut f: F, height: usize, width: usize) -> Grid
     where
-        F: FnMut(Location) -> Option<Cell>,
+        F: FnMut(Location) -> Option<Electrode>,
     {
         Grid {
             vec: (0..height)
@@ -168,7 +168,7 @@ impl Grid {
 
     // from here on out, functions only return valid locations
 
-    pub fn get_cell(&self, loc: &Location) -> Option<&Cell> {
+    pub fn get_cell(&self, loc: &Location) -> Option<&Electrode> {
         if loc.x < 0 || loc.y < 0 {
             return None;
         }
@@ -235,7 +235,7 @@ pub mod tests {
 
     #[test]
     fn test_connected() {
-        let cell = Some(Cell { pin: 0 });
+        let cell = Some(Electrode { pin: 0 });
         let grid1 = Grid {
             vec: vec![vec![None, cell], vec![cell, None]],
         };
