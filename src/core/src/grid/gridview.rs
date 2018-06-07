@@ -198,7 +198,7 @@ impl GridView {
     }
 
     pub fn rollback(&mut self, snapshot: Snapshot) {
-        self.history.truncate(self.exec_time);
+        self.history.truncate(self.exec_time + 1);
         self.history[self.exec_time] = snapshot;
     }
 
