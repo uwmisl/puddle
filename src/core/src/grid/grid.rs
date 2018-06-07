@@ -69,10 +69,10 @@ impl Grid {
         serde_json::from_reader(reader)
     }
 
-    pub fn locations<'a>(&'a self) -> Box<Iterator<Item = (Location, Electrode)> + 'a> {
-        let iter = self.vec.iter().enumerate().flat_map(move |(i, row)| {
+    pub fn locations<'a>(&'a self) -> impl Iterator<Item = (Location, Electrode)> + 'a {
+        self.vec.iter().enumerate().flat_map(|(i, row)| {
             row.iter().enumerate().filter_map(move |(j, cell_opt)| {
-                cell_opt.map(|cell| {
+                cell_opt.map(|cell: Electrode | {
                     (
                         Location {
                             y: i as i32,
@@ -82,8 +82,7 @@ impl Grid {
                     )
                 })
             })
-        });
-        Box::new(iter)
+        })
     }
 
     /// Tests if this grid is compatible within `bigger` when `offset` is applied

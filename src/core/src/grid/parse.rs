@@ -239,7 +239,12 @@ pub mod tests {
     #[test]
     fn test_parse() {
         // test uneven string lengths with gaps
-        let strs = vec![".....aa.....", "  ...aa...      ", ".bb.........  "];
+        let strs = vec![
+            ".....aa.....",
+            "  ...aa...      ",
+            ".bb.........  ",
+            "  ......  ",
+        ];
 
         let (grid, blobs) = parse_strings(&strs);
 
@@ -249,7 +254,7 @@ pub mod tests {
         assert_eq!(blobs[&'b'].location, Location { y: 2, x: 1 });
         assert_eq!(blobs[&'b'].dimensions, Location { y: 1, x: 2 });
 
-        assert_eq!(grid.max_height(), 3);
+        assert_eq!(grid.max_height(), 4);
         assert_eq!(grid.max_width(), 12);
     }
 }
