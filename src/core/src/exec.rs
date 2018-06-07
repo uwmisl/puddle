@@ -75,11 +75,50 @@ impl Executor {
         self.gpio = Some(gpio)
     }
 
+    fn output_pins(&self, gv: &GridView, pins: &mut [Level]) {
+        // do nothing if we aren't set up to do gpio
+        let gpio = match self.gpio {
+            Some(ref g) => g,
+            None => return,
+        };
+
+        // reset pins to low by default
+        for p in pins.iter_mut() {
+            *p = Level::Low;
+        }
+
+        // set pins to high if there's a droplet on that electrode
+        for d in gv.exec_snapshot().droplets.values() {
+            for i in 0..d.dimensions.y {
+                for j in 0..d.dimensions.x {
+                    let loc = Location {
+                        y: d.location.y + i,
+                        x: d.location.x + j,
+                    };
+                    let electrode = gv.grid.get_cell(&loc).unwrap();
+                    pins[electrode.pin as usize] = Level::High;
+                }
+            }
+        }
+
+        // actually write the pins and cycle the clock
+        for pin in pins.iter() {
+            gpio.write(DATA_PIN, *pin);
+            gpio.write(CLOCK_PIN, Level::High);
+            gpio.write(CLOCK_PIN, Level::Low);
+        }
+
+        // commit the latch
+        gpio.write(LATCH_ENABLE_PIN, Level::High);
+        gpio.write(LATCH_ENABLE_PIN, Level::Low);
+    }
+
     pub fn run(&self, endpoint: Endpoint<Vec<DropletInfo>, ()>) {
         let sleep_time = Duration::from_millis(STEP_DELAY);
 
         let mut rng = thread_rng();
         let max_pin = self.gridview.lock().unwrap().grid.max_pin();
+        let mut pins = vec![Level::Low; (max_pin + 1) as usize];
 
         loop {
             if self.blocking {
@@ -104,34 +143,7 @@ impl Executor {
                         endpoint.send(gv.exec_droplet_info(None)).unwrap()
                     }
 
-                    if let Some(ref gpio) = self.gpio {
-                        // scope the borrow of the snapshot
-                        let snap = gv.exec_snapshot();
-                        let mut pins = vec![Level::Low; (max_pin + 1) as usize];
-                        for d in snap.droplets.values() {
-                            for i in 0..d.dimensions.y {
-                                for j in 0..d.dimensions.x {
-                                    let loc = Location {
-                                        y: d.location.y + i,
-                                        x: d.location.x + j,
-                                    };
-                                    let electrode = gv.grid.get_cell(&loc).unwrap();
-                                    pins[electrode.pin as usize] = Level::High;
-                                }
-                            }
-                        }
-
-                        for pin in pins {
-                            // write and cycle the clock
-                            gpio.write(DATA_PIN, pin);
-                            gpio.write(CLOCK_PIN, Level::High);
-                            gpio.write(CLOCK_PIN, Level::Low);
-                        }
-
-                        // commit the latch
-                        gpio.write(LATCH_ENABLE_PIN, Level::High);
-                        gpio.write(LATCH_ENABLE_PIN, Level::Low);
-                    }
+                    self.output_pins(&gv, &mut pins);
 
                     let should_perturb = rng.gen_bool(0.0);
                     if should_perturb {
