@@ -86,6 +86,10 @@ impl GridView {
         self.history.last().unwrap()
     }
 
+    pub fn exec_snapshot(&self) -> &Snapshot {
+        &self.history[self.exec_time]
+    }
+
     // TODO probably shouldn't provide this
     pub fn snapshot_mut(&mut self) -> &mut Snapshot {
         self.history.last_mut().unwrap()

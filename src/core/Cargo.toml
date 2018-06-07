@@ -30,5 +30,8 @@ pathfinding = "0.7"
 
 float-ord = "0.2.0"
 
+# raspberry pi interface
+rppal = "0.6"
+
 [dev-dependencies]
 glob = "^0.2"

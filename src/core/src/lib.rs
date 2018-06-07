@@ -26,6 +26,8 @@ extern crate pathfinding;
 
 extern crate float_ord;
 
+extern crate rppal;
+
 // these need to be pub until we have an api
 mod command;
 mod exec;
@@ -37,3 +39,4 @@ mod util;
 pub use grid::parse;
 pub use grid::{DropletId, DropletInfo, Grid, Location};
 pub use process::*;
+pub use exec::Executor;

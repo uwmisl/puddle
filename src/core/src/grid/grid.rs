@@ -11,8 +11,7 @@ pub struct Electrode {
 }
 
 impl Electrode {
-    #[allow(unused_variables)]
-    fn is_compatible(&self, other: &Self) -> bool {
+    fn is_compatible(&self, _other: &Self) -> bool {
         true
     }
 }
@@ -22,6 +21,7 @@ pub struct Grid {
     #[serde(rename = "board")]
     #[serde(with = "super::parse")]
     pub vec: Vec<Vec<Option<Electrode>>>,
+    pub max_pin: u32,
 }
 
 #[cfg_attr(rustfmt, rustfmt_skip)]
@@ -72,7 +72,7 @@ impl Grid {
     pub fn locations<'a>(&'a self) -> impl Iterator<Item = (Location, Electrode)> + 'a {
         self.vec.iter().enumerate().flat_map(|(i, row)| {
             row.iter().enumerate().filter_map(move |(j, cell_opt)| {
-                cell_opt.map(|cell: Electrode | {
+                cell_opt.map(|cell: Electrode| {
                     (
                         Location {
                             y: i as i32,
@@ -149,20 +149,26 @@ impl Grid {
     where
         F: FnMut(Location) -> Option<Electrode>,
     {
-        Grid {
-            vec: (0..height)
-                .map(move |i| {
-                    (0..width)
-                        .map(|j| {
-                            f(Location {
-                                y: i as i32,
-                                x: j as i32,
-                            })
+        let vec: Vec<Vec<_>> = (0..height)
+            .map(move |i| {
+                (0..width)
+                    .map(|j| {
+                        f(Location {
+                            y: i as i32,
+                            x: j as i32,
                         })
-                        .collect()
-                })
-                .collect(),
-        }
+                    })
+                    .collect()
+            })
+            .collect();
+
+        let max_pin = vec.iter()
+            .flat_map(|row| row.iter())
+            .map(|e| e.map_or(0, |e| e.pin))
+            .max()
+            .unwrap_or(0);
+
+        Grid { vec, max_pin }
     }
 
     // from here on out, functions only return valid locations
@@ -237,9 +243,11 @@ pub mod tests {
         let cell = Some(Electrode { pin: 0 });
         let grid1 = Grid {
             vec: vec![vec![None, cell], vec![cell, None]],
+            max_pin: 0,
         };
         let grid2 = Grid {
             vec: vec![vec![cell, cell], vec![None, None]],
+            max_pin: 0,
         };
 
         assert!(!grid1.is_connected());
