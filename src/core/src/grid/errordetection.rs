@@ -4,7 +4,7 @@ use pathfinding::kuhn_munkres::*;
 use pathfinding::matrix::*;
 
 use super::{Droplet, DropletId};
-use grid::parse::Blob;
+use grid::droplet::Blob;
 
 use std::collections::HashMap;
 

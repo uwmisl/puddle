@@ -1,4 +1,5 @@
 use super::{Droplet, DropletId, DropletInfo, Grid, Location};
+use grid::droplet::Blob;
 use command::Command;
 use plan::Path;
 use process::ProcessId;

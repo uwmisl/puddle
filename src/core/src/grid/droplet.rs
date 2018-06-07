@@ -1,5 +1,6 @@
 use std::sync::atomic::AtomicUsize;
 use std::sync::atomic::Ordering::Relaxed;
+use std::collections::HashSet;
 
 use super::Location;
 use process::ProcessId;
@@ -98,6 +99,77 @@ impl Droplet {
             location: self.location,
             dimensions: self.dimensions,
             volume: self.volume,
+        }
+    }
+
+    pub fn to_blob(&self) -> Blob {
+        Blob {
+            location: self.location,
+            dimensions: self.dimensions,
+            volume: self.volume,
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct Blob {
+    pub location: Location,
+    pub dimensions: Location,
+    // TODO: why eq? consider implementing
+    // Otherwise FNV Hashing
+    pub volume: f64,
+}
+
+impl PartialEq for Blob {
+    fn eq(&self, other: &Blob) -> bool {
+        self.location == other.location && self.dimensions == other.dimensions
+            && float_epsilon_equal(self.volume, other.volume)
+    }
+}
+
+fn float_epsilon_equal(float1: f64, float2: f64) -> bool {
+    let epsilon = 0.00001f64;
+    (float1 - float2).abs() < epsilon
+}
+
+// impl Eq for Blob {}
+
+impl Blob {
+    pub fn from_locations(locs: &[Location]) -> Option<Blob> {
+        let location = Location {
+            y: locs.iter().map(|l| l.y).min().unwrap_or(0),
+            x: locs.iter().map(|l| l.x).min().unwrap_or(0),
+        };
+        let far_corner = Location {
+            y: locs.iter().map(|l| l.y).max().unwrap_or(0) + 1,
+            x: locs.iter().map(|l| l.x).max().unwrap_or(0) + 1,
+        };
+        let dimensions = &far_corner - &location;
+
+        let set1: HashSet<Location> = locs.iter().cloned().collect();
+        let mut set2 = HashSet::new();
+
+        // build set2 with all the locations the rectangle should have
+        for i in 0..dimensions.y {
+            for j in 0..dimensions.x {
+                set2.insert(Location {
+                    y: location.y + i,
+                    x: location.x + j,
+                });
+            }
+        }
+
+        // using dimensions as volume for now
+        let volume: f64 = (dimensions.x * dimensions.y).into();
+
+        if set1 == set2 {
+            Some(Blob {
+                location,
+                dimensions,
+                volume,
+            })
+        } else {
+            None
         }
     }
 }
