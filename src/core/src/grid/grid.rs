@@ -21,7 +21,6 @@ pub struct Grid {
     #[serde(rename = "board")]
     #[serde(with = "super::parse")]
     pub vec: Vec<Vec<Option<Electrode>>>,
-    pub max_pin: u32,
 }
 
 #[cfg_attr(rustfmt, rustfmt_skip)]
@@ -63,6 +62,15 @@ impl Grid {
 
     pub fn max_width(&self) -> usize {
         self.vec.iter().map(|row| row.len()).max().unwrap_or(0)
+    }
+
+    pub fn max_pin(&self) -> u32 {
+        self.vec
+            .iter()
+            .flat_map(|row| row.iter())
+            .map(|e| e.map_or(0, |e| e.pin))
+            .max()
+            .unwrap_or(0)
     }
 
     pub fn from_reader<R: Read>(reader: R) -> Result<Grid, serde_json::Error> {
@@ -162,13 +170,7 @@ impl Grid {
             })
             .collect();
 
-        let max_pin = vec.iter()
-            .flat_map(|row| row.iter())
-            .map(|e| e.map_or(0, |e| e.pin))
-            .max()
-            .unwrap_or(0);
-
-        Grid { vec, max_pin }
+        Grid { vec }
     }
 
     // from here on out, functions only return valid locations
@@ -243,11 +245,9 @@ pub mod tests {
         let cell = Some(Electrode { pin: 0 });
         let grid1 = Grid {
             vec: vec![vec![None, cell], vec![cell, None]],
-            max_pin: 0,
         };
         let grid2 = Grid {
             vec: vec![vec![cell, cell], vec![None, None]],
-            max_pin: 0,
         };
 
         assert!(!grid1.is_connected());

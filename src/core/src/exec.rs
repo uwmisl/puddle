@@ -79,6 +79,7 @@ impl Executor {
         let sleep_time = Duration::from_millis(STEP_DELAY);
 
         let mut rng = thread_rng();
+        let max_pin = self.gridview.lock().unwrap().grid.max_pin();
 
         loop {
             if self.blocking {
@@ -106,7 +107,7 @@ impl Executor {
                     if let Some(ref gpio) = self.gpio {
                         // scope the borrow of the snapshot
                         let snap = gv.exec_snapshot();
-                        let mut pins = vec![Level::Low; (gv.grid.max_pin + 1) as usize];
+                        let mut pins = vec![Level::Low; (max_pin + 1) as usize];
                         for d in snap.droplets.values() {
                             for i in 0..d.dimensions.y {
                                 for j in 0..d.dimensions.x {

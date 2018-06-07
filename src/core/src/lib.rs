@@ -36,7 +36,25 @@ mod plan;
 mod process;
 mod util;
 
+pub use exec::Executor;
 pub use grid::parse;
 pub use grid::{DropletId, DropletInfo, Grid, Location};
 pub use process::*;
-pub use exec::Executor;
+
+#[cfg(test)]
+mod tests {
+    use std::process::Command;
+
+    pub fn project_root() -> String {
+        let output = Command::new("git")
+            .arg("rev-parse")
+            .arg("--show-toplevel")
+            .output()
+            .expect("Couldn't run `git`!");
+        String::from_utf8_lossy(&output.stdout).trim().into()
+    }
+
+    pub fn project_path(s: &str) -> String {
+        project_root() + s
+    }
+}

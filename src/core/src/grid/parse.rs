@@ -69,7 +69,7 @@ where
             row.iter()
                 .map(|opt: &Option<Electrode>| match opt {
                     &None => Marked(Empty),
-                    &Some(_) => Marked(Auto),
+                    &Some(e) => Index(e.pin),
                 })
                 .collect()
         })
@@ -145,6 +145,7 @@ impl Blob {
 pub mod tests {
 
     use super::*;
+    use tests::project_path;
 
     use glob::glob;
     use std::fs::File;
@@ -220,20 +221,31 @@ pub mod tests {
         ).expect("parse failed");
     }
 
-    fn check_round_trip(grid: Grid) {
+    fn check_round_trip(grid: Grid, desc: &str) {
         let s = sj::to_string(&grid).expect("serialization failed");
         let grid2: Grid = sj::from_str(&s).expect("deserialization failed");
-        assert_eq!(grid, grid2);
+        if grid != grid2 {
+            error!("Failed on {}", desc);
+            assert_eq!(grid, grid2);
+        }
     }
 
+    use env_logger;
     #[test]
     fn test_parse_files() {
-        for entry in glob("../tests/arches/**/*.json").unwrap() {
+        let mut successes = 0;
+        let _ = env_logger::try_init();
+        debug!("{}", project_path("/tests/arches/*.json"));
+        for entry in glob(&project_path("/tests/arches/*.json")).unwrap() {
+            trace!("Testing {:?}", entry);
             let path = entry.expect("glob failed");
-            let reader = File::open(path).expect("file not found");
+            let reader = File::open(path.clone()).expect("file not found");
             let grid = sj::from_reader(reader).expect("parse failed");
-            check_round_trip(grid);
+            check_round_trip(grid, path.to_str().unwrap());
+            successes += 1;
         }
+        debug!("Tested {} parsing round trips", successes);
+        assert!(successes >= 3);
     }
 
     #[test]
