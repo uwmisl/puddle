@@ -1,5 +1,4 @@
 mod droplet;
-mod errordetection;
 pub mod grid;
 pub mod gridview;
 mod location;

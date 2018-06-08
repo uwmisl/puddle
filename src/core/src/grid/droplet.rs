@@ -1,6 +1,6 @@
+use std::collections::HashSet;
 use std::sync::atomic::AtomicUsize;
 use std::sync::atomic::Ordering::Relaxed;
-use std::collections::HashSet;
 
 use super::Location;
 use process::ProcessId;
@@ -171,6 +171,17 @@ impl Blob {
         } else {
             None
         }
+    }
+
+    pub fn get_similarity(&self, droplet: &Droplet) -> i32 {
+        self.location.distance_to(&droplet.location) as i32
+            + self.dimensions.distance_to(&droplet.dimensions) as i32
+            + ((self.volume - droplet.volume) as i32).abs()
+    }
+
+    #[cfg(test)]
+    pub fn to_droplet(&self, id: DropletId) -> Droplet {
+        Droplet::new(id, self.volume, self.location, self.dimensions)
     }
 }
 

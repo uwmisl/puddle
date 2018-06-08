@@ -148,6 +148,7 @@ impl Executor {
                     let should_perturb = rng.gen_bool(0.0);
                     if should_perturb {
                         if let Some(new_snapshot) = gv.perturb(&mut rng) {
+                            let _blobs = new_snapshot.to_blobs();
                             info!("Simulating an error...");
                             gv.rollback(new_snapshot);
                         }

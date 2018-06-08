@@ -74,7 +74,6 @@ where
     pg_vec.serialize(s)
 }
 
-
 #[cfg(test)]
 pub mod tests {
 
@@ -86,7 +85,7 @@ pub mod tests {
 
     use serde_json as sj;
 
-    use grid::{Grid, Location, droplet::Blob};
+    use grid::{droplet::Blob, Grid, Location};
     use std::collections::{HashMap, HashSet};
 
     pub fn parse_strings(rows: &[&str]) -> (Grid, HashMap<char, Blob>) {

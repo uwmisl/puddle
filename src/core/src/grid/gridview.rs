@@ -1,10 +1,15 @@
-use super::{Droplet, DropletId, DropletInfo, Grid, Location};
-use grid::droplet::Blob;
+use rand::Rng;
+
+use pathfinding::kuhn_munkres::*;
+use pathfinding::matrix::*;
+
 use command::Command;
+use grid::droplet::Blob;
 use plan::Path;
 use process::ProcessId;
-use rand::Rng;
 use util::collections::{Map, Set};
+
+use super::{Droplet, DropletId, DropletInfo, Grid, Location};
 
 pub struct GridView {
     pub grid: Grid,
@@ -38,6 +43,52 @@ impl Snapshot {
             .filter(|&d| pid_option.map_or(true, |pid| d.id.process_id == pid))
             .map(|d| d.info())
             .collect()
+    }
+
+    pub fn to_blobs(&self) -> Vec<Blob> {
+        self.droplets.values().map(|d| d.to_blob()).collect()
+    }
+
+    /// Takes a map of droplet ids to droplets (as in that
+    /// of the planner/executor view) and a vector of blobs
+    /// (as in that of the chip view) and returns a matching
+    /// of droplet ids to closest matching blobs.
+    ///
+    /// Can currently only handle where both views contain
+    /// the same number of 'droplets'
+    pub fn match_with_blobs(&self, blobs: &[Blob]) -> Map<DropletId, Blob> {
+        // Ensure lengths are the same
+        if self.droplets.len() != blobs.len() {
+            panic!("Expected and actual droplets are of different lengths");
+        }
+        let mut result = Map::new(); // to be returned
+        let mut ids = vec![]; // store corresponding ids to indeces
+        let mut matches = vec![]; // store similarity between blobs/droplets
+        let n = blobs.len();
+
+        // store the id of each droplet in its corresponding
+        // index in 'ids', then store the similarity of each
+        // droplet to each blob in 'matches'
+        for (&id, droplet) in &self.droplets {
+            ids.push(id);
+            for blob in blobs {
+                matches.push(blob.get_similarity(&droplet));
+            }
+        }
+
+        // convert the matches vector to a matrix
+        // input should be [1,2,3,4], where the output
+        // matrix is [[1,2],[3,4]]
+        let m: Matrix<i32> = Matrix::from_vec(n, n, matches);
+
+        // km is a vector of size n where the value at each index
+        // corresponds to the index of a blob
+        let (_c, km) = kuhn_munkres_min(&m);
+
+        for i in 0..n {
+            result.insert(ids[i], blobs[km[i]].clone());
+        }
+        result
     }
 }
 
@@ -327,5 +378,116 @@ impl<'a> GridSubView<'a> {
         self.update(&id, |droplet| {
             droplet.location = droplet.location.south();
         })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use grid::parse::tests::parse_strings;
+
+    fn parse_snapshot(strs: &[&str]) -> (Map<DropletId, char>, Snapshot) {
+        let (_, blobs) = parse_strings(&strs);
+        let mut id_to_char = Map::new();
+        let mut snapshot = Snapshot::default();
+
+        for (i, (ch, blob)) in blobs.iter().enumerate() {
+            let id = DropletId {
+                id: i,
+                process_id: 0,
+            };
+            id_to_char.insert(id, *ch);
+            snapshot.droplets.insert(id, blob.to_droplet(id));
+        }
+
+        (id_to_char, snapshot)
+    }
+
+    fn check_all_matched(snapshot_strs: &[&str], blob_strs: &[&str]) {
+        let (id_to_char, snapshot) = parse_snapshot(&snapshot_strs);
+        let (_, chip_blobs) = parse_strings(&blob_strs);
+
+        let blobs: Vec<Blob> = chip_blobs.values().cloned().collect();
+        let result: Map<DropletId, Blob> = snapshot.match_with_blobs(&blobs);
+
+        // create the expected map by mapping the ids in the snapshot
+        // to the associated blob which corresponds to the character
+        let mut expected: Map<DropletId, Blob> = Map::new();
+        for id in snapshot.droplets.keys() {
+            expected.insert(*id, chip_blobs[&id_to_char[id]].clone());
+        }
+
+        for id in expected.keys() {
+            assert_eq!(result.get(id), expected.get(id));
+        }
+    }
+
+    #[test]
+    fn test_no_diff() {
+        let strs = vec![
+            "aa..........c",
+            ".....bb......",
+            ".............",
+            ".............",
+        ];
+        check_all_matched(&strs, &strs);
+    }
+
+    #[test]
+    fn test_location_diff() {
+        let exec_strs = vec![
+            "aa..........c",
+            ".....bb......",
+            ".............",
+            ".............",
+        ];
+
+        let chip_strs = vec![
+            "aa...........",
+            "............c",
+            ".....bb......",
+            ".............",
+        ];
+
+        check_all_matched(&exec_strs, &chip_strs);
+    }
+
+    #[test]
+    fn test_dimension_diff() {
+        let exec_strs = vec![
+            "aa..........c",
+            ".....bb......",
+            ".............",
+            ".............",
+        ];
+
+        let chip_strs = vec![
+            "aa.........cc",
+            ".....b.......",
+            ".....b.......",
+            ".............",
+        ];
+
+        check_all_matched(&exec_strs, &chip_strs);
+    }
+
+    #[test]
+    #[should_panic(expected = "Expected and actual droplets are of different lengths")]
+    fn test_mix_split_diff() {
+        let exec_strs = vec![
+            "aa...........",
+            ".....bb..c...",
+            ".............",
+            ".............",
+        ];
+
+        let chip_strs = vec![
+            "aa...........",
+            ".....bbb.....",
+            ".............",
+            ".............",
+        ];
+
+        check_all_matched(&exec_strs, &chip_strs);
     }
 }
