@@ -9,8 +9,6 @@ use process::{Process, ProcessId, PuddleError, PuddleResult};
 use util::collections::Map;
 use util::endpoint::Endpoint;
 
-use plan::Planner;
-
 pub struct ProcessHandle<'a> {
     process: Option<Process>,
     manager: &'a Manager,
@@ -45,13 +43,11 @@ impl<'a> DerefMut for ProcessHandle<'a> {
 #[allow(dead_code)]
 pub struct Manager {
     processes: Mutex<Map<ProcessId, Process>>,
-    planner: Arc<Mutex<Planner>>,
+    gridview: Arc<Mutex<GridView>>,
     exec_endpoint: Mutex<Endpoint<(), Vec<DropletInfo>>>,
     exec_thread: thread::JoinHandle<()>,
     blocking: bool,
 }
-
-// TODO impl drop
 
 impl Manager {
     pub fn new(blocking: bool, grid: Grid) -> Manager {
@@ -66,13 +62,11 @@ impl Manager {
             .spawn(move || executor.run(execs))
             .expect("Execution thread failed to start!");
 
-        let planner = Planner::new(gv_lock);
-
         Manager {
             exec_thread: exec_thread,
             processes: Mutex::new(Map::new()),
             exec_endpoint: Mutex::new(mine),
-            planner: Arc::new(Mutex::new(planner)),
+            gridview: gv_lock,
             blocking: blocking,
         }
     }
@@ -102,8 +96,8 @@ impl Manager {
     where
         S: Into<String>,
     {
-        let planner = Arc::clone(&self.planner);
-        let process = Process::new(name.into(), planner);
+        let gridview = Arc::clone(&self.gridview);
+        let process = Process::new(name.into(), gridview);
         let pid = process.id();
         let mut procs = self.processes.lock().unwrap();
         procs.insert(pid, process);

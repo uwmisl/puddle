@@ -3,12 +3,12 @@ use std::sync::atomic::Ordering::Relaxed;
 use std::sync::mpsc::channel;
 use std::sync::{Arc, Mutex};
 
-use grid::{DropletId, DropletInfo, Location};
+use grid::{DropletId, DropletInfo, GridView, Location};
 
 use command;
 use command::Command;
 
-use plan::{PlanError, Planner};
+use plan::PlanError;
 
 #[derive(Debug)]
 pub enum PuddleError {
@@ -28,7 +28,7 @@ pub struct Process {
     #[allow(dead_code)]
     name: String,
     next_droplet_id: AtomicUsize,
-    planner: Arc<Mutex<Planner>>,
+    gridview: Arc<Mutex<GridView>>,
     // TODO we probably want something like this for more precise flushing
     // unresolved_droplet_ids: Mutex<Set<DropletId>>,
 }
@@ -36,12 +36,12 @@ pub struct Process {
 static NEXT_PROCESS_ID: AtomicUsize = AtomicUsize::new(0);
 
 impl Process {
-    pub fn new(name: String, planner: Arc<Mutex<Planner>>) -> Process {
+    pub fn new(name: String, gridview: Arc<Mutex<GridView>>) -> Process {
         Process {
             id: NEXT_PROCESS_ID.fetch_add(1, Relaxed),
             name: name,
             next_droplet_id: AtomicUsize::new(0),
-            planner: planner,
+            gridview,
         }
     }
 
@@ -57,8 +57,14 @@ impl Process {
     }
 
     fn plan(&self, cmd: Box<Command>) -> PuddleResult<()> {
-        let mut planner = self.planner.lock().unwrap();
-        planner.plan(cmd).map_err(PlanError)
+        let mut gv = self.gridview.lock().unwrap();
+        gv.plan(cmd).map_err(PlanError)
+    }
+}
+
+impl Drop for Process {
+    fn drop(&mut self) {
+        self.close()
     }
 }
 
@@ -105,6 +111,17 @@ impl Process {
         let split_cmd = command::Split::new(d, out1, out2)?;
         self.plan(Box::new(split_cmd))?;
         Ok((out1, out2))
+    }
+
+    pub fn close(&mut self) {
+        let mut gv = match self.gridview.lock() {
+            Ok(gv) => gv,
+            Err(e) => {
+                error!("Error while closing! {:?}", e);
+                return;
+            }
+        };
+        gv.close();
     }
 }
 

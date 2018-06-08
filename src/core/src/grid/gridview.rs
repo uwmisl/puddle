@@ -1,7 +1,8 @@
 use rand::Rng;
+use std::collections::VecDeque;
 
-use pathfinding::kuhn_munkres::*;
-use pathfinding::matrix::*;
+use pathfinding::kuhn_munkres::kuhn_munkres_min;
+use pathfinding::matrix::Matrix;
 
 use command::Command;
 use grid::droplet::Blob;
@@ -13,18 +14,32 @@ use super::{Droplet, DropletId, DropletInfo, Grid, Location};
 
 pub struct GridView {
     pub grid: Grid,
-    history: Vec<Snapshot>,
-    exec_time: usize,
-    done: bool,
+
+    completed: Vec<Snapshot>,
+    planned: VecDeque<Snapshot>,
+    pub done: bool,
 }
 
-#[derive(Default)]
+#[must_use]
+#[derive(Debug, Default)]
 pub struct Snapshot {
     pub droplets: Map<DropletId, Droplet>,
     commands_to_finalize: Vec<Box<Command>>,
 }
 
 impl Snapshot {
+    fn new_with_same_droplets(&self) -> Snapshot {
+        let mut new_snapshot = Snapshot::default();
+        new_snapshot.droplets = self.droplets.clone();
+
+        // clear out the destination because we're doing to replan
+        for d in new_snapshot.droplets.values_mut() {
+            d.destination = None;
+        }
+
+        new_snapshot
+    }
+
     fn finalize(&mut self) {
         // we need to drain this so we can mutate the command without mutating
         // self, as we need to pass self into cmd.finalize
@@ -37,12 +52,37 @@ impl Snapshot {
         self.commands_to_finalize = x;
     }
 
+    pub fn abort(mut self, gridview: &mut GridView) {
+        for cmd in self.commands_to_finalize.drain(..) {
+            debug!("Sending command back for replanning: {:#?}", cmd);
+            gridview.plan(cmd).unwrap();
+        }
+    }
+
     pub fn droplet_info(&self, pid_option: Option<ProcessId>) -> Vec<DropletInfo> {
         self.droplets
             .values()
             .filter(|&d| pid_option.map_or(true, |pid| d.id.process_id == pid))
             .map(|d| d.info())
             .collect()
+    }
+
+    /// Returns an invalid droplet, if any.
+    fn get_collision(&self) -> Option<(DropletId, DropletId)> {
+        for (id1, droplet1) in self.droplets.iter() {
+            for (id2, droplet2) in self.droplets.iter() {
+                if id1 == id2 {
+                    continue;
+                }
+                if droplet1.collision_group == droplet2.collision_group {
+                    continue;
+                }
+                if droplet1.collision_distance(droplet2) <= 0 {
+                    return Some((*id1, *id2));
+                }
+            }
+        }
+        None
     }
 
     pub fn to_blobs(&self) -> Vec<Blob> {
@@ -56,7 +96,7 @@ impl Snapshot {
     ///
     /// Can currently only handle where both views contain
     /// the same number of 'droplets'
-    pub fn match_with_blobs(&self, blobs: &[Blob]) -> Map<DropletId, Blob> {
+    fn match_with_blobs(&self, blobs: &[Blob]) -> Map<DropletId, Blob> {
         // Ensure lengths are the same
         if self.droplets.len() != blobs.len() {
             panic!("Expected and actual droplets are of different lengths");
@@ -90,23 +130,62 @@ impl Snapshot {
         }
         result
     }
+
+    // this will take commands_to_finalize from the old snapshot into the new
+    // one if an error is found produced
+    pub fn correct(&mut self, blobs: &[Blob]) -> Option<Snapshot> {
+        let blob_matching = self.match_with_blobs(blobs);
+        let mut was_error = false;
+        let new_droplets: Map<_, _> = blob_matching
+            .iter()
+            .map(|(&id, blob)| {
+                let d = &self.droplets[&id];
+                if blob.get_similarity(d) > 0 {
+                    info!("Found error in droplet {:?}", id);
+                    was_error = true;
+                }
+                (id, blob.to_droplet(id))
+            })
+            .collect();
+
+        if was_error {
+            let mut new_snapshot = Snapshot {
+                droplets: new_droplets,
+                commands_to_finalize: Vec::new(),
+            };
+            ::std::mem::swap(
+                &mut new_snapshot.commands_to_finalize,
+                &mut self.commands_to_finalize,
+            );
+            Some(new_snapshot)
+        } else {
+            None
+        }
+    }
 }
 
 #[derive(Debug)]
 pub enum ExecResponse {
-    Step,
+    Step(Snapshot),
     NotReady,
     Done,
 }
 
 impl GridView {
     pub fn new(grid: Grid) -> GridView {
+        let mut planned = VecDeque::new();
+        planned.push_back(Snapshot::default());
         GridView {
             grid: grid,
-            history: vec![Snapshot::default()],
-            exec_time: 0,
+            planned,
+            completed: Vec::new(),
             done: false,
         }
+    }
+
+    pub fn close(&mut self) {
+        info!("Marking gridview as DONE!");
+        self.done = true;
     }
 
     pub fn execute(&mut self) -> ExecResponse {
@@ -114,11 +193,8 @@ impl GridView {
 
         // compare with len - 1 because we wouldn't want to "write out" a state
         // that hasn't been fully planned
-        let resp = if self.exec_time < self.history.len() - 1 {
-            // TODO should probably do this later when things have been validated
-            self.history[self.exec_time].finalize();
-            self.exec_time += 1;
-            Step
+        let resp = if let Some(planned_snapshot) = self.planned.pop_front() {
+            Step(planned_snapshot)
         } else if self.done {
             Done
         } else {
@@ -126,71 +202,55 @@ impl GridView {
         };
 
         trace!(
-            "execute sending {:?} with exec_t={}, len={}",
+            "execute sending {:?}. Completed: {}, planned: {}.",
             resp,
-            self.exec_time,
-            self.history.len()
+            self.completed.len(),
+            self.planned.len(),
         );
         resp
     }
 
-    pub fn snapshot(&self) -> &Snapshot {
-        self.history.last().unwrap()
+    pub fn commit_pending(&mut self, mut snapshot: Snapshot) {
+        snapshot.finalize();
+        self.completed.push(snapshot);
     }
 
-    pub fn exec_snapshot(&self) -> &Snapshot {
-        &self.history[self.exec_time]
+    pub fn snapshot(&self) -> &Snapshot {
+        self.planned.back().unwrap()
     }
 
     // TODO probably shouldn't provide this
     pub fn snapshot_mut(&mut self) -> &mut Snapshot {
-        self.history.last_mut().unwrap()
+        self.planned.back_mut().unwrap()
     }
 
-    fn insert(&mut self, droplet: Droplet) {
-        let snapshot = self.history.last_mut().unwrap();
-        let was_there = snapshot.droplets.insert(droplet.id, droplet);
-        assert!(was_there.is_none());
+    pub fn snapshot_ensure(&mut self) {
+        if self.planned.is_empty() {
+            let last = self.completed.last().unwrap();
+            self.planned.push_back(last.new_with_same_droplets())
+        }
     }
 
-    fn remove(&mut self, id: &DropletId) -> Droplet {
-        let snapshot = self.history.last_mut().unwrap();
-        snapshot.droplets.remove(id).unwrap()
+    pub fn exec_snapshot(&self) -> &Snapshot {
+        self.completed.last().unwrap()
     }
 
     fn tick(&mut self) {
-        let now = self.history.len() - 1;
-        self.get_collision_at_time(now).map(|col| {
-            panic!("collision: {:#?}", col);
-        });
+        let new_snapshot = {
+            let just_planned = self.planned.back().unwrap();
+            just_planned.get_collision().map(|col| {
+                panic!("collision: {:#?}", col);
+            });
 
-        let mut new_snapshot = Snapshot::default();
-        new_snapshot.droplets = self.history[now].droplets.clone();
-        self.history.push(new_snapshot);
-        trace!("TICK! len={}", self.history.len());
-    }
+            just_planned.new_with_same_droplets()
+        };
 
-    /// Returns an invalid droplet, if any.
-    fn get_collision_at_time(&self, time: usize) -> Option<(DropletId, DropletId)> {
-        let droplets = &self.history[time].droplets;
-        for (id1, droplet1) in droplets.iter() {
-            for (id2, droplet2) in droplets.iter() {
-                if id1 == id2 {
-                    continue;
-                }
-                if droplet1.collision_group == droplet2.collision_group {
-                    continue;
-                }
-                if droplet1.collision_distance(droplet2) <= 0 {
-                    return Some((*id1, *id2));
-                }
-            }
-        }
-        None
+        self.planned.push_back(new_snapshot);
+        trace!("TICK! len={}", self.planned.len());
     }
 
     fn update(&mut self, id: DropletId, func: impl FnOnce(&mut Droplet)) {
-        let now = self.history.last_mut().unwrap();
+        let now = self.planned.back_mut().unwrap();
         let droplet = now.droplets
             .get_mut(&id)
             .unwrap_or_else(|| panic!("Tried to remove a non-existent droplet: {:?}", id));
@@ -198,13 +258,12 @@ impl GridView {
     }
 
     pub fn exec_droplet_info(&self, pid_option: Option<ProcessId>) -> Vec<DropletInfo> {
-        // gets from the planner for now
-        self.history[self.exec_time].droplet_info(pid_option)
+        self.completed.last().unwrap().droplet_info(pid_option)
     }
 
     pub fn plan_droplet_info(&self, pid_option: Option<ProcessId>) -> Vec<DropletInfo> {
         // gets from the planner for now
-        self.history.last().unwrap().droplet_info(pid_option)
+        self.planned.back().unwrap().droplet_info(pid_option)
     }
 
     pub fn take_paths(&mut self, paths: &Map<DropletId, Path>) {
@@ -212,7 +271,7 @@ impl GridView {
 
         // make sure that all droplets start where they are at this time step
         for (id, path) in paths.iter() {
-            let snapshot = self.history.last().unwrap();
+            let snapshot = self.planned.back().unwrap();
             let droplet = &snapshot.droplets[&id];
             assert_eq!(droplet.location, path[0]);
         }
@@ -244,22 +303,20 @@ impl GridView {
 
     pub fn register(&mut self, cmd: Box<Command>) {
         // this goes in the *just planned* thing, not the one currently being planned.
-        let just_planned = self.history.len() - 2;
-        self.history[just_planned].commands_to_finalize.push(cmd)
+        let just_planned = self.planned.len() - 2;
+        self.planned[just_planned].commands_to_finalize.push(cmd)
     }
 
-    pub fn rollback(&mut self, snapshot: Snapshot) {
-        self.history.truncate(self.exec_time + 1);
-        self.history[self.exec_time] = snapshot;
-    }
-
-    pub fn perturb(&self, rng: &mut impl Rng) -> Option<Snapshot> {
-        if self.exec_time < 1 {
-            return None;
+    pub fn rollback(&mut self) {
+        let old_planned: Vec<_> = self.planned.drain(..).collect();
+        for planned_snapshot in old_planned {
+            planned_snapshot.abort(self)
         }
+    }
 
-        let then = &self.history[self.exec_time - 1];
-        let now = &self.history[self.exec_time];
+    pub fn perturb(&self, rng: &mut impl Rng, snapshot: &Snapshot) -> Option<Snapshot> {
+        let now = snapshot;
+        let then = self.completed.last()?;
 
         let id = {
             let ids: Vec<_> = now.droplets.keys().collect();
@@ -269,8 +326,7 @@ impl GridView {
             }
         };
 
-        let mut now2 = Snapshot::default();
-        now2.droplets = now.droplets.clone();
+        let mut now2 = now.new_with_same_droplets();
 
         if let Some(old_droplet) = then.droplets.get(&id) {
             let was_there = now2.droplets.insert(id, old_droplet.clone());
@@ -313,13 +369,16 @@ impl<'a> GridSubView<'a> {
         droplet.location = *new_loc.unwrap();
         let was_not_there = self.ids.insert(droplet.id);
         assert!(was_not_there);
-        self.backing_gridview.insert(droplet);
+        let snapshot = self.backing_gridview.snapshot_mut();
+        let was_there = snapshot.droplets.insert(droplet.id, droplet);
+        assert!(was_there.is_none());
     }
 
     pub fn remove(&mut self, id: &DropletId) -> Droplet {
         let was_there = self.ids.remove(id);
         assert!(was_there);
-        let mut droplet = self.backing_gridview.remove(id);
+        let snapshot = self.backing_gridview.snapshot_mut();
+        let mut droplet = snapshot.droplets.remove(id).unwrap();
         // FIXME this is pretty dumb
         let (unmapped_loc, _) = self.mapping
             .iter()

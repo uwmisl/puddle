@@ -179,7 +179,6 @@ impl Blob {
             + ((self.volume - droplet.volume) as i32).abs()
     }
 
-    #[cfg(test)]
     pub fn to_droplet(&self, id: DropletId) -> Droplet {
         Droplet::new(id, self.volume, self.location, self.dimensions)
     }

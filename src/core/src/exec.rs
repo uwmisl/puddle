@@ -126,19 +126,20 @@ impl Executor {
                 trace!("Receiving from visualizer...");
                 match endpoint.recv() {
                     Ok(()) => trace!("Got the go ahead from the visualizer!"),
-                    Err(_) => return,
+                    Err(_) => break,
                 }
             }
 
             // if the lock was poisoned, the planner probably just died before we did
+            sleep(sleep_time);
             let mut gv = match self.gridview.lock() {
                 Ok(gv) => gv,
-                Err(_) => return,
+                Err(_) => break,
             };
 
             use self::ExecResponse::*;
             match gv.execute() {
-                Step => {
+                Step(mut snapshot) => {
                     if self.blocking {
                         endpoint.send(gv.exec_droplet_info(None)).unwrap()
                     }
@@ -147,20 +148,25 @@ impl Executor {
 
                     let should_perturb = rng.gen_bool(0.0);
                     if should_perturb {
-                        if let Some(new_snapshot) = gv.perturb(&mut rng) {
-                            let _blobs = new_snapshot.to_blobs();
+                        let blobs = gv.perturb(&mut rng, &snapshot)
+                            .map(|perturbed_snapshot| perturbed_snapshot.to_blobs());
+
+                        if let Some(blobs) = blobs {
                             info!("Simulating an error...");
-                            gv.rollback(new_snapshot);
+                            snapshot.correct(&blobs).map(|new_snapshot| {
+                                info!("old snapshot: {:#?}", snapshot);
+                                info!("new snapshot: {:#?}", new_snapshot);
+                                gv.rollback();
+                                snapshot = new_snapshot;
+                            });
                         }
                     }
+                    gv.commit_pending(snapshot);
                 }
-                NotReady => {
-                    // drop the lock before sleeping
-                    ::std::mem::drop(gv);
-                    sleep(sleep_time);
-                }
-                Done => return,
+                NotReady => {}
+                Done => break,
             }
         }
+        info!("Executor is terminating!")
     }
 }

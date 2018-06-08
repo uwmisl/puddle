@@ -1,5 +1,3 @@
-use std::sync::{Arc, Mutex};
-
 use command::Command;
 use grid::{Droplet, GridView, Location};
 use util::collections::Map;
@@ -15,24 +13,17 @@ pub enum PlanError {
 
 pub type Placement = Map<Location, Location>;
 
-pub struct Planner {
-    gridview: Arc<Mutex<GridView>>,
-}
-
-impl Planner {
-    pub fn new(gridview: Arc<Mutex<GridView>>) -> Planner {
-        Planner { gridview: gridview }
-    }
-
+impl GridView {
     pub fn plan(&mut self, cmd: Box<Command>) -> Result<(), PlanError> {
         info!("Planning {:?}", cmd);
         debug!("placing (trusted = {}) {:?}", cmd.trust_placement(), cmd);
 
-        let mut gv = self.gridview.lock().unwrap();
+        // make sure there's a snapshot available to plan into
+        self.snapshot_ensure();
 
         let in_ids = cmd.input_droplets();
         let (shape, in_locs) = {
-            let command_info = cmd.dynamic_info(&gv);
+            let command_info = cmd.dynamic_info(&self);
             (command_info.shape, command_info.input_locations)
         };
 
@@ -46,20 +37,20 @@ impl Planner {
             "Input droplets: {:?}",
             cmd.input_droplets()
                 .iter()
-                .map(|id| &gv.snapshot().droplets[id])
+                .map(|id| &self.snapshot().droplets[id])
                 .collect::<Vec<_>>()
         );
 
         let placement = if cmd.trust_placement() {
             // if we are trusting placement, just use an identity map
-            gv.grid
+            self.grid
                 .locations()
                 .map(|(loc, _cell)| (loc, loc))
                 .collect::<Map<_, _>>()
         } else {
             // TODO place should be a method of gridview
-            gv.grid
-                .place(&shape, gv.snapshot())
+            self.grid
+                .place(&shape, self.snapshot())
                 .ok_or(PlanError::PlaceError)?
         };
 
@@ -69,7 +60,7 @@ impl Planner {
 
         for (loc, id) in in_locs.iter().zip(&in_ids) {
             // this should have been put to none last time
-            let droplet = gv.snapshot_mut()
+            let droplet = self.snapshot_mut()
                 .droplets
                 .get_mut(&id)
                 .expect("Command gave back and invalid DropletId");
@@ -81,28 +72,32 @@ impl Planner {
         }
 
         debug!("routing {:?}", cmd);
-        let paths = match gv.route() {
+        let paths = match self.route() {
             Some(p) => p,
             None => {
                 return Err(PlanError::RouteError {
                     placement: placement,
-                    droplets: gv.snapshot().droplets.values().map(|d| d.clone()).collect(),
+                    droplets: self.snapshot()
+                        .droplets
+                        .values()
+                        .map(|d| d.clone())
+                        .collect(),
                 })
             }
         };
         debug!("route for {:?}: {:?}", cmd, paths);
 
         trace!("Taking paths...");
-        gv.take_paths(&paths);
+        self.take_paths(&paths);
 
         trace!("Running command {:?}", cmd);
-        cmd.run(&mut gv.subview(in_ids.iter().cloned(), placement));
-        gv.register(cmd);
+        cmd.run(&mut self.subview(in_ids.iter().cloned(), placement));
+        self.register(cmd);
 
         // teardown destinations if the droplets are still there
         // TODO is this ever going to be true?
         for id in in_ids {
-            gv.snapshot_mut().droplets.get_mut(&id).map(|droplet| {
+            self.snapshot_mut().droplets.get_mut(&id).map(|droplet| {
                 assert_eq!(Some(droplet.location), droplet.destination);
                 droplet.destination = None;
             });
