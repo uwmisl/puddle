@@ -13,6 +13,9 @@ pub trait Command: fmt::Debug + Send {
     fn output_droplets(&self) -> Vec<DropletId> {
         vec![]
     }
+    fn bypass(&self, _gridview: &GridView) -> bool {
+        false
+    }
     fn dynamic_info(&self, &GridView) -> DynamicCommandInfo;
     fn run(&self, &mut GridSubView);
     fn is_blocking(&self) -> bool {
@@ -214,6 +217,17 @@ impl Command for Mix {
         self.outputs.clone()
     }
 
+    fn bypass(&self, gridview: &GridView) -> bool {
+        let droplets = &gridview.snapshot().droplets;
+        if droplets.contains_key(&self.outputs[0]) {
+            assert!(!droplets.contains_key(&self.inputs[0]));
+            assert!(!droplets.contains_key(&self.inputs[1]));
+            true
+        } else {
+            false
+        }
+    }
+
     fn dynamic_info(&self, gridview: &GridView) -> DynamicCommandInfo {
         let droplets = &gridview.snapshot().droplets;
 
@@ -300,6 +314,19 @@ impl Command for Split {
 
     fn output_droplets(&self) -> Vec<DropletId> {
         self.outputs.clone()
+    }
+
+    fn bypass(&self, gridview: &GridView) -> bool {
+        let droplets = &gridview.snapshot().droplets;
+        // if it has one, it better have both
+        if droplets.contains_key(&self.outputs[0]) || droplets.contains_key(&self.outputs[1]) {
+            assert!(droplets.contains_key(&self.outputs[0]));
+            assert!(droplets.contains_key(&self.outputs[1]));
+            assert!(!droplets.contains_key(&self.inputs[0]));
+            true
+        } else {
+            false
+        }
     }
 
     fn dynamic_info(&self, gridview: &GridView) -> DynamicCommandInfo {

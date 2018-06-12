@@ -20,6 +20,10 @@ impl GridView {
 
         // make sure there's a snapshot available to plan into
         self.snapshot_ensure();
+        if cmd.bypass(&self) {
+            info!("Bypassing command: {:#?}", cmd);
+            return Ok(())
+        }
 
         let in_ids = cmd.input_droplets();
         let (shape, in_locs) = {
