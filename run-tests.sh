@@ -4,6 +4,9 @@
 # -v print every line before running it
 set -ev
 
+# speed up tests by reducing the step delay
+export PUDDLE_STEP_DELAY_MS=5
+
 
 # test the core
 pushd src/core/

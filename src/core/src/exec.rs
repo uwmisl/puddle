@@ -1,3 +1,4 @@
+use std::env;
 use std::sync::{Arc, Mutex};
 use std::thread::sleep;
 use std::time::Duration;
@@ -114,7 +115,11 @@ impl Executor {
     }
 
     pub fn run(&self, endpoint: Endpoint<Vec<DropletInfo>, ()>) {
-        let sleep_time = Duration::from_millis(STEP_DELAY);
+        let sleep_ms = env::var("PUDDLE_STEP_DELAY_MS")
+            .ok()
+            .map(|s| u64::from_str_radix(&s, 10).expect("Couldn't parse!"))
+            .unwrap_or(STEP_DELAY);
+        let sleep_time = Duration::from_millis(sleep_ms);
 
         let mut rng = thread_rng();
         let max_pin = self.gridview.lock().unwrap().grid.max_pin();

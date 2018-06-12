@@ -1,4 +1,5 @@
 use std::collections::{HashMap, HashSet};
+use std::env;
 
 extern crate puddle_core;
 
@@ -17,6 +18,10 @@ fn manager_from_rect_with_error<'a>(rows: usize, cols: usize) -> Manager {
     // let err_opts = ErrorOptions {
     //     split_error_stdev: split_err,
     // };
+
+    // reduce the step delay for testing
+    env::set_var("PUDDLE_STEP_DELAY_MS", "1");
+
     let man = Manager::new(false, grid);
     let _ = env_logger::try_init();
     man
