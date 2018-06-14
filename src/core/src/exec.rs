@@ -10,6 +10,7 @@ use grid::{DropletInfo, ExecResponse, GridView, Location};
 use util::endpoint::Endpoint;
 
 use rppal::gpio::{Gpio, Level, Mode};
+use sysfs_pwm::Pwm;
 
 // /// HV507 polarity
 // /// Pin 32 - BCM 12 (PWM0)
@@ -58,6 +59,16 @@ impl Executor {
         // see row "LOAD S/R" in table 3-2 in
         // http://ww1.microchip.com/downloads/en/DeviceDoc/20005845A.pdf
         self.gpio = None;
+
+        let pi_chip = 0;
+        let pi_number = 0;
+        let pwm = Pwm::new(pi_chip, pi_number).unwrap();
+        pwm.with_exported(|| {
+            pwm.enable(true).unwrap();
+            pwm.set_period_ns(20_000).unwrap();
+            pwm.set_period_ns(20_000).unwrap();
+            Ok(())
+        }).unwrap();
 
         let mut gpio = Gpio::new().expect("gpio init failed!");
 
