@@ -30,9 +30,5 @@ pathfinding = "0.7"
 
 float-ord = "0.2.0"
 
-# raspberry pi interface
-rppal = {git = "https://github.com/golemparts/rppal", rev = "73dad082bd3c9ab1f918352f60fe833a6557a872"}
-sysfs-pwm = "0.1.0"
-
 [dev-dependencies]
 glob = "^0.2"

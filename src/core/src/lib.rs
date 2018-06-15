@@ -26,9 +26,6 @@ extern crate pathfinding;
 
 extern crate float_ord;
 
-extern crate rppal;
-extern crate sysfs_pwm;
-
 // these need to be pub until we have an api
 mod command;
 mod exec;
@@ -37,8 +34,7 @@ mod plan;
 mod process;
 mod util;
 
-pub mod pca9685;
-pub mod mcp4725;
+pub mod pi;
 
 
 pub use exec::Executor;

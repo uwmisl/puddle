@@ -1,4 +1,4 @@
-use rppal::i2c::I2c;
+use super::{Result, I2cHandle};
 use std::thread::sleep;
 use std::time::Duration;
 
@@ -22,6 +22,8 @@ enum Register {
     /// prescaler for PWM output frequency
     PreScale = 254,
 }
+
+pub const PCA9685_DEFAULT_ADDRESS: u16 = 0x42;
 
 const NUM_LEDS: u8 = 16;
 
@@ -48,21 +50,20 @@ impl From<Mode1> for u8 {
 }
 
 pub struct PCA9685 {
-    address: u16,
-    i2c: I2c,
+    i2c: I2cHandle,
 }
 
 impl PCA9685 {
-    pub fn new(address: u16) -> PCA9685 {
-        let i2c = I2c::new().unwrap();
-        let mut pca = PCA9685 { address, i2c };
-        pca.init();
-        pca
+    pub fn new(i2c: I2cHandle) -> Result<PCA9685> {
+        let mut pca = PCA9685 { i2c };
+        pca.init().map(|_| pca)
     }
 
-    pub fn init(&mut self) {
-        self.i2c.set_slave_address(self.address).unwrap();
-        self.i2c.write(&[Register::Mode1 as u8, Mode1::AutoIncrement as u8]).unwrap();
+    pub fn init(&mut self) -> Result<()> {
+        self.i2c.write(&[
+            Register::Mode1 as u8,
+            Mode1::AutoIncrement as u8
+        ])
         // self.i2c.write(&[MODE2, OUTDRV]).unwrap();
     }
 
@@ -72,14 +73,11 @@ impl PCA9685 {
 
     fn read_reg(&mut self, reg: Register) -> u8 {
         self.i2c.write(&[reg as u8]).unwrap();
-        let mut buf = [0];
-        let n_read = self.i2c.read(&mut buf).unwrap();
-        assert!(n_read == 1);
+        let buf = self.i2c.read(1).unwrap();
         buf[0]
     }
 
     pub fn reset(&mut self) {
-        self.i2c.set_slave_address(self.address).unwrap();
         self.write_reg(Register::Mode1, Mode1::Restart);
         sleep(Duration::from_millis(10));
     }
@@ -103,7 +101,6 @@ impl PCA9685 {
         use self::Mode1::*;
         use self::Register::{Mode1, PreScale};
 
-        self.i2c.set_slave_address(self.address).unwrap();
         let old_mode = self.read_reg(Mode1);
         let new_mode = (old_mode & !(Restart as u8)) | (Sleep as u8);
         self.write_reg(Mode1, new_mode);
@@ -130,7 +127,6 @@ impl PCA9685 {
         let off_l = off as u8;
         let off_h = (off >> 8) as u8;
 
-        self.i2c.set_slave_address(self.address).unwrap();
         self.i2c.write(&[
             Register::LedBase as u8 + (REGISTERS_PER_LED * channel),
             on_l,

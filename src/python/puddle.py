@@ -164,7 +164,7 @@ def mk_session(
     arch_file = arch_file or root + '/tests/arches/arch01.json'
 
     # build the server command and run it
-    cmd = 'cargo run --manifest-path {cargo_toml} -- ' \
+    cmd = 'cargo run --manifest-path {cargo_toml} --bin puddle-server -- ' \
           '--static {static_dir} --host {host} --port {port} {arch_file}'.format(
               cargo_toml = root + '/src/core/Cargo.toml',
               arch_file = arch_file,
