@@ -29,10 +29,10 @@ extern crate float_ord;
 // these need to be pub until we have an api
 mod command;
 mod exec;
-mod grid;
 mod plan;
 mod process;
-mod util;
+pub mod grid;
+pub mod util;
 
 pub mod pi;
 

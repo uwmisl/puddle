@@ -24,7 +24,7 @@ pub struct GridView {
 #[derive(Debug, Default)]
 pub struct Snapshot {
     pub droplets: Map<DropletId, Droplet>,
-    commands_to_finalize: Vec<Box<Command>>,
+    pub commands_to_finalize: Vec<Box<Command>>,
 }
 
 impl Snapshot {
@@ -255,10 +255,6 @@ impl GridView {
             .get_mut(&id)
             .unwrap_or_else(|| panic!("Tried to remove a non-existent droplet: {:?}", id));
         func(droplet);
-    }
-
-    pub fn exec_droplet_info(&self, pid_option: Option<ProcessId>) -> Vec<DropletInfo> {
-        self.completed.last().unwrap().droplet_info(pid_option)
     }
 
     pub fn plan_droplet_info(&self, pid_option: Option<ProcessId>) -> Vec<DropletInfo> {

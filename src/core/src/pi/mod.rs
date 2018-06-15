@@ -5,6 +5,8 @@ use std::ffi::CStr;
 use std::fmt;
 use std::os::raw::{c_char, c_int, c_uint};
 
+use grid::{Grid, Snapshot, Location};
+
 use self::mcp4725::{MCP4725, MCP4725_DEFAULT_ADDRESS};
 use self::pca9685::{PCA9685, PCA9685_DEFAULT_ADDRESS};
 
@@ -161,7 +163,67 @@ impl RaspberryPi {
         res!(code)
     }
 
+    pub fn init_hv507(&mut self) {
+        // setup the HV507 for serial data write
+        // see row "LOAD S/R" in table 3-2 in
+        // http://ww1.microchip.com/downloads/en/DeviceDoc/20005845A.pdf
 
+        let pwm_pin = 18;
+        let frequency = 2_000;
+        let duty_cycle = 500_000; // out of 1_000_000
+        self.set_pwm(pwm_pin, frequency, duty_cycle).unwrap();
+
+        use self::GpioPin::*;
+        use self::GpioMode::*;
+
+        self.gpio_set_mode(Blank, Output).unwrap();
+        self.gpio_write(Blank, 1).unwrap();
+
+        self.gpio_set_mode(LatchEnable, Output).unwrap();
+        self.gpio_write(LatchEnable, 0).unwrap();
+
+        self.gpio_set_mode(Clock, Output).unwrap();
+        self.gpio_write(Clock, 0).unwrap();
+
+        self.gpio_set_mode(Data, Output).unwrap();
+        self.gpio_write(Data, 0).unwrap();
+    }
+
+    pub fn output_pins(&mut self, grid: &Grid, snapshot: &Snapshot) {
+
+        let mut pins = vec![0; (grid.max_pin() + 1) as usize];
+
+        // reset pins to low by default
+        for p in pins.iter_mut() {
+            *p = 0;
+        }
+
+        // set pins to high if there's a droplet on that electrode
+        for d in snapshot.droplets.values() {
+            for i in 0..d.dimensions.y {
+                for j in 0..d.dimensions.x {
+                    let loc = Location {
+                        y: d.location.y + i,
+                        x: d.location.x + j,
+                    };
+                    let electrode = grid.get_cell(&loc).unwrap();
+                    pins[electrode.pin as usize] = 1;
+                }
+            }
+        }
+
+        use self::GpioPin::*;
+        // actually write the pins and cycle the clock
+        for pin in pins.iter() {
+            self.gpio_write(Data, *pin).unwrap();
+            self.gpio_write(Clock, 1).unwrap();
+            self.gpio_write(Clock, 0).unwrap();
+        }
+
+        // commit the latch
+        self.gpio_write(LatchEnable, 1).unwrap();
+        self.gpio_write(LatchEnable, 0).unwrap();
+    }
 }
 
 #[derive(Debug)]

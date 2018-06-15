@@ -6,10 +6,10 @@ use std::time::Duration;
 use rand::prelude::thread_rng;
 use rand::Rng;
 
-use grid::{DropletInfo, ExecResponse, GridView, Location};
+use grid::{DropletInfo, ExecResponse, GridView};
 use util::endpoint::Endpoint;
 
-use pi::{RaspberryPi, GpioPin, GpioMode};
+use pi::RaspberryPi;
 
 /// delay between steps in milliseconds
 static STEP_DELAY: u64 = 100;
@@ -29,81 +29,15 @@ impl Executor {
         };
         match env::var("PUDDLE_PI") {
             Ok(s) => if s == "1" {
-                exec.use_pins()
+                let mut pi = RaspberryPi::new().unwrap();
+                pi.init_hv507();
+                exec.pi = Some(pi);
             } else {
                 warn!("Couldn't read PUDDLE_PI={}", s)
             }
             Err(_) => {},
         }
         exec
-    }
-
-    pub fn use_pins(&mut self) {
-        // setup the HV507 for serial data write
-        // see row "LOAD S/R" in table 3-2 in
-        // http://ww1.microchip.com/downloads/en/DeviceDoc/20005845A.pdf
-        let mut pi = RaspberryPi::new().unwrap();
-
-        // let pi_chip = 0;
-        // let pi_number = 0;
-        // let pwm = Pwm::new(pi_chip, pi_number).unwrap();
-        // pwm.with_exported(|| {
-        //     pwm.enable(true).unwrap();
-        //     pwm.set_period_ns(20_000).unwrap();
-        //     pwm.set_period_ns(20_000).unwrap();
-        //     Ok(())
-        // }).unwrap();
-
-        use self::GpioPin::*;
-        use self::GpioMode::*;
-
-        pi.gpio_set_mode(Blank, Output).unwrap();
-        pi.gpio_write(Blank, 1).unwrap();
-
-        pi.gpio_set_mode(LatchEnable, Output).unwrap();
-        pi.gpio_write(LatchEnable, 0).unwrap();
-
-        pi.gpio_set_mode(Clock, Output).unwrap();
-        pi.gpio_write(Clock, 0).unwrap();
-
-        pi.gpio_set_mode(Data, Output).unwrap();
-        pi.gpio_write(Data, 0).unwrap();
-
-        self.pi = Some(pi);
-    }
-
-    fn output_pins(pi: &mut RaspberryPi, gv: &GridView, pins: &mut [u8]) {
-
-        // reset pins to low by default
-        for p in pins.iter_mut() {
-            *p = 0;
-        }
-
-        // set pins to high if there's a droplet on that electrode
-        for d in gv.exec_snapshot().droplets.values() {
-            for i in 0..d.dimensions.y {
-                for j in 0..d.dimensions.x {
-                    let loc = Location {
-                        y: d.location.y + i,
-                        x: d.location.x + j,
-                    };
-                    let electrode = gv.grid.get_cell(&loc).unwrap();
-                    pins[electrode.pin as usize] = 1;
-                }
-            }
-        }
-
-        use self::GpioPin::*;
-        // actually write the pins and cycle the clock
-        for pin in pins.iter() {
-            pi.gpio_write(Data, *pin).unwrap();
-            pi.gpio_write(Clock, 1).unwrap();
-            pi.gpio_write(Clock, 0).unwrap();
-        }
-
-        // commit the latch
-        pi.gpio_write(LatchEnable, 1).unwrap();
-        pi.gpio_write(LatchEnable, 0).unwrap();
     }
 
     pub fn run(&mut self, endpoint: Endpoint<Vec<DropletInfo>, ()>) {
@@ -114,8 +48,6 @@ impl Executor {
         let sleep_time = Duration::from_millis(sleep_ms);
 
         let mut rng = thread_rng();
-        let max_pin = self.gridview.lock().unwrap().grid.max_pin();
-        let mut pins = vec![0; (max_pin + 1) as usize];
 
         loop {
             if self.blocking {
@@ -138,10 +70,10 @@ impl Executor {
             match gv.execute() {
                 Step(mut snapshot) => {
                     if self.blocking {
-                        endpoint.send(gv.exec_droplet_info(None)).unwrap()
+                        endpoint.send(snapshot.droplet_info(None)).unwrap()
                     }
 
-                    self.pi.as_mut().map(|pi| Executor::output_pins(pi, &gv, &mut pins));
+                    self.pi.as_mut().map(|pi| pi.output_pins(&gv.grid, &snapshot));
 
                     let should_perturb = rng.gen_bool(0.0);
                     if should_perturb {
