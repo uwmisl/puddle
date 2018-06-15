@@ -34,8 +34,8 @@ impl Executor {
                 exec.pi = Some(pi);
             } else {
                 warn!("Couldn't read PUDDLE_PI={}", s)
-            }
-            Err(_) => {},
+            },
+            Err(_) => {}
         }
         exec
     }
@@ -73,7 +73,9 @@ impl Executor {
                         endpoint.send(snapshot.droplet_info(None)).unwrap()
                     }
 
-                    self.pi.as_mut().map(|pi| pi.output_pins(&gv.grid, &snapshot));
+                    self.pi
+                        .as_mut()
+                        .map(|pi| pi.output_pins(&gv.grid, &snapshot));
 
                     let should_perturb = rng.gen_bool(0.0);
                     if should_perturb {

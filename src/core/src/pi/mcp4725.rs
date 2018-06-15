@@ -1,6 +1,6 @@
 // https://cdn-shop.adafruit.com/datasheets/mcp4725.pdf
 
-use super::{Result, I2cHandle};
+use super::{I2cHandle, Result};
 
 // From Table 6.2
 enum Command {
@@ -32,11 +32,6 @@ impl MCP4725 {
         let value_hi_8 = (value >> 4) as u8;
         let value_lo_4 = (value << 4) as u8;
 
-        self.i2c.write(&[
-            cmd as u8,
-            value_hi_8,
-            value_lo_4,
-        ])
+        self.i2c.write(&[cmd as u8, value_hi_8, value_lo_4])
     }
-
 }

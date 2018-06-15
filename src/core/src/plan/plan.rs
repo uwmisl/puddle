@@ -22,7 +22,7 @@ impl GridView {
         self.snapshot_ensure();
         if cmd.bypass(&self) {
             info!("Bypassing command: {:#?}", cmd);
-            return Ok(())
+            return Ok(());
         }
 
         let in_ids = cmd.input_droplets();

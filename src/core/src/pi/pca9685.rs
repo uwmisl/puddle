@@ -1,4 +1,4 @@
-use super::{Result, I2cHandle};
+use super::{I2cHandle, Result};
 use std::thread::sleep;
 use std::time::Duration;
 
@@ -44,7 +44,7 @@ enum Mode1 {
 }
 
 impl From<Mode1> for u8 {
-    fn from(x: Mode1)  -> u8 {
+    fn from(x: Mode1) -> u8 {
         x as u8
     }
 }
@@ -60,10 +60,8 @@ impl PCA9685 {
     }
 
     pub fn init(&mut self) -> Result<()> {
-        self.i2c.write(&[
-            Register::Mode1 as u8,
-            Mode1::AutoIncrement as u8
-        ])
+        self.i2c
+            .write(&[Register::Mode1 as u8, Mode1::AutoIncrement as u8])
         // self.i2c.write(&[MODE2, OUTDRV]).unwrap();
     }
 
@@ -127,13 +125,14 @@ impl PCA9685 {
         let off_l = off as u8;
         let off_h = (off >> 8) as u8;
 
-        self.i2c.write(&[
-            Register::LedBase as u8 + (REGISTERS_PER_LED * channel),
-            on_l,
-            on_h,
-            off_l,
-            off_h,
-        ]).unwrap();
+        self.i2c
+            .write(&[
+                Register::LedBase as u8 + (REGISTERS_PER_LED * channel),
+                on_l,
+                on_h,
+                off_l,
+                off_h,
+            ])
+            .unwrap();
     }
-
 }

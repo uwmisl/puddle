@@ -5,7 +5,7 @@ use std::ffi::CStr;
 use std::fmt;
 use std::os::raw::{c_char, c_int, c_uint};
 
-use grid::{Grid, Snapshot, Location};
+use grid::{Grid, Location, Snapshot};
 
 use self::mcp4725::{MCP4725, MCP4725_DEFAULT_ADDRESS};
 use self::pca9685::{PCA9685, PCA9685_DEFAULT_ADDRESS};
@@ -173,8 +173,8 @@ impl RaspberryPi {
         let duty_cycle = 500_000; // out of 1_000_000
         self.set_pwm(pwm_pin, frequency, duty_cycle).unwrap();
 
-        use self::GpioPin::*;
         use self::GpioMode::*;
+        use self::GpioPin::*;
 
         self.gpio_set_mode(Blank, Output).unwrap();
         self.gpio_write(Blank, 1).unwrap();
@@ -190,7 +190,6 @@ impl RaspberryPi {
     }
 
     pub fn output_pins(&mut self, grid: &Grid, snapshot: &Snapshot) {
-
         let mut pins = vec![0; (grid.max_pin() + 1) as usize];
 
         // reset pins to low by default
