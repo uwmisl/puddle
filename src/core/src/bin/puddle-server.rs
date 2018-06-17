@@ -66,6 +66,12 @@ fn run(matches: ArgMatches) -> Result<(), Box<::std::error::Error>> {
     let port = matches.value_of("port").unwrap();
     let address = format!("{}:{}", host, port);
 
+    #[cfg(feature = "pi")]
+    {
+        println!("Make sure to manually set the voltage for the pi!");
+        println!("Something like: pi-test dac 1000");
+    }
+
     // this has to be a print, not a log, because the python lib looks for it
     println!("Listening on http://{}", address);
 
