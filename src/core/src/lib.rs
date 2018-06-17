@@ -34,6 +34,7 @@ mod plan;
 mod process;
 pub mod util;
 
+#[cfg(feature = "pi")]
 pub mod pi;
 
 pub use exec::Executor;

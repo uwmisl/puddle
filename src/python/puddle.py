@@ -1,10 +1,11 @@
 import requests
 import json
 import time
+import os
 
 from contextlib import contextmanager
 
-from subprocess import Popen, check_output, PIPE, CalledProcessError
+from subprocess import Popen, check_output, CalledProcessError
 import shlex
 
 
@@ -72,11 +73,18 @@ class Session:
         self.next_id = 0
 
         status_check = endpoint + '/status'
-        try:
-            resp = requests.get(status_check)
-        except Exception as exn:
-            print(exn)
-            raise RPCError('could not connect to {}'.format(status_check)) from exn
+
+        max_attempts = 10
+        for attempt in range(max_attempts):
+            try:
+                resp = requests.get(status_check)
+                break
+            except Exception as exn:
+                msg = 'Attempt {}: could not connect to {}'.format(attempt + 1, status_check)
+                if attempt == max_attempts - 1:
+                    raise RPCError(msg) from exn
+                print(msg)
+                time.sleep(0.5)
 
         if resp.status_code != 200:
             raise RPCError('Something is wrong with {}: got status code {}'
@@ -145,9 +153,14 @@ def call(cmd):
     return output.decode('utf8').strip()
 
 
+def project_path(path):
+    root = call('git rev-parse --show-toplevel')
+    return root + '/' + path
+
+
 @contextmanager
 def mk_session(
-        arch_file = None,
+        arch_file,
         host = 'localhost',
         port = '3000',
 ):
@@ -158,30 +171,21 @@ def mk_session(
     except CalledProcessError:
         pass
 
-    # paths written in this file should be relative to the project root
-    root = call('git rev-parse --show-toplevel')
-
-    arch_file = arch_file or root + '/tests/arches/arch01.json'
+    default_command = 'cargo run --manifest-path {cargo_toml} --bin puddle-server -- '
+    command = os.environ.get('PUDDLE_SERVER', default_command)
 
     # build the server command and run it
-    cmd = 'cargo run --manifest-path {cargo_toml} --bin puddle-server -- ' \
-          '--static {static_dir} --host {host} --port {port} {arch_file}'.format(
-              cargo_toml = root + '/src/core/Cargo.toml',
-              arch_file = arch_file,
-              static_dir = root + '/src/web',
-              host = host,
-              port = port,
-          )
+    flags = ' --static {static_dir} --host {host} --port {port} {arch_file}'
+    cmd = (command + flags).format(
+        cargo_toml = project_path('/src/core/Cargo.toml'),
+        arch_file = arch_file,
+        static_dir = project_path('/src/web'),
+        host = host,
+        port = port,
+    )
 
-    popen = Popen(args=shlex.split(cmd), stdout=PIPE)
-
-    # wait for the server to print 'Listening' so we know it's ready
-    line = ''
-    while 'Listening' not in line:
-        print(line)
-        line = popen.stdout.readline() or line
-        line = line.decode('utf8')
-        time.sleep(0.1)
+    log_file = open('puddle.log', 'a')
+    popen = Popen(args=shlex.split(cmd), stdout=log_file)
 
     session = Session('http://{}:{}'.format(host, port), 'test')
     yield session

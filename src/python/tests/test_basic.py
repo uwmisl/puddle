@@ -6,7 +6,8 @@ import pytest
 @pytest.fixture(scope='function')
 def session():
 
-    with puddle.mk_session() as sess:
+    arch_path = puddle.project_path('tests/arches/arch01.json')
+    with puddle.mk_session(arch_path) as sess:
         yield sess
 
 

@@ -9,35 +9,43 @@ use rand::Rng;
 use grid::{DropletInfo, ExecResponse, GridView};
 use util::endpoint::Endpoint;
 
+#[cfg(feature = "pi")]
 use pi::RaspberryPi;
 
 /// delay between steps in milliseconds
+#[cfg(feature = "pi")]
 static STEP_DELAY: u64 = 100;
+#[cfg(not(feature = "pi"))]
+static STEP_DELAY: u64 = 1;
 
 pub struct Executor {
     blocking: bool,
     gridview: Arc<Mutex<GridView>>,
+    #[cfg(feature = "pi")]
     pi: Option<RaspberryPi>,
 }
 
 impl Executor {
     pub fn new(blocking: bool, gridview: Arc<Mutex<GridView>>) -> Self {
-        let mut exec = Executor {
-            blocking,
-            gridview,
-            pi: None,
-        };
-        match env::var("PUDDLE_PI") {
+        #[cfg(feature = "pi")]
+        let pi = match env::var("PUDDLE_PI") {
             Ok(s) => if s == "1" {
                 let mut pi = RaspberryPi::new().unwrap();
                 pi.init_hv507();
-                exec.pi = Some(pi);
+                Some(pi)
             } else {
-                warn!("Couldn't read PUDDLE_PI={}", s)
+                warn!("Couldn't read PUDDLE_PI={}", s);
+                None
             },
-            Err(_) => {}
+            Err(_) => None,
+        };
+
+        Executor {
+            blocking,
+            gridview,
+            #[cfg(feature = "pi")]
+            pi,
         }
-        exec
     }
 
     pub fn run(&mut self, endpoint: Endpoint<Vec<DropletInfo>, ()>) {
@@ -73,6 +81,7 @@ impl Executor {
                         endpoint.send(snapshot.droplet_info(None)).unwrap()
                     }
 
+                    #[cfg(feature = "pi")]
                     self.pi
                         .as_mut()
                         .map(|pi| pi.output_pins(&gv.grid, &snapshot));

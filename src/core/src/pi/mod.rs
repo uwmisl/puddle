@@ -15,7 +15,6 @@ type int = c_int;
 #[allow(non_camel_case_types)]
 type unsigned = c_uint;
 
-// #[cfg(target_arch = "arm")]
 #[link(name = "pigpiod_if2", kind = "dylib")]
 extern "C" {
     fn pigpio_start(addr: *const c_char, port: *const c_char) -> int;
@@ -31,30 +30,29 @@ extern "C" {
     fn i2c_read_device(pi: int, handle: unsigned, buf: *mut u8, count: unsigned) -> int;
 }
 
-// /// HV507 polarity
-// /// Pin 32 - BCM 12 (PWM0)
-// static POLARITY_PIN: u8 = 12;
-
-// /// High voltage converter "analog" signal
-// /// Pin 33 - BCM 13 (PWM1)
-// static VOLTAGE_PIN: u8 = 13;
-
 pub enum GpioPin {
     /// HV507 blank
     /// Physical pin 11 - BCM 17
     Blank = 17,
 
     /// HV507 latch enable
-    /// Physical pin 27 - BCM 13
-    LatchEnable = 13,
+    /// Physical pin 13 - BCM 27
+    LatchEnable = 27,
 
     /// HV507 clock
-    /// Physical pin 22 - BCM 15
-    Clock = 15,
+    /// Physical pin 15 - BCM 22
+    Clock = 22,
 
     /// HV507 data
-    /// Physical pin 23 - BCM 16
-    Data = 16,
+    /// Physical pin 16 - BCM 23
+    Data = 23,
+
+    /// HV507 polarity
+    /// Pin 32 - BCM 12 (PWM0)
+    Polarity = 12,
+    // /// High voltage converter "analog" signal
+    // /// Pin 33 - BCM 13 (PWM1)
+    // Voltage = 13,
 }
 
 // numbers taken from pigpio.h
@@ -168,13 +166,13 @@ impl RaspberryPi {
         // see row "LOAD S/R" in table 3-2 in
         // http://ww1.microchip.com/downloads/en/DeviceDoc/20005845A.pdf
 
-        let pwm_pin = 18;
-        let frequency = 2_000;
-        let duty_cycle = 500_000; // out of 1_000_000
-        self.set_pwm(pwm_pin, frequency, duty_cycle).unwrap();
-
         use self::GpioMode::*;
         use self::GpioPin::*;
+
+        let frequency = 490;
+        let duty_cycle = 500_000; // out of 1_000_000
+        self.set_pwm(Polarity as u32, frequency, duty_cycle)
+            .unwrap();
 
         self.gpio_set_mode(Blank, Output).unwrap();
         self.gpio_write(Blank, 1).unwrap();

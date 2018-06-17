@@ -1,6 +1,6 @@
 import networkx as nx
 
-from puddle import mk_session, Droplet
+from puddle import mk_session, Droplet, project_path
 
 min_volume = 1.0
 max_volume = 4.0
@@ -117,7 +117,8 @@ class VolConcDroplet(Droplet):
         return d1, d2
 
 
-with mk_session('../../tests/arches/arch-big.json') as session:
+arch_path = project_path('tests/arches/arch-big.json')
+with mk_session(arch_path) as session:
     # FIXME this needs arch big for now because place and route is bad
     # also, you just can't do that many iterations
 
