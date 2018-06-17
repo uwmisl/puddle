@@ -35,7 +35,7 @@ popd
 pushd src/python/
 
 # install the virtual environment
-pipenv install --dev
+pipenv install --dev --python python3
 
 # check for style
 pipenv run flake8
