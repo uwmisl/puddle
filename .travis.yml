@@ -22,7 +22,7 @@ before_install:
   - pip install --user pipenv
   # get rustfmt so we can check code style
   - rustup component add rustfmt-preview
-  - cargo +nightly install cargo
+  - [[ -f "$HOME/.cargo/bin/clippy-driver" ]] || cargo +nightly install clippy
 
 script: ./run-tests.sh
 
