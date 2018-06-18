@@ -69,8 +69,8 @@ impl Snapshot {
 
     /// Returns an invalid droplet, if any.
     fn get_collision(&self) -> Option<(DropletId, DropletId)> {
-        for (id1, droplet1) in self.droplets.iter() {
-            for (id2, droplet2) in self.droplets.iter() {
+        for (id1, droplet1) in &self.droplets {
+            for (id2, droplet2) in &self.droplets {
                 if id1 == id2 {
                     continue;
                 }
@@ -238,9 +238,9 @@ impl GridView {
     fn tick(&mut self) {
         let new_snapshot = {
             let just_planned = self.planned.back().unwrap();
-            just_planned.get_collision().map(|col| {
+            if let Some(col) = just_planned.get_collision() {
                 panic!("collision: {:#?}", col);
-            });
+            };
 
             just_planned.new_with_same_droplets()
         };
@@ -347,7 +347,7 @@ impl<'a> GridSubView<'a> {
     // TODO: translate or somehow hide the untranslated location of this
     pub fn get(&self, id: &DropletId) -> &Droplet {
         assert!(self.ids.contains(&id));
-        self.backing_gridview.snapshot().droplets.get(id).unwrap()
+        &self.backing_gridview.snapshot().droplets[id]
     }
 
     fn get_mut(&mut self, id: &DropletId) -> &mut Droplet {

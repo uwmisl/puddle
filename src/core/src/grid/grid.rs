@@ -140,7 +140,7 @@ impl Grid {
             offset_found.map(|offset| smaller.mapping_into_other_from_offset(offset, self));
 
         // verify the mapping by checking that each space is far enough away from the droplets
-        result.as_ref().map(|mapping| {
+        if let Some(mapping) = result.as_ref() {
             for droplet in snapshot.droplets.values() {
                 let corner1 = droplet.location;
                 let corner2 = &droplet.location + &droplet.dimensions;
@@ -148,7 +148,7 @@ impl Grid {
                     assert!(loc.min_distance_to_box(corner1, corner2) > 0);
                 }
             }
-        });
+        };
 
         result
     }
@@ -191,7 +191,7 @@ impl Grid {
         I: Iterator<Item = &'a Location>,
     {
         offsets
-            .map(|off| loc + &off)
+            .map(|off| loc + off)
             .filter(|loc| self.get_cell(loc).is_some())
             .collect()
     }

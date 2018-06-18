@@ -20,6 +20,9 @@ pushd src/core/
 # check for formatting
 cargo fmt -- --write-mode diff
 
+# check for clippy lints
+cargo +nightly clippy
+
 # try the regular build and tests
 cargo build
 cargo test

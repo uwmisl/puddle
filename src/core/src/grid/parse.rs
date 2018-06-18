@@ -41,13 +41,13 @@ where
         .unwrap_or(0);
 
     let mut f = |ci: &ElectrodeIndex| match ci {
-        &Marked(Empty) => Ok(None),
-        &Marked(Auto) => {
+        Marked(Empty) => Ok(None),
+        Marked(Auto) => {
             let pin = next_auto_pin;
             next_auto_pin += 1;
             Ok(Some(Electrode { pin: pin }))
         }
-        &Index(n) => Ok(Some(Electrode { pin: n })),
+        Index(n) => Ok(Some(Electrode { pin: *n })),
     };
 
     pg_vec
@@ -56,6 +56,8 @@ where
         .collect()
 }
 
+// clippy will complain about type synonyms
+#[cfg_attr(feature = "cargo-clippy", allow(ptr_arg))]
 pub fn serialize<S>(gv: &GridVec, s: S) -> Result<S::Ok, S::Error>
 where
     S: Serializer,
@@ -64,8 +66,8 @@ where
         .map(|row| {
             row.iter()
                 .map(|opt: &Option<Electrode>| match opt {
-                    &None => Marked(Empty),
-                    &Some(e) => Index(e.pin),
+                    None => Marked(Empty),
+                    Some(e) => Index(e.pin),
                 })
                 .collect()
         })

@@ -54,6 +54,7 @@ struct MinHeapElem<K: Ord, T: Eq> {
 }
 
 impl<K: Ord, T: Eq> Ord for MinHeapElem<K, T> {
+    #[cfg_attr(feature = "cargo-clippy", allow(eq_op))]
     #[inline]
     fn cmp(&self, other: &Self) -> Ordering {
         let a = &self.cost;

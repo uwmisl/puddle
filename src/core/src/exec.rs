@@ -93,12 +93,12 @@ impl Executor {
 
                         if let Some(blobs) = blobs {
                             info!("Simulating an error...");
-                            snapshot.correct(&blobs).map(|new_snapshot| {
+                            if let Some(new_snapshot) = snapshot.correct(&blobs) {
                                 info!("old snapshot: {:#?}", snapshot);
                                 info!("new snapshot: {:#?}", new_snapshot);
                                 gv.rollback();
                                 snapshot = new_snapshot;
-                            });
+                            };
                         }
                     }
                     gv.commit_pending(snapshot);
@@ -107,6 +107,7 @@ impl Executor {
                 Done => break,
             }
         }
-        info!("Executor is terminating!")
+        info!("Executor is terminating!");
+        ::std::mem::drop(endpoint);
     }
 }

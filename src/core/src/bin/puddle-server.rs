@@ -40,7 +40,7 @@ fn handle(ioh: &IoHandler, req: &Request) -> Response {
     resp
 }
 
-fn run(matches: ArgMatches) -> Result<(), Box<::std::error::Error>> {
+fn run(matches: &ArgMatches) -> Result<(), Box<::std::error::Error>> {
     // required argument is safe to unwrap
     let path = matches.value_of("arch").unwrap();
     let reader = File::open(path)?;
@@ -104,6 +104,9 @@ fn run(matches: ArgMatches) -> Result<(), Box<::std::error::Error>> {
     });
 }
 
+// clippy will complain about String when it's not consumed
+// this type is dictated by validator in clap
+#[cfg_attr(feature = "cargo-clippy", allow(needless_pass_by_value))]
 fn check_dir(dir: String) -> Result<(), String> {
     if Path::new(&dir).is_dir() {
         Ok(())
@@ -154,7 +157,7 @@ fn main() {
         .arg(Arg::with_name("sync").long("sync"))
         .get_matches();
 
-    ::std::process::exit(match run(matches) {
+    ::std::process::exit(match run(&matches) {
         Ok(_) => 0,
         Err(err) => {
             error!("error: {}", err);

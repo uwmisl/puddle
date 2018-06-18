@@ -76,7 +76,7 @@ impl Manager {
             .lock()
             .unwrap()
             .remove(&pid)
-            .ok_or(PuddleError::NonExistentProcess(pid))
+            .ok_or_else(|| PuddleError::NonExistentProcess(pid))
     }
 
     fn put_process(&self, process: Process) {

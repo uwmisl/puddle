@@ -73,6 +73,8 @@ impl AvoidanceSet {
             .any(|future_node| self.collides(&future_node))
     }
 
+    // clippy will complain about &Vec (because of &Path)
+    #[cfg_attr(feature = "cargo-clippy", allow(ptr_arg))]
     fn avoid_path(&mut self, path: &Path, grid: &Grid, droplet_dimensions: &Location) {
         let node_path = path.clone().into_iter().enumerate().map(|(i, loc)| Node {
             time: i as Time,
@@ -249,7 +251,7 @@ where
 
         // node must be in best_so_far because it was inserted when we put it in
         // the minheap
-        let node_cost: Cost = *best_so_far.get(&node).unwrap();
+        let node_cost: Cost = best_so_far[&node];
 
         for (edge_cost, next) in next_fn(&node) {
             if done.contains(&next) {

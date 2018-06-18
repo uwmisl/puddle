@@ -1,5 +1,12 @@
 language: rust
-rust: stable
+rust:
+  - stable
+  - beta
+  - nightly
+
+matrix:
+  allow_failures:
+    - rust: nightly
 
 cache:
   directories:
@@ -15,6 +22,7 @@ before_install:
   - pip install --user pipenv
   # get rustfmt so we can check code style
   - rustup component add rustfmt-preview
+  - cargo +nightly install cargo
 
 script: ./run-tests.sh
 
