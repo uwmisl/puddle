@@ -4,7 +4,7 @@
 set -e
 
 # deny all warnings, converting them to errors
-if [ $CI == "true" ]; then
+if [[ $CI == "true" ]]; then
     echo "Denying Rust warnings..."
     export RUSTFLAGS="-D warnings"
 else
@@ -19,9 +19,6 @@ pushd src/core/
 
 # check for formatting
 cargo fmt -- --write-mode diff
-
-# check for clippy lints
-cargo +nightly clippy
 
 # try the regular build and tests
 cargo build

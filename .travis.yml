@@ -22,9 +22,6 @@ before_install:
   - pip install --user pipenv
   # get rustfmt so we can check code style
   - rustup component add rustfmt-preview
-  # add nightly so we can get clippy
-  - rustup toolchain add nightly
-  - "[[ -f \"$HOME/.cargo/bin/clippy-driver\" ]] || cargo +nightly install clippy"
 
 script: ./run-tests.sh
 
