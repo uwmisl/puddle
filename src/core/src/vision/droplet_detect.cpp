@@ -1,15 +1,11 @@
 #include "opencv2/opencv.hpp"
-// #include "opencv2/highgui/highgui.hpp"
+#include "opencv2/highgui/highgui.hpp"
 #include <math.h>
+
+#define UNUSED(x) (void)(x)
 
 using namespace cv;
 using namespace std;
-
-// functions exported to C can be called from Rust
-// they should have only C types, so no cpp objects
-extern "C" {
-  int hello_world();
-}
 
 int find_dist(int x1, int y1, int x2, int y2){
 	return pow(x2 - x1, 2) + pow(y2 - y1, 2);
@@ -18,8 +14,8 @@ int find_dist(int x1, int y1, int x2, int y2){
 // img must be grayscale current frame, maxArea is max area of fiducial marker, numsides is sides of the fiducial marker
 vector<Point> find_fiducial(Mat img, int maxArea, unsigned numSides) {
   Mat edges;
-	vector<vector<Point>> fiducialContours;
-	vector<vector<Point>> finalContours;
+	vector< vector<Point> > fiducialContours;
+	vector< vector<Point> > finalContours;
 
   Canny(img, edges, 70, 200);
   findContours(edges, fiducialContours, RETR_EXTERNAL, CHAIN_APPROX_SIMPLE);
@@ -53,54 +49,59 @@ vector<Point> find_fiducial(Mat img, int maxArea, unsigned numSides) {
 		return approxCurve;
 	}
 
-  abort();
+  cerr << "Could not find fiducial with " << numSides << " sides" << endl;
+
+  vector<Point> empty;
+  return empty;
 }
 
-int hello_world() {
-	string home = getenv("HOME");
-	string currentFramePath = home + "/6drop1.png";
-	string backgroundImgPath = home + "/6dropbackground.png";
-
-	// Read the current frame
-  Mat currentFrame;
-  Mat currentFrame1;
-	cout<<"TEST"<<flush;
-	currentFrame1 = imread(currentFramePath);
-	cout<<currentFrame1.channels()<<flush;
-	if(currentFrame1.empty()){
-		//exit(0);
-		cout<<"Could not read image"<<flush;
+Mat readGray(char* path) {
+  Mat frame;
+	cout << "Reading " << path << "... ";
+	frame = imread(path, CV_LOAD_IMAGE_GRAYSCALE);
+  // resize(frame, frame, Size(0, 0), 0.5, 0.5);
+	if (frame.empty()){
+		cerr << "Could not read " << path << endl;
+		exit(1);
 	}
-	// Convert the frame to grayscale
-	cvtColor(currentFrame1, currentFrame, CV_BGR2GRAY);
+	cout << "done!" << endl;
+  return frame;
+}
 
-	cout<<"Current done"<< endl;
+struct Args {
+  Mat *current;
+  Mat *diff;
+  int erode1;
+  int dilate1;
+  int erode2sub;
+};
 
-	//Read the background frame
-  Mat backgroundImg1;
-  Mat backgroundImg;
-	backgroundImg1 = imread(backgroundImgPath);
-	// Convert the background image to grayscale
-  cvtColor(backgroundImg1, backgroundImg, CV_BGR2GRAY);
-	if(backgroundImg1.empty()){
-		cout<<"Could not open background"<<flush;
-	}
+void do_something(int value, void* args_p) {
 
-	//Subtract the images and do a bit of smoothing
-  Mat absDiffImg;
-  absdiff(currentFrame, backgroundImg, absDiffImg);
+  UNUSED(value);
 
-	//Take the threshold to isolate significant differences
+  struct Args *args = (struct Args *)args_p;
   Mat diffThresh;
-  threshold (absDiffImg, diffThresh, 30, 255, THRESH_BINARY);
+  threshold(*args->diff, diffThresh, 30, 255, THRESH_BINARY);
+  imshow("diffThresh", diffThresh);
 
-	//Erode the image to get rid of noise
+	// Erode the image to get rid of noise
   Mat erodedImg;
-	erode(diffThresh, erodedImg, Mat(), Point(-1, -1), 1, 1, 1);
-	vector<vector<Point>> contours;
-  imshow("erodeImg", erodedImg);
+	// dilate(diffThresh, erodedImg,
+  //        getStructuringElement(MORPH_ELLIPSE, Size(args->k_size1, args->k_size1)));
+	erode(diffThresh, erodedImg,
+        getStructuringElement(MORPH_ELLIPSE, Size(args->erode1, args->erode1)));
+  imshow("eroded1", erodedImg);
+	dilate(erodedImg, erodedImg,
+         getStructuringElement(MORPH_ELLIPSE, Size(args->dilate1, args->dilate1)));
+  // imshow("eroded2", erodedImg);
+  int dim = args->dilate1 + args->erode2sub - 20;
+	erode(erodedImg, erodedImg,
+        getStructuringElement(MORPH_ELLIPSE, Size(dim, dim)));
+  imshow("eroded3", erodedImg);
 
 	// Find alllthe contours in the image, and filter them
+	vector<vector<Point>> contours;
   findContours(erodedImg, contours, RETR_EXTERNAL, CHAIN_APPROX_SIMPLE);
 	vector<vector<Point>> filteredContours;
 	for(unsigned i = 0; i<contours.size(); i++){
@@ -116,11 +117,47 @@ int hello_world() {
 	int n_contours = filteredContours.size();
 	cout << "Found " << n_contours << " countours" << endl;
 
-	vector<Point> squareFiducial = find_fiducial(currentFrame, 20000, 4);
-	vector<Point> pentagonFiducial = find_fiducial(currentFrame, 20000, 5);
+  Mat colored;
+  cvtColor(*args->current, colored, CV_GRAY2BGR);
+  Scalar color(0,0,255);
+  drawContours( colored, filteredContours, -1, color, 2);
+  imshow("Colored", colored);
+}
 
-	cout << "Found " << squareFiducial.size() << " countours\n" << endl;
-	cout << "Found " << pentagonFiducial.size() << " countours\n" << endl;
+extern "C"
+int detect_droplets(char* framePath, char* backgroundPath) {
+
+  Mat currentFrame = readGray(framePath);
+  Mat backgroundImg = readGray(backgroundPath);
+
+	//Subtract the images and do a bit of smoothing
+  Mat absDiffImg;
+  absdiff(currentFrame, backgroundImg, absDiffImg);
+  // imshow("absDiffImg", absDiffImg);
+
+  namedWindow("window");
+
+  struct Args args;
+  args.diff = &absDiffImg;
+  args.current = &currentFrame;
+  args.erode1 = 3;
+  args.dilate1 = 50;
+  args.erode2sub = 20;
+
+  createTrackbar("Erode Size 1", "window", &args.erode1, 10, &do_something, (void*)&args);
+  createTrackbar("Dilate Size 1", "window", &args.dilate1, 200, &do_something, (void*)&args);
+  createTrackbar("Erode Sub 2 - 20", "window", &args.erode2sub, 40, &do_something, (void*)&args);
+
+  // make an initial callback
+  do_something(0, (void*)&args);
+
+  // don't worry about markers for now
+
+	// vector<Point> squareFiducial = find_fiducial(currentFrame, 20000, 4);
+	// vector<Point> pentagonFiducial = find_fiducial(currentFrame, 20000, 5);
+
+	// cout << "Found " << squareFiducial.size() << " countours\n" << endl;
+	// cout << "Found " << pentagonFiducial.size() << " countours\n" << endl;
 
   waitKey(0);
 

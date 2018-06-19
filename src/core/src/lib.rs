@@ -37,6 +37,9 @@ mod plan;
 mod process;
 pub mod util;
 
+#[cfg(feature = "vision")]
+pub mod vision;
+
 #[cfg(feature = "pi")]
 pub mod pi;
 

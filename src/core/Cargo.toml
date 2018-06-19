@@ -6,14 +6,18 @@ authors = ["Max Willsey <me@mwillsey.com>"]
 [features]
 # only works with --target armv7-unknown-linux-gnueabihf
 pi = []
-vision = ["pi"]
+vision = []
+
+[[bin]]
+name = "puddle-server"
 
 [[bin]]
 name = "pi-test"
 required-features = ["pi"]
 
 [[bin]]
-name = "puddle-server"
+name = "vision-test"
+required-features = ["vision"]
 
 [dependencies]
 
