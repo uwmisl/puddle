@@ -1,5 +1,6 @@
 #include "opencv2/core/core.hpp"
 #include "opencv2/imgproc/imgproc.hpp"
+#include "opencv2/videoio/videoio.hpp"
 #include "opencv2/highgui/highgui.hpp"
 
 #include <iostream>
@@ -49,10 +50,11 @@ vector<Point> find_fiducial(Mat img, int maxArea, unsigned numSides) {
 		//for(unsigned j = 0; j<approxCurve.size(); j++){
 		//
 		//}
+    cout << "Found fiducial with " << numSides << " sides!" << endl;
 		return approxCurve;
 	}
 
-  cerr << "Could not find fiducial with " << numSides << " sides" << endl;
+  cerr << "Could not find fiducial with " << numSides << " sides..." << endl;
 
   vector<Point> empty;
   return empty;
@@ -71,21 +73,34 @@ Mat readGray(char* path) {
   return frame;
 }
 
-struct Args {
+typedef struct {
+  // a frame from vid is used if current is null
+  VideoCapture *vid;
   Mat *current;
-  Mat *diff;
+
+  // the base frame to difference between
+  Mat *background;
+
+  // detection parameters
   int erode1;
   int dilate1;
   int erode2sub;
-};
+} DetectionArgs;
 
-void do_something(int value, void* args_p) {
 
+
+void detect_droplets(int value, void* args_p) {
+  // `value` is supposed to be the changed value from the slider, but we don't
+  // care because we have the whole struct
   UNUSED(value);
+  DetectionArgs *args = (DetectionArgs *)args_p;
 
-  struct Args *args = (struct Args *)args_p;
+  Mat diff;
+  absdiff(*args->current, *args->background, diff);
+  imshow("diff", diff);
+
   Mat diffThresh;
-  threshold(*args->diff, diffThresh, 30, 255, THRESH_BINARY);
+  threshold(diff, diffThresh, 30, 255, THRESH_BINARY);
   imshow("diffThresh", diffThresh);
 
 	// Erode the image to get rid of noise
@@ -103,7 +118,7 @@ void do_something(int value, void* args_p) {
         getStructuringElement(MORPH_ELLIPSE, Size(dim, dim)));
   imshow("eroded3", erodedImg);
 
-	// Find alllthe contours in the image, and filter them
+	// Find all the contours in the image, and filter them
 	vector< vector<Point> > contours;
   findContours(erodedImg, contours, RETR_EXTERNAL, CHAIN_APPROX_SIMPLE);
 	vector< vector<Point> > filteredContours;
@@ -111,9 +126,12 @@ void do_something(int value, void* args_p) {
     RotatedRect r = minAreaRect(Mat(contours[i]));
 		int h = r.size.height;
 		int w = r.size.width;
-		if(w!=0 && h!=0 and w/h < 9 and h/w < 9 and contourArea(contours[i])>50 and contourArea(contours[i])<20000){
+    double area = contourArea(contours[i]);
+		if (w != 0 && h != 0 &&
+        w / h < 9 && h / w < 9 &&
+        50 < area && area < 20000) {
 			filteredContours.push_back(contours[i]);
-			cout << contours[i] << endl;
+			// cout << contours[i] << endl;
 		}
 	}
 
@@ -128,41 +146,94 @@ void do_something(int value, void* args_p) {
 }
 
 extern "C"
-int detect_droplets(char* framePath, char* backgroundPath) {
+int detect_from_files(char* currentPath, char* backgroundPath) {
 
-  Mat currentFrame = readGray(framePath);
-  Mat backgroundImg = readGray(backgroundPath);
-
-	//Subtract the images and do a bit of smoothing
-  Mat absDiffImg;
-  absdiff(currentFrame, backgroundImg, absDiffImg);
-  // imshow("absDiffImg", absDiffImg);
+  Mat currentFrame = readGray(currentPath);
+  Mat backgroundFrame = readGray(backgroundPath);
 
   namedWindow("window");
 
-  struct Args args;
-  args.diff = &absDiffImg;
+  DetectionArgs args;
+  args.background = &backgroundFrame;
   args.current = &currentFrame;
   args.erode1 = 3;
   args.dilate1 = 50;
   args.erode2sub = 20;
 
-  createTrackbar("Erode Size 1", "window", &args.erode1, 10, &do_something, (void*)&args);
-  createTrackbar("Dilate Size 1", "window", &args.dilate1, 200, &do_something, (void*)&args);
-  createTrackbar("Erode Sub 2 - 20", "window", &args.erode2sub, 40, &do_something, (void*)&args);
+  createTrackbar("Erode Size 1", "window", &args.erode1, 10, &detect_droplets, (void*)&args);
+  createTrackbar("Dilate Size 1", "window", &args.dilate1, 200, &detect_droplets, (void*)&args);
+  createTrackbar("Erode Sub 2 - 20", "window", &args.erode2sub, 40, &detect_droplets, (void*)&args);
 
   // make an initial callback
-  do_something(0, (void*)&args);
+  detect_droplets(0, (void*)&args);
 
   // don't worry about markers for now
 
-	// vector<Point> squareFiducial = find_fiducial(currentFrame, 20000, 4);
-	// vector<Point> pentagonFiducial = find_fiducial(currentFrame, 20000, 5);
-
-	// cout << "Found " << squareFiducial.size() << " countours\n" << endl;
-	// cout << "Found " << pentagonFiducial.size() << " countours\n" << endl;
+	vector<Point> squareFiducial = find_fiducial(currentFrame, 20000, 4);
+	vector<Point> pentagonFiducial = find_fiducial(currentFrame, 20000, 5);
 
   waitKey(0);
 
   return 0;
+}
+
+extern "C"
+void detect_from_camera() {
+
+  namedWindow("window");
+
+  VideoCapture cap(0);
+
+  cap.open(0);
+  cout << "Video capture is open: " << cap.isOpened() << endl;
+
+  // cap.set(CAP_PROP_FRAME_COUNT, 1);
+  // cap.set(CAP_PROP_MODE, CAP_MODE_GRAY);
+  // cap.set(CAP_PROP_BUFFERSIZE, 1);
+  // cap.set(CAP_PROP_POS_FRAMES, 5);
+
+  Mat backgroundFrame;
+  cap.read(backgroundFrame);
+  Mat backgroundFrameGray;
+  cvtColor(backgroundFrame, backgroundFrameGray, CV_RGB2GRAY);
+
+  Mat currentFrame;
+  cap.read(currentFrame);
+  Mat currentFrameGray;
+  cvtColor(currentFrame, currentFrameGray, CV_RGB2GRAY);
+
+  DetectionArgs args;
+  args.background = &backgroundFrameGray;
+  args.current = &currentFrameGray;
+  args.erode1 = 3;
+  args.dilate1 = 20;
+  args.erode2sub = 5;
+
+  createTrackbar("Erode Size 1", "window", &args.erode1, 10, &detect_droplets, (void*)&args);
+  createTrackbar("Dilate Size 1", "window", &args.dilate1, 200, &detect_droplets, (void*)&args);
+  createTrackbar("Erode Sub 2 - 20", "window", &args.erode2sub, 40, &detect_droplets, (void*)&args);
+
+  detect_droplets(0, (void*)&args);
+
+  for (unsigned i = 0; ; i++) {
+    cout << "Loop " << i << endl;
+    switch ((char)waitKey(0)) {
+    case 'q': goto done;
+    case 'c':
+      cap.read(backgroundFrame);
+      cvtColor(backgroundFrame, backgroundFrameGray, CV_RGB2GRAY);
+      break;
+    }
+
+    cap.read(currentFrame);
+    cvtColor(currentFrame, currentFrameGray, CV_RGB2GRAY);
+
+    vector<Point> squareFiducial = find_fiducial(currentFrame, 20000, 4);
+    vector<Point> pentagonFiducial = find_fiducial(currentFrame, 20000, 5);
+
+    // re-run detection
+    detect_droplets(0, (void*)&args);
+  }
+
+ done:;
 }

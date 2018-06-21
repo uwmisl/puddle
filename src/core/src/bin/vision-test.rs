@@ -7,16 +7,16 @@ extern crate log;
 use clap::{App, Arg, SubCommand};
 use std::error::Error;
 
-use puddle_core::vision::detect_droplets;
+use puddle_core::vision;
 
 fn main() -> Result<(), Box<Error>> {
     // enable logging
     let _ = env_logger::try_init();
 
-    let matches = App::new("pi test")
+    let matches = App::new("vision test")
         .version("0.1")
         .author("Max Willsey <me@mwillsey.com>")
-        .about("Test out some of the hardware on the pi")
+        .about("Test out some vision stuff")
         .subcommand(
             SubCommand::with_name("diff")
                 .arg(Arg::with_name("frame").takes_value(true).required(true))
@@ -26,13 +26,18 @@ fn main() -> Result<(), Box<Error>> {
                         .required(true),
                 ),
         )
+        .subcommand(SubCommand::with_name("cam"))
         .get_matches();
 
     match matches.subcommand() {
         ("diff", Some(m)) => {
             let frame = m.value_of("frame").unwrap();
             let background = m.value_of("background").unwrap();
-            detect_droplets(frame, background);
+            vision::detect_from_files(frame, background);
+        }
+        ("cam", Some(m)) => {
+            vision::initialize_camera();
+            vision::detect_from_camera();
         }
         _ => {
             println!("Please pick a subcommmand.");

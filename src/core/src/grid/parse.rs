@@ -176,7 +176,7 @@ pub mod tests {
             if s == "1" {
                 // we have to skip because the test files are out-of-tree
                 info!("Skipping test because we're running in qemu");
-                return
+                return;
             }
         }
 
