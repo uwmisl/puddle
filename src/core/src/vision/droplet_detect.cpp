@@ -1,5 +1,8 @@
-#include "opencv2/opencv.hpp"
+#include "opencv2/core/core.hpp"
+#include "opencv2/imgproc/imgproc.hpp"
 #include "opencv2/highgui/highgui.hpp"
+
+#include <iostream>
 #include <math.h>
 
 #define UNUSED(x) (void)(x)
@@ -101,9 +104,9 @@ void do_something(int value, void* args_p) {
   imshow("eroded3", erodedImg);
 
 	// Find alllthe contours in the image, and filter them
-	vector<vector<Point>> contours;
+	vector< vector<Point> > contours;
   findContours(erodedImg, contours, RETR_EXTERNAL, CHAIN_APPROX_SIMPLE);
-	vector<vector<Point>> filteredContours;
+	vector< vector<Point> > filteredContours;
 	for(unsigned i = 0; i<contours.size(); i++){
     RotatedRect r = minAreaRect(Mat(contours[i]));
 		int h = r.size.height;

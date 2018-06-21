@@ -89,6 +89,7 @@ pub mod tests {
 
     use grid::{droplet::Blob, Grid, Location};
     use std::collections::{HashMap, HashSet};
+    use std::env;
 
     pub fn parse_strings(rows: &[&str]) -> (Grid, HashMap<char, Blob>) {
         use grid::location::tests::connected_components;
@@ -170,6 +171,15 @@ pub mod tests {
     fn test_parse_files() {
         let mut successes = 0;
         let _ = env_logger::try_init();
+
+        if let Ok(s) = env::var("RUNNING_IN_CROSS") {
+            if s == "1" {
+                // we have to skip because the test files are out-of-tree
+                info!("Skipping test because we're running in qemu");
+                return
+            }
+        }
+
         debug!("{}", project_path("/tests/arches/*.json"));
         for entry in glob(&project_path("/tests/arches/*.json")).unwrap() {
             trace!("Testing {:?}", entry);

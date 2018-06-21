@@ -3,26 +3,17 @@
 ## Cross compiling
 
 
-Check out [this guide][rust-cross] for more information.
+We use [`cross`][] for cross compilation.
+`cross` spins up a docker container with the necessary (cross-compiled!)
+dependencies and build it in there, dropping the result in the `target` folder
+on the host machine just like regular compiling. Here's how to install it and get cross-compiling:
 
-Install the right rust toolchain for the Raspberry Pi.
+First install Docker however you want, and then install `cross`:
 ```shell
-rustup toolchain add stable-armv7-unknown-linux-gnueabihf
+cargo install cross
 ```
-
-Install the corresponding C toolchain so you can get a linker. On Debian (and probably Ubuntu):
+Now you should be able to go ahead and build! Note that you use `cross` instead of `cargo` when cross compiling, and you still need to put the target flag:
 ```shell
-sudo apt install gcc-arm-linux-gnueabihf
+cross build --target armv7-unknown-linux-gnueabihf
 ```
-
-Add this to `$HOME/.cargo/config`, where the value of `linker` is the linker you just installed.
-```toml
-[target.armv7-unknown-linux-gnueabihf]
-linker = "arm-linux-gnueabihf-gcc"
-```
-
-Now you should be able to go ahead and build!
-```shell
-cargo build --target armv7-unknown-linux-gnueabihf
-```
-[rust-cross]: https://github.com/japaric/rust-cross#cross-compiling-with-cargo
+[cross]: https://github.com/japaric/cross

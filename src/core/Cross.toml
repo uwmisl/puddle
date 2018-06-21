@@ -1,0 +1,12 @@
+[target.armv7-unknown-linux-gnueabihf]
+image = "puddle"
+
+[build]
+target = "armv7-unknown-linux-gnueabihf"
+
+[build.env]
+passthrough = [
+    "RUST_BACKTRACE",
+    "RUST_LOG",
+    "CI",
+]

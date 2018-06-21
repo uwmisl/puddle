@@ -51,4 +51,3 @@ glob = "^0.2"
 
 [build-dependencies]
 cc = "1.0"
-pkg-config = "0.3"
