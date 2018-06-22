@@ -122,7 +122,8 @@ pub struct Blob {
 
 impl PartialEq for Blob {
     fn eq(&self, other: &Blob) -> bool {
-        self.location == other.location && self.dimensions == other.dimensions
+        self.location == other.location
+            && self.dimensions == other.dimensions
             && float_epsilon_equal(self.volume, other.volume)
     }
 }

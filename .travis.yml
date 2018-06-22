@@ -1,12 +1,14 @@
 language: rust
 rust:
   - stable
-  - beta
-  - nightly
+  # dont test nightly or beta because of --write-fmt missing in cargo fmt 1.28
+  # - beta
+  # - nightly
 
-matrix:
-  allow_failures:
-    - rust: nightly
+# matrix:
+#   allow_failures:
+#     - rust:
+#         - nightly
 
 cache:
   directories:
