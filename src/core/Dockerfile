@@ -10,6 +10,7 @@ RUN \
   apt-get install -y libopencv-core-dev:armhf    && \
   apt-get install -y libopencv-imgproc-dev:armhf && \
   apt-get install -y libopencv-calib3d-dev:armhf &&\
+  apt-get install -y libopencv-video-dev:armhf   &&\
   apt-get install -y libopencv-videoio-dev:armhf &&\
   apt-get install -y libopencv-highgui-dev:armhf --no-install-recommends
 
