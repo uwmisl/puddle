@@ -139,7 +139,11 @@ void detect_from_camera() {
   Ptr<BackgroundSubtractor> bgSub = createBackgroundSubtractorMOG2(history, varThreshold, detectShadows);
 
   int i = 0;
-  while (waitKey(10) != 'q') {
+  char key = 0;
+  while ((key = waitKey(10)) != 'q') {
+    if (key == 'p') {
+      while (waitKey(10) != 'p');
+    }
     cout << "Loop " << i++ << endl;
 
     cap.read(currentFrame);
