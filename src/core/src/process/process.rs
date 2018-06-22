@@ -56,7 +56,7 @@ impl Process {
         }
     }
 
-    fn plan(&self, cmd: Box<Command>) -> PuddleResult<()> {
+    fn plan(&self, cmd: Box<dyn Command>) -> PuddleResult<()> {
         let mut gv = self.gridview.lock().unwrap();
         gv.plan(cmd).map_err(PlanError)
     }

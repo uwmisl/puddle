@@ -24,7 +24,7 @@ pub struct GridView {
 #[derive(Debug, Default)]
 pub struct Snapshot {
     pub droplets: Map<DropletId, Droplet>,
-    pub commands_to_finalize: Vec<Box<Command>>,
+    pub commands_to_finalize: Vec<Box<dyn Command>>,
 }
 
 impl Snapshot {
@@ -297,7 +297,7 @@ impl GridView {
         }
     }
 
-    pub fn register(&mut self, cmd: Box<Command>) {
+    pub fn register(&mut self, cmd: Box<dyn Command>) {
         // this goes in the *just planned* thing, not the one currently being planned.
         let just_planned = self.planned.len() - 2;
         self.planned[just_planned].commands_to_finalize.push(cmd)

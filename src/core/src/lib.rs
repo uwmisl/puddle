@@ -1,6 +1,8 @@
 #![cfg_attr(feature = "cargo-clippy", allow(module_inception))]
 #![cfg_attr(feature = "cargo-clippy", allow(redundant_field_names))]
 
+#![deny(bare_trait_objects)]
+
 extern crate rand;
 
 extern crate serde;
