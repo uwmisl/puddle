@@ -3,6 +3,13 @@ use std::process::Command;
 mod bindings;
 use self::bindings::{Contour, DetectionResponse, DetectionState, MyPoint};
 
+use grid::Location;
+
+use nalgebra::{
+    base::Unit, geometry::Translation2, norm, Point2, Similarity2, UnitComplex, Vector2,
+};
+use ncollide2d as nc;
+
 // no whitespace, these are passed to the shell
 const VIDEO_CONFIG: &[&str] = &[
     "iso_sensitivity_auto=0",
@@ -27,6 +34,9 @@ impl Detector {
     pub fn detect(&mut self, should_draw: bool) -> bool {
         let should_quit =
             unsafe { bindings::detect_from_camera(self.state, &self.response, should_draw) };
+        if should_quit {
+            info!("Detector should quit soon")
+        }
         should_quit
     }
 }
@@ -52,6 +62,31 @@ pub fn initialize_camera() {
     }
 }
 
+type Point = Point2<f32>;
+
+fn points_in_area(location: Location, dimension: Location, delta: f32) -> impl Iterator<Item = Point> {
+    let mut y = location.y as f32;
+    let mut x = location.x as f32;
+
+    assert!(dimension.y > 0);
+    assert!(dimension.x > 0);
+
+    // take the floor then add one to make sure we get the boundary
+    let y_steps = (dimension.y as f32 / delta) as usize + 1;
+    let x_steps = (dimension.x as f32 / delta) as usize + 1;
+    (0..y_steps).map(move |_| {
+        let dx = x;
+        x += delta;
+        dx
+    }).flat_map(move |dy| {
+        (0..x_steps).map(move |_| {
+            let dx = x;
+            x += delta;
+            Point::new(dy, dx)
+        })
+    })
+}
+
 // pub fn match_contour_with_droplet(contour: Vec<Point2d>) {
 
 // }
@@ -59,10 +94,39 @@ pub fn initialize_camera() {
 #[cfg(test)]
 mod tests {
 
-    use nalgebra::{
-        base::Unit, geometry::Translation2, norm, Point2, Similarity2, UnitComplex, Vector2,
-    };
-    use ncollide2d as nc;
+    use super::*;
+
+    #[test]
+    fn test_points_in_area() {
+        let loc = Location {y: 0, x: 0};
+        let dim = Location {y: 1, x: 1};
+
+        let y0 = loc.y as f32;
+        let x0 = loc.x as f32;
+        let y1 = (loc.y + dim.y) as f32;
+        let x1 = (loc.x + dim.x) as f32;
+
+        {
+            let pts: Vec<_> = points_in_area(loc, dim, 0.5).collect();
+            assert!(pts.len() == 9);
+            for pt in pts {
+                assert!(y0 <= pt.y);
+                assert!(pt.y <= y1);
+                assert!(x0 <= pt.x);
+                assert!(pt.x <= x1);
+            }
+        }
+        {
+            let pts: Vec<_> = points_in_area(loc, dim, 0.3).collect();
+            assert!(pts.len() == 16);
+            for pt in pts {
+                assert!(y0 <= pt.y);
+                assert!(pt.y <= y1);
+                assert!(x0 <= pt.x);
+                assert!(pt.x <= x1);
+            }
+        }
+    }
 
     #[test]
     fn test_something() {
@@ -89,18 +153,16 @@ mod tests {
 
         // the y coordinates (first) were measured from an image
         // the x coordinates (second) are taken from the alignment of the design
-        let square_center = Point2::new(-1.424, 0.5);
-        let penta_center = Point2::new(-1.357, 7.5);
+        let square_center = Point::new(-1.424, 0.5);
+        let penta_center = Point::new(-1.357, 7.5);
 
-        let pts: Vec<Point2<f32>> = raw_pts
+        let pts: Vec<Point> = raw_pts
             .iter()
-            .map(|&(y, x)| Point2::new(y as _, x as _))
+            .map(|&(y, x)| Point::new(y as _, x as _))
             .collect();
 
         let shape = nc::shape::ConvexPolygon::try_from_points(&pts).unwrap();
     }
-
-    // fn points_in_area(location: Location, dimension: Location, delta: f32) -> impl Iterator<Item=(f)>
 
     ///
     /// d0: the desired first fiducial coordinate
