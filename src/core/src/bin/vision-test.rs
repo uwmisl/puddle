@@ -17,27 +17,18 @@ fn main() -> Result<(), Box<Error>> {
         .version("0.1")
         .author("Max Willsey <me@mwillsey.com>")
         .about("Test out some vision stuff")
-        .subcommand(
-            SubCommand::with_name("diff")
-                .arg(Arg::with_name("frame").takes_value(true).required(true))
-                .arg(
-                    Arg::with_name("background")
-                        .takes_value(true)
-                        .required(true),
-                ),
-        )
         .subcommand(SubCommand::with_name("cam"))
         .get_matches();
 
     match matches.subcommand() {
-        ("diff", Some(m)) => {
-            let frame = m.value_of("frame").unwrap();
-            let background = m.value_of("background").unwrap();
-            vision::detect_from_files(frame, background);
-        }
         ("cam", Some(m)) => {
-            vision::initialize_camera();
-            vision::detect_from_camera();
+            let mut det = vision::Detector::new();
+            loop {
+                let should_quit = det.detect(true);
+                if should_quit {
+                    break
+                }
+            }
         }
         _ => {
             println!("Please pick a subcommmand.");

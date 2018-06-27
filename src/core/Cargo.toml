@@ -46,6 +46,9 @@ pathfinding = "0.7"
 
 float-ord = "0.2.0"
 
+nalgebra = "0.15"
+ncollide2d = "0.16"
+
 [dev-dependencies]
 glob = "^0.2"
 

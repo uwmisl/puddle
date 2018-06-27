@@ -12,7 +12,7 @@
 using namespace cv;
 using namespace std;
 
-int find_dist(int x1, int y1, int x2, int y2){
+int find_dist(int x1, int y1, int x2, int y2) {
 	return pow(x2 - x1, 2) + pow(y2 - y1, 2);
 }
 
@@ -34,7 +34,7 @@ vector<Point> find_fiducial(Mat img, int maxArea, unsigned numSides) {
 		}
 	}
 
-	for(unsigned i = 0; i < finalContours.size(); i++){
+	for (unsigned i = 0; i < finalContours.size(); i++) {
     auto contour = finalContours[i];
 
 		if (contourArea(contour) > maxArea) {
@@ -48,7 +48,7 @@ vector<Point> find_fiducial(Mat img, int maxArea, unsigned numSides) {
 			continue;
 		}
 
-		//for(unsigned j = 0; j<approxCurve.size(); j++){
+		//for(unsigned j = 0; j<approxCurve.size(); j++) {
 		//
 		//}
     cout << "Found fiducial with " << numSides << " sides!" << endl;
@@ -74,44 +74,129 @@ Mat readGray(char* path) {
   return frame;
 }
 
-typedef struct {
-  // a frame from vid is used if current is null
-  VideoCapture *vid;
-  Mat *current;
+struct MyPoint {
+  unsigned y;
+  unsigned x;
+};
 
-  // the base frame to difference between
-  Ptr<BackgroundSubtractor> bg_subber;
+struct Contour {
+  size_t numPoints;
+  struct MyPoint *points;
+};
 
-} DetectionArgs;
+struct DetectionResponse {
+  size_t numContours;
+  struct Contour *contours;
+  struct MyPoint pentaCenter;
+  struct MyPoint squareCenter;
+};
 
+struct DetectionState {
+  Ptr<BackgroundSubtractor> bgSub;
+  VideoCapture cap;
+};
 
+extern "C"
+DetectionState *makeDetectionState() {
+  int history = 500;
+  double varThreshold = 16;
+  bool detectShadows = false;
 
-void detect_droplets(int value, void* args_p) {
-  // `value` is supposed to be the changed value from the slider, but we don't
-  // care because we have the whole struct
-  UNUSED(value);
-  DetectionArgs *args = (DetectionArgs *)args_p;
+  DetectionState *state = (DetectionState*) malloc(sizeof(DetectionState));
+  state->bgSub = createBackgroundSubtractorMOG2(history, varThreshold, detectShadows);
+  state->cap = VideoCapture(0);
 
+  return state;
+}
+
+// returns true if we should quit
+extern "C"
+bool detect_from_camera(DetectionState *det, DetectionResponse* resp, bool shouldDraw) {
+  Mat currentFrame;
+  Mat currentFrameGray;
+
+  det->cap.read(currentFrame);
+  cvtColor(currentFrame, currentFrameGray, CV_RGB2GRAY);
+
+  vector<Point> squareFiducial = find_fiducial(currentFrame, 20000, 4);
+  vector<Point> pentagonFiducial = find_fiducial(currentFrame, 20000, 5);
+
+  blur(currentFrameGray, currentFrameGray, Size(3,3));
+
+  Mat fg;
+  det->bgSub->apply(currentFrameGray, fg);
+
+  if (shouldDraw) {
+    imshow("current", currentFrame);
+    imshow("foreground", fg);
+
+    Mat bg;
+    det->bgSub->getBackgroundImage(bg);
+    imshow("background", bg);
+  }
+
+  // Find all the contours in the image, and filter them
+  vector< vector<Point> > contours;
+  findContours(fg, contours, RETR_EXTERNAL, CHAIN_APPROX_SIMPLE);
+  vector< vector<Point> > filteredContours;
+
+  for(unsigned i = 0; i<contours.size(); i++){
+    RotatedRect r = minAreaRect(Mat(contours[i]));
+    int h = r.size.height;
+    int w = r.size.width;
+    double area = contourArea(contours[i]);
+    if (w != 0 && h != 0 &&
+        w / h < 9 && h / w < 9 &&
+        50 < area && area < 20000) {
+      filteredContours.push_back(contours[i]);
+      // cout << contours[i] << endl;
+    }
+  }
+
+  size_t numContours = filteredContours.size();
+  cout << "Found " << numContours << " countours" << endl;
+
+  // free the contents of the old response
+  if (!resp->contours) {
+    for (size_t i = 0; i < resp->numContours; i++) {
+      free(resp->contours[i].points);
+    }
+    free(resp->contours);
+  }
+
+  // fill the response with the filteredContours
+  resp->contours = (Contour*) malloc(numContours * sizeof(Contour));
+  for (size_t i = 0; i < numContours; i++) {
+    size_t numPoints = filteredContours[i].size();
+    Contour *c = &resp->contours[i];
+    c->numPoints = numPoints;
+    c->points = (MyPoint*) malloc(numPoints * sizeof(MyPoint));
+    for (size_t j = 0; j < numPoints; j++) {
+      MyPoint *p = &c->points[j];
+      p->y = filteredContours[i][j].y;
+      p->x = filteredContours[i][j].x;
+    }
+  }
+
+  // draw the contours
+  if (shouldDraw) {
+    Mat colored;
+    cvtColor(currentFrameGray, colored, CV_GRAY2BGR);
+    Scalar color(0,0,255);
+    drawContours( colored, filteredContours, -1, color, 2);
+    imshow("Colored", colored);
+
+    switch (waitKey(10)) {
+    case 'q': return true;
+    case 'p': while (waitKey(10) != 'p');
+    }
+  }
+
+  return false;
 }
 
 extern "C"
-int detect_from_files(char* currentPath, char* backgroundPath) {
-
-  Mat currentFrame = readGray(currentPath);
-  Mat backgroundFrame = readGray(backgroundPath);
-
-  cout << "WARNING: THIS IS UNIMPLEMENTED FOR NOW!" << endl;
-
-	vector<Point> squareFiducial = find_fiducial(currentFrame, 20000, 4);
-	vector<Point> pentagonFiducial = find_fiducial(currentFrame, 20000, 5);
-
-  waitKey(0);
-
-  return 0;
-}
-
-extern "C"
-void detect_from_camera() {
+void detect_from_camera2() {
 
   namedWindow("window");
 
