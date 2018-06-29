@@ -6,6 +6,7 @@ extern crate log;
 
 use clap::{App, Arg, SubCommand};
 use std::error::Error;
+use std::sync::Arc;
 
 use puddle_core::vision;
 
@@ -22,13 +23,11 @@ fn main() -> Result<(), Box<Error>> {
 
     match matches.subcommand() {
         ("cam", Some(m)) => {
-            let mut det = vision::Detector::new();
-            loop {
-                let should_quit = det.detect(true);
-                if should_quit {
-                    break
-                }
-            }
+            let mut detector = vision::Detector::new();
+            let should_draw = true;
+            let blobs = Arc::default();
+            let blob_ref = Arc::clone(&blobs);
+            detector.run(should_draw, blob_ref);
         }
         _ => {
             println!("Please pick a subcommmand.");

@@ -5,7 +5,7 @@ use pathfinding::kuhn_munkres::kuhn_munkres_min;
 use pathfinding::matrix::Matrix;
 
 use command::Command;
-use grid::droplet::Blob;
+use grid::droplet::{Blob, SimpleBlob};
 use plan::Path;
 use process::ProcessId;
 use util::collections::{Map, Set};
@@ -85,7 +85,7 @@ impl Snapshot {
         None
     }
 
-    pub fn to_blobs(&self) -> Vec<Blob> {
+    pub fn to_blobs(&self) -> Vec<SimpleBlob> {
         self.droplets.values().map(|d| d.to_blob()).collect()
     }
 
@@ -96,7 +96,7 @@ impl Snapshot {
     ///
     /// Can currently only handle where both views contain
     /// the same number of 'droplets'
-    fn match_with_blobs(&self, blobs: &[Blob]) -> Map<DropletId, Blob> {
+    fn match_with_blobs<B: Blob>(&self, blobs: &[B]) -> Map<DropletId, B> {
         // Ensure lengths are the same
         if self.droplets.len() != blobs.len() {
             panic!("Expected and actual droplets are of different lengths");
@@ -133,7 +133,7 @@ impl Snapshot {
 
     // this will take commands_to_finalize from the old snapshot into the new
     // one if an error is found produced
-    pub fn correct(&mut self, blobs: &[Blob]) -> Option<Snapshot> {
+    pub fn correct(&mut self, blobs: &[impl Blob]) -> Option<Snapshot> {
         let blob_matching = self.match_with_blobs(blobs);
         let mut was_error = false;
         let new_droplets: Map<_, _> = blob_matching
@@ -462,18 +462,20 @@ mod tests {
         let (id_to_char, snapshot) = parse_snapshot(&snapshot_strs);
         let (_, chip_blobs) = parse_strings(&blob_strs);
 
-        let blobs: Vec<Blob> = chip_blobs.values().cloned().collect();
-        let result: Map<DropletId, Blob> = snapshot.match_with_blobs(&blobs);
+        let blobs: Vec<SimpleBlob> = chip_blobs.values().cloned().collect();
+        let result: Map<DropletId, SimpleBlob> = snapshot.match_with_blobs(&blobs);
 
         // create the expected map by mapping the ids in the snapshot
         // to the associated blob which corresponds to the character
-        let mut expected: Map<DropletId, Blob> = Map::new();
+        let mut expected: Map<DropletId, SimpleBlob> = Map::new();
         for id in snapshot.droplets.keys() {
             expected.insert(*id, chip_blobs[&id_to_char[id]].clone());
         }
 
         for id in expected.keys() {
-            assert_eq!(result.get(id), expected.get(id));
+            // we can't compare blobs or droplets, so we get the droplet_info
+            assert_eq!(result.get(id).map(|blob| blob.to_droplet(*id).info()),
+                       expected.get(id).map(|blob| blob.to_droplet(*id).info()))
         }
     }
 

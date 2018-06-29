@@ -57,6 +57,20 @@ impl Executor {
 
         let mut rng = thread_rng();
 
+        #[cfg(feature = "vision")]
+        let blobs = {
+            use vision::Detector;
+            use std::thread;
+            let blobs = Arc::default();
+            let blob_ref = Arc::clone(&blobs);
+            let should_draw = true;
+            let det_thread = thread::Builder::new().name("detector".into()).spawn(move || {
+                let mut detector = Detector::new();
+                detector.run(should_draw, blob_ref)
+            });
+            blobs
+        };
+
         loop {
             if self.blocking {
                 // wait on the visualizer
@@ -82,9 +96,22 @@ impl Executor {
                     }
 
                     #[cfg(feature = "pi")]
-                    self.pi
-                        .as_mut()
-                        .map(|pi| pi.output_pins(&gv.grid, &snapshot));
+                    {
+                        self.pi
+                            .as_mut()
+                            .map(|pi| pi.output_pins(&gv.grid, &snapshot));
+
+                        #[cfg(feature = "vision")]
+                        {
+                            let correction = snapshot.correct(&blobs.lock().unwrap());
+                            if let Some(new_snapshot) = correction {
+                                info!("old snapshot: {:#?}", snapshot);
+                                info!("new snapshot: {:#?}", new_snapshot);
+                                gv.rollback();
+                                snapshot = new_snapshot;
+                            };
+                        }
+                    }
 
                     let should_perturb = rng.gen_bool(0.0);
                     if should_perturb {

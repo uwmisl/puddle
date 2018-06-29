@@ -87,11 +87,11 @@ pub mod tests {
 
     use serde_json as sj;
 
-    use grid::{droplet::Blob, Grid, Location};
+    use grid::{droplet::SimpleBlob, Grid, Location};
     use std::collections::{HashMap, HashSet};
     use std::env;
 
-    pub fn parse_strings(rows: &[&str]) -> (Grid, HashMap<char, Blob>) {
+    pub fn parse_strings(rows: &[&str]) -> (Grid, HashMap<char, SimpleBlob>) {
         use grid::location::tests::connected_components;
 
         let mut droplet_map = HashMap::new();
@@ -127,7 +127,7 @@ pub mod tests {
                 // make sure it only has one connected component
                 let labels = connected_components(locs.iter().cloned());
                 assert!(labels.values().all(|v| *v == 0));
-                (ch, Blob::from_locations(&locs).expect("not a blob!"))
+                (ch, SimpleBlob::from_locations(&locs).expect("not a blob!"))
             })
             .collect();
 
