@@ -89,19 +89,6 @@ vector<Point> find_fiducial(Mat img, int maxArea, unsigned numSides) {
   return bestContour;
 }
 
-Mat readGray(char* path) {
-  Mat frame;
-	cout << "Reading " << path << "... ";
-	frame = imread(path, CV_LOAD_IMAGE_GRAYSCALE);
-  // resize(frame, frame, Size(0, 0), 0.5, 0.5);
-	if (frame.empty()){
-		cerr << "Could not read " << path << endl;
-		exit(1);
-	}
-	cout << "done!" << endl;
-  return frame;
-}
-
 struct MyPoint {
   unsigned y;
   unsigned x;
@@ -120,50 +107,88 @@ struct DetectionResponse {
 };
 
 struct DetectionState {
-  Ptr<BackgroundSubtractor> bgSub;
   VideoCapture* cap;
-  unsigned iteration;
-  vector< vector<Point> > droplets;
+  unsigned iteration = 0;
+
+  int lo_h = 45, lo_s = 70, lo_v = 20;
+  int hi_h = 75, hi_s = 255, hi_v = 255;
+
+  int blur_size = 3;
+
+  int close_size = 5;
+  int open_size = 3;
+  int bonus = 5;
 };
 
 extern "C"
-DetectionState *makeDetectionState() {
-  int history = 500;
-  double varThreshold = 80;
-  bool detectShadows = false;
+DetectionState *makeDetectionState(bool trackbars) {
+  DetectionState *det = new DetectionState;
 
-  DetectionState *state = new DetectionState;
-  state->bgSub = createBackgroundSubtractorMOG2(history, varThreshold, detectShadows);
+  det->cap = new VideoCapture(0);
 
-  state->cap = new VideoCapture(0);
-  state->iteration = 0;
-  state->droplets = vector< vector<Point> >();
+  cout << "VideoCapture opened: " << det->cap->isOpened() << endl;
 
-  cout << "VideoCapture opened: " << state->cap->isOpened() << endl;
+  det->cap->set(CV_CAP_PROP_FRAME_WIDTH, 320);
+  det->cap->set(CV_CAP_PROP_FRAME_HEIGHT, 240);
 
-  state->cap->set(CV_CAP_PROP_FRAME_WIDTH, 320);
-  state->cap->set(CV_CAP_PROP_FRAME_HEIGHT, 240);
+  if (trackbars) {
+    namedWindow("settings");
+
+    createTrackbar("lo h", "settings", &det->lo_h, 180, NULL, NULL);
+    createTrackbar("hi h", "settings", &det->hi_h, 180, NULL, NULL);
+    createTrackbar("lo s", "settings", &det->lo_s, 255, NULL, NULL);
+    createTrackbar("hi s", "settings", &det->hi_s, 255, NULL, NULL);
+    createTrackbar("lo v", "settings", &det->lo_v, 255, NULL, NULL);
+    createTrackbar("hi v", "settings", &det->hi_v, 255, NULL, NULL);
+
+    createTrackbar("blur", "settings", &det->blur_size, 15, NULL, NULL);
+    createTrackbar("close", "settings", &det->close_size, 35, NULL, NULL);
+    createTrackbar("open", "settings", &det->open_size, 35, NULL, NULL);
+    createTrackbar("bonus", "settings", &det->bonus, 15, NULL, NULL);
+  }
 
   Mat currentFrame;
-  state->cap->read(currentFrame);
-  return state;
+  det->cap->read(currentFrame);
+  return det;
 }
 
 // returns true if we should quit
 extern "C"
 bool detect_from_camera(DetectionState *det, DetectionResponse* resp, bool shouldDraw) {
-  Mat currentFrame;
-  Mat currentFrameGray;
+  Mat raw;
+  Mat hsv;
 
   cout << det << endl;
   cout << "VideoCapture opened: " << det->cap->isOpened() << endl;
 
-  det->cap->read(currentFrame);
-  cvtColor(currentFrame, currentFrameGray, CV_BGR2GRAY);
+  det->cap->read(raw);
+  Mat blurred;
+  int blur_size = max(det->blur_size, 1);
+  blur(raw, blurred, Size(blur_size, blur_size));
+
+  cvtColor(blurred, hsv, CV_BGR2HSV);
+
+  Scalar lowerb(det->lo_h, det->lo_s, det->lo_v);
+  Scalar upperb(det->hi_h, det->hi_s, det->hi_v);
+  Mat isColor;
+  inRange(hsv, lowerb, upperb, isColor);
+
+  Mat closed, opened;
+
+  int close_size = max(det->close_size, 1);
+  Mat close_morph = getStructuringElement(MORPH_ELLIPSE, Size(close_size, close_size));
+  dilate(isColor, closed, close_morph);
+  erode(closed, closed, close_morph);
+
+  int open_size = max(det->open_size, 1);
+  Mat open_morph = getStructuringElement(MORPH_ELLIPSE, Size(open_size, open_size));
+  erode(closed, opened, open_morph);
+  Mat open_bonus_morph = getStructuringElement(MORPH_ELLIPSE, Size(open_size + det->bonus, open_size + det->bonus));
+  dilate(opened, opened, open_bonus_morph);
 
   // find the centers of the fiducial markers
-  vector<Point> squareFiducial = find_fiducial(currentFrameGray, 20000, 4);
-  vector<Point> pentaFiducial = find_fiducial(currentFrameGray, 20000, 5);
+  vector<Point> squareFiducial = find_fiducial(raw, 20000, 4);
+  vector<Point> pentaFiducial = find_fiducial(raw, 20000, 5);
   // fill the response if we found one
   if (squareFiducial.size() > 0) {
     Moments squareMoments =  moments(squareFiducial, false);
@@ -182,47 +207,9 @@ bool detect_from_camera(DetectionState *det, DetectionResponse* resp, bool shoul
     cout << "Could not find penta fiducial!" << endl;
   }
 
-  // blur(currentFrameGray, currentFrameGray, Size(3,3));
-  Mat dropletMask(currentFrameGray.size(), CV_8UC1);
-  dropletMask = 0;
-  if(det->droplets.size() > 0){
-    drawContours(dropletMask, det->droplets, -1, Scalar(255), -1);
-  }
-
-  Mat bg;
-  det->bgSub->getBackgroundImage(bg);
-  Mat currentFrameMod = currentFrameGray.clone();
-  // "Hide" the droplets in currentFrameMod by copying over the background to those locations
-  // Background is empty initially, so wait until after the first iteration of the loop is done
-  if (det->iteration > 0) {
-    bg.copyTo(currentFrameMod, dropletMask);
-  }
-
-  Mat fg;
-  det->bgSub->apply(currentFrameMod, fg);
-  // Don't update the background (weight of 0), but extract the foreground with the droplets
-  det->bgSub->apply(currentFrameGray, fg, 0.0);
-
-  if (shouldDraw) {
-    imshow("current", currentFrame);
-    imshow("foreground", fg);
-    cout << currentFrame.size() << endl;
-    cout << fg.size() << endl;
-    cout << bg.size() << endl;
-    if (det->iteration > 0) {
-      // background won't exist yet
-      imshow("background", bg);
-    }
-  }
-
-  dilate(fg, fg, Mat(), Point(-1, -1), 2, 1, 1);
-  erode(fg, fg, Mat(), Point(-1, -1), 2, 1, 1);
-  dilate(fg, fg, Mat(), Point(-1, -1), 2, 1, 1);
-  erode(fg, fg, Mat(), Point(-1, -1), 1, 1, 1);
-
   // Find all the contours in the image, and filter them
   vector< vector<Point> > contours;
-  findContours(fg, contours, RETR_EXTERNAL, CHAIN_APPROX_SIMPLE);
+  findContours(opened, contours, RETR_EXTERNAL, CHAIN_APPROX_SIMPLE);
   vector< vector<Point> > filteredContours;
 
   // Find all the contours in the image, and filter them
@@ -237,10 +224,6 @@ bool detect_from_camera(DetectionState *det, DetectionResponse* resp, bool shoul
         50 < area && area < 20000) {
       filteredContours.push_back(contours[i]);
       // cout << contours[i] << endl;
-      // Wait until the background has been intilialized before storing droplets
-      if(det->iteration > 2){
-        det->droplets.push_back(contours[i]);
-      }
     }
   }
 
@@ -273,25 +256,28 @@ bool detect_from_camera(DetectionState *det, DetectionResponse* resp, bool shoul
 
   // draw the contours
   if (shouldDraw) {
-    Mat colored;
-    cvtColor(currentFrameGray, colored, CV_GRAY2BGR);
+    imshow("closed", closed);
+    imshow("blurred", blurred);
+    imshow("in range", isColor);
+    imshow("opened", opened);
+
     Scalar color(0,0,255);
-    drawContours(colored, filteredContours, -1, color, 2);
+    drawContours(raw, filteredContours, -1, color, 2);
 
     vector< vector<Point> > contour_holder;
     if (pentaFiducial.size() > 0) {
       contour_holder.clear();
       contour_holder.push_back(pentaFiducial);
-      drawContours(colored, contour_holder, -1, Scalar(255,255,255), 2);
+      drawContours(raw, contour_holder, -1, Scalar(255,255,255), 2);
     }
     if (squareFiducial.size() > 0) {
       contour_holder.clear();
       contour_holder.push_back(squareFiducial);
-      drawContours(colored, contour_holder, -1, Scalar(255,255,255), 2);
+      drawContours(raw, contour_holder, -1, Scalar(255,255,255), 2);
     }
 		// cout << "Polygon with " << approxCurve.size() << " sides." << endl;
 
-    imshow("Colored", colored);
+    imshow("Colored", raw);
 
     switch (waitKey(10)) {
     case 'q': return true;

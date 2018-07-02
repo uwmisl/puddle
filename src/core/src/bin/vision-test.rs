@@ -23,8 +23,10 @@ fn main() -> Result<(), Box<Error>> {
 
     match matches.subcommand() {
         ("cam", Some(m)) => {
-            let mut detector = vision::Detector::new();
             let should_draw = true;
+            let trackbars = true;
+
+            let mut detector = vision::Detector::new(trackbars);
             let blobs = Arc::default();
             let blob_ref = Arc::clone(&blobs);
             detector.run(should_draw, blob_ref);

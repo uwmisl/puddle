@@ -63,9 +63,10 @@ impl Executor {
             use std::thread;
             let blobs = Arc::default();
             let blob_ref = Arc::clone(&blobs);
+            let trackbars = false;
             let should_draw = true;
             let det_thread = thread::Builder::new().name("detector".into()).spawn(move || {
-                let mut detector = Detector::new();
+                let mut detector = Detector::new(trackbars);
                 detector.run(should_draw, blob_ref)
             });
             blobs

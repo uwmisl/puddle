@@ -15,6 +15,7 @@ fn main() {
 
         cc::Build::new()
             .cpp(true)
+            .flag("-std=c++11")
             .file("src/vision/droplet_detect.cpp")
             .compile("vision");
     }

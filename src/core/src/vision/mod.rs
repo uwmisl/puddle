@@ -18,7 +18,7 @@ extern "C" {
         response: *const DetectionResponse,
         should_draw: bool,
     ) -> bool;
-    fn makeDetectionState() -> *const DetectionState;
+    fn makeDetectionState(trackbars: bool) -> *const DetectionState;
 }
 
 #[repr(C)]
@@ -80,10 +80,10 @@ pub struct Detector {
 }
 
 impl Detector {
-    pub fn new() -> Detector {
+    pub fn new(trackbars: bool) -> Detector {
         initialize_camera();
         Detector {
-            state: unsafe { makeDetectionState() },
+            state: unsafe { makeDetectionState(trackbars) },
             response: DetectionResponse::default(),
         }
     }
@@ -209,30 +209,33 @@ fn droplet_to_shape(droplet: &Droplet) -> ConvexPolygon<f32> {
 
 // no whitespace, these are passed to the shell
 const VIDEO_CONFIG: &[&str] = &[
-    "iso_sensitivity_auto=0",
-    "white_balance_auto_preset=0",
-    "auto_exposure=0",
+    // "iso_sensitivity_auto=1",
+    // "white_balance_auto_preset=1",
+    // "auto_exposure=0",
 ];
 
 fn initialize_camera() {
-    for config in VIDEO_CONFIG {
-        let output = Command::new("v4l2-ctl")
-            .arg("-c")
-            .arg(config)
-            .output()
-            .expect("command failed to run");
+    let _output = Command::new("./video-settings.sh")
+        .output()
+        .expect("command failed to run");
+    // for config in VIDEO_CONFIG {
+    //     let output = Command::new("v4l2-ctl")
+    //         .arg("-c")
+    //         .arg(config)
+    //         .output()
+    //         .expect("command failed to run");
 
-        if !output.status.success() {
-            error!(
-                "Trying to set {}, failed with code {}: \nstdout: '{}'\nstderr: '{}'",
-                config,
-                output.status,
-                String::from_utf8_lossy(&output.stdout),
-                String::from_utf8_lossy(&output.stderr)
-            );
-            panic!("Failed");
-        }
-    }
+    //     if !output.status.success() {
+    //         error!(
+    //             "Trying to set {}, failed with code {}: \nstdout: '{}'\nstderr: '{}'",
+    //             config,
+    //             output.status,
+    //             String::from_utf8_lossy(&output.stdout),
+    //             String::from_utf8_lossy(&output.stderr)
+    //         );
+    //         panic!("Failed");
+    //     }
+    // }
 }
 
 ///
