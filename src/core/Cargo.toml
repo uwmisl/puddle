@@ -51,6 +51,7 @@ ncollide2d = "0.16"
 
 [dev-dependencies]
 glob = "^0.2"
+matches = "0.1"
 
 [build-dependencies]
 cc = "1.0"

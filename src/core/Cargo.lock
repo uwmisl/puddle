@@ -701,6 +701,7 @@ dependencies = [
  "jsonrpc-core 8.0.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "jsonrpc-macros 8.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.4.3 (registry+https://github.com/rust-lang/crates.io-index)",
+ "matches 0.1.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "nalgebra 0.15.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "ncollide2d 0.16.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "pathfinding 0.7.3 (registry+https://github.com/rust-lang/crates.io-index)",

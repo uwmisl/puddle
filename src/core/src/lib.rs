@@ -38,7 +38,7 @@ extern crate ncollide2d;
 mod command;
 mod exec;
 pub mod grid;
-mod plan;
+pub mod plan;
 mod process;
 pub mod util;
 

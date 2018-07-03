@@ -3,9 +3,15 @@ use std::env;
 
 extern crate puddle_core;
 
+use puddle_core::PuddleError;
+use puddle_core::plan;
+
 extern crate crossbeam;
 
 extern crate env_logger;
+
+#[macro_use]
+extern crate matches;
 
 use puddle_core::*;
 
@@ -152,13 +158,14 @@ fn process_isolation() {
 }
 
 #[test]
-#[should_panic(expected = "PlanError(PlaceError)")]
 fn input_does_not_fit() {
     let man = manager_from_rect(2, 2);
     let p = man.get_new_process("test");
 
     let _id1 = p.input(None, 1.0, None).unwrap();
-    let _id2 = p.input(None, 1.0, None).unwrap();
+    let id2 = p.input(None, 1.0, None);
+
+    assert_matches!(id2, Err(PuddleError::PlanError(plan::PlanError::PlaceError)));
 }
 
 fn check_mix_dimensions(dim1: Location, dim2: Location, dim_result: Location) {
