@@ -10,6 +10,7 @@ use ncollide2d::{
     bounding_volume::{HasBoundingVolume, AABB}, query::PointQuery, shape::ConvexPolygon,
 };
 
+
 type Point = Point2<f32>;
 
 extern "C" {
@@ -118,6 +119,8 @@ impl Detector {
             })
             .collect();
 
+        trace!("Found {} blobs!", blobs.len());
+
         if should_quit {
             info!("Detector should quit soon")
         }
@@ -209,33 +212,34 @@ fn droplet_to_shape(droplet: &Droplet) -> ConvexPolygon<f32> {
 
 // no whitespace, these are passed to the shell
 const VIDEO_CONFIG: &[&str] = &[
-    // "iso_sensitivity_auto=1",
-    // "white_balance_auto_preset=1",
-    // "auto_exposure=0",
+    "iso_sensitivity=1",
+    "white_balance_auto_preset=1",
+    "auto_exposure=0",
+    "red_balance=1000",
+    "blue_balance=1000",
+    "saturation=00",
+    "exposure_time_absolute=1000",
 ];
 
 fn initialize_camera() {
-    let _output = Command::new("./video-settings.sh")
-        .output()
-        .expect("command failed to run");
-    // for config in VIDEO_CONFIG {
-    //     let output = Command::new("v4l2-ctl")
-    //         .arg("-c")
-    //         .arg(config)
-    //         .output()
-    //         .expect("command failed to run");
+    for config in VIDEO_CONFIG {
+        let output = Command::new("v4l2-ctl")
+            .arg("-c")
+            .arg(config)
+            .output()
+            .expect("command failed to run");
 
-    //     if !output.status.success() {
-    //         error!(
-    //             "Trying to set {}, failed with code {}: \nstdout: '{}'\nstderr: '{}'",
-    //             config,
-    //             output.status,
-    //             String::from_utf8_lossy(&output.stdout),
-    //             String::from_utf8_lossy(&output.stderr)
-    //         );
-    //         panic!("Failed");
-    //     }
-    // }
+        if !output.status.success() {
+            error!(
+                "Trying to set {}, failed with code {}: \nstdout: '{}'\nstderr: '{}'",
+                config,
+                output.status,
+                String::from_utf8_lossy(&output.stdout),
+                String::from_utf8_lossy(&output.stderr)
+            );
+            panic!("Failed");
+        }
+    }
 }
 
 ///
@@ -250,15 +254,15 @@ fn match_fiducial(d0: Point, d1: Point, m0: Point, m1: Point) -> Similarity2<f32
 
     let m0_scaled = m0 * scale;
     let m1_scaled = m1 * scale;
-    println!("m0_scaled: {}", m0_scaled);
-    println!("m1_scaled: {}", m1_scaled);
+    trace!("m0_scaled: {}", m0_scaled);
+    trace!("m1_scaled: {}", m1_scaled);
 
     let vec_m = m1_scaled - m0_scaled;
     let rotation = UnitComplex::rotation_between(&vec_m, &vec_d);
-    println!("rotation: {}", rotation);
+    trace!("rotation: {}", rotation);
 
     let translation = Translation2::from_vector(d0 - rotation * m0_scaled);
-    println!("translation: {}", translation);
+    trace!("translation: {}", translation);
     Similarity2::from_parts(translation, rotation, scale)
 }
 
@@ -391,12 +395,12 @@ mod tests {
             let m0 = Point::new(1.0, 1.0);
             let m1 = Point::new(2.0, 2.0);
             let sim = match_fiducial(d0, d1, m0, m1);
-            println!("sim: {}", sim);
+            trace!("sim: {}", sim);
 
-            println!("d0:  {}", d0);
-            println!("d1:  {}", d1);
-            println!("m0': {}", sim * m0);
-            println!("m1': {}", sim * m1);
+            trace!("d0:  {}", d0);
+            trace!("d1:  {}", d1);
+            trace!("m0': {}", sim * m0);
+            trace!("m1': {}", sim * m1);
 
             assert_close(d0, sim * m0);
             assert_close(d1, sim * m1);

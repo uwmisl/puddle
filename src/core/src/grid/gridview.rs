@@ -96,10 +96,11 @@ impl Snapshot {
     ///
     /// Can currently only handle where both views contain
     /// the same number of 'droplets'
-    fn match_with_blobs<B: Blob>(&self, blobs: &[B]) -> Map<DropletId, B> {
+    fn match_with_blobs<B: Blob>(&self, blobs: &[B]) -> Option<Map<DropletId, B>> {
         // Ensure lengths are the same
         if self.droplets.len() != blobs.len() {
-            panic!("Expected and actual droplets are of different lengths");
+            error!("Expected and actual droplets are of different lengths");
+            return None
         }
         let mut result = Map::new(); // to be returned
         let mut ids = vec![]; // store corresponding ids to indeces
@@ -128,13 +129,13 @@ impl Snapshot {
         for i in 0..n {
             result.insert(ids[i], blobs[km[i]].clone());
         }
-        result
+        Some(result)
     }
 
     // this will take commands_to_finalize from the old snapshot into the new
     // one if an error is found produced
     pub fn correct(&mut self, blobs: &[impl Blob]) -> Option<Snapshot> {
-        let blob_matching = self.match_with_blobs(blobs);
+        let blob_matching = self.match_with_blobs(blobs)?;
         let mut was_error = false;
         let new_droplets: Map<_, _> = blob_matching
             .iter()
@@ -463,7 +464,7 @@ mod tests {
         let (_, chip_blobs) = parse_strings(&blob_strs);
 
         let blobs: Vec<SimpleBlob> = chip_blobs.values().cloned().collect();
-        let result: Map<DropletId, SimpleBlob> = snapshot.match_with_blobs(&blobs);
+        let result: Map<DropletId, SimpleBlob> = snapshot.match_with_blobs(&blobs).unwrap();
 
         // create the expected map by mapping the ids in the snapshot
         // to the associated blob which corresponds to the character

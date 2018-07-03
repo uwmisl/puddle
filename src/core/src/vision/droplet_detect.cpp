@@ -110,14 +110,14 @@ struct DetectionState {
   VideoCapture* cap;
   unsigned iteration = 0;
 
-  int lo_h = 45, lo_s = 70, lo_v = 20;
-  int hi_h = 75, hi_s = 255, hi_v = 255;
+  int lo_h = 60, lo_s = 60, lo_v = 20;
+  int hi_h = 80, hi_s = 255, hi_v = 255;
 
   int blur_size = 3;
 
-  int close_size = 5;
+  int close_size = 15;
   int open_size = 3;
-  int bonus = 5;
+  int bonus = 0;
 };
 
 extern "C"
@@ -158,8 +158,7 @@ bool detect_from_camera(DetectionState *det, DetectionResponse* resp, bool shoul
   Mat raw;
   Mat hsv;
 
-  cout << det << endl;
-  cout << "VideoCapture opened: " << det->cap->isOpened() << endl;
+  // cout << "VideoCapture opened: " << det->cap->isOpened() << endl;
 
   det->cap->read(raw);
   Mat blurred;
@@ -228,7 +227,7 @@ bool detect_from_camera(DetectionState *det, DetectionResponse* resp, bool shoul
   }
 
   size_t numContours = filteredContours.size();
-  cout << "Found " << numContours << " countours" << endl;
+  // cout << "Found " << numContours << " countours" << endl;
 
   // free the contents of the old response
   if (!resp->contours) {
@@ -240,6 +239,7 @@ bool detect_from_camera(DetectionState *det, DetectionResponse* resp, bool shoul
 
   // fill the response with the filteredContours
   resp->contours = (Contour*) malloc(numContours * sizeof(Contour));
+  resp->numContours = numContours;
   for (size_t i = 0; i < numContours; i++) {
     size_t numPoints = filteredContours[i].size();
     Contour *c = &resp->contours[i];
