@@ -125,18 +125,6 @@ pub trait Blob: Clone {
     fn to_droplet(&self, id: DropletId) -> Droplet;
 }
 
-// impl PartialEq for Blob {
-//     fn eq(&self, other: &Blob) -> bool {
-//         self.location == other.location && self.dimensions == other.dimensions
-//             && float_epsilon_equal(self.volume, other.volume)
-//     }
-// }
-
-fn float_epsilon_equal(float1: f64, float2: f64) -> bool {
-    let epsilon = 0.00001f64;
-    (float1 - float2).abs() < epsilon
-}
-
 impl SimpleBlob {
     pub fn from_locations(locs: &[Location]) -> Option<SimpleBlob> {
         let location = Location {
