@@ -3,10 +3,10 @@ use std::sync::{Arc, Mutex};
 use std::thread::sleep;
 use std::time::Duration;
 
-use rand::prelude::thread_rng;
 use rand::Rng;
 
 use grid::{DropletInfo, ExecResponse, GridView};
+use util::mk_rng;
 use util::endpoint::Endpoint;
 
 #[cfg(feature = "pi")]
@@ -55,7 +55,7 @@ impl Executor {
             .unwrap_or(STEP_DELAY);
         let sleep_time = Duration::from_millis(sleep_ms);
 
-        let mut rng = thread_rng();
+        let mut rng = mk_rng();
 
         #[cfg(feature = "vision")]
         let blobs = {
