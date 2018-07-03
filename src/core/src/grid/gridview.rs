@@ -55,7 +55,9 @@ impl Snapshot {
     pub fn abort(mut self, gridview: &mut GridView) {
         for cmd in self.commands_to_finalize.drain(..) {
             debug!("Sending command back for replanning: {:#?}", cmd);
-            gridview.plan(cmd).unwrap();
+            gridview.plan(cmd).unwrap_or_else(|err| {
+                panic!("Couldn't replan a command, there was an error: {:#?}", err)
+            })
         }
     }
 
@@ -459,12 +461,12 @@ mod tests {
         (id_to_char, snapshot)
     }
 
-    fn check_all_matched(snapshot_strs: &[&str], blob_strs: &[&str]) {
+    fn check_all_matched(snapshot_strs: &[&str], blob_strs: &[&str]) -> Option<Map<DropletId, SimpleBlob>> {
         let (id_to_char, snapshot) = parse_snapshot(&snapshot_strs);
         let (_, chip_blobs) = parse_strings(&blob_strs);
 
         let blobs: Vec<SimpleBlob> = chip_blobs.values().cloned().collect();
-        let result: Map<DropletId, SimpleBlob> = snapshot.match_with_blobs(&blobs).unwrap();
+        let result: Map<DropletId, SimpleBlob> = snapshot.match_with_blobs(&blobs)?;
 
         // create the expected map by mapping the ids in the snapshot
         // to the associated blob which corresponds to the character
@@ -478,6 +480,8 @@ mod tests {
             assert_eq!(result.get(id).map(|blob| blob.to_droplet(*id).info()),
                        expected.get(id).map(|blob| blob.to_droplet(*id).info()))
         }
+
+        Some(result)
     }
 
     #[test]
@@ -488,7 +492,7 @@ mod tests {
             ".............",
             ".............",
         ];
-        check_all_matched(&strs, &strs);
+        assert!(check_all_matched(&strs, &strs).is_some());
     }
 
     #[test]
@@ -507,7 +511,7 @@ mod tests {
             ".............",
         ];
 
-        check_all_matched(&exec_strs, &chip_strs);
+        assert!(check_all_matched(&exec_strs, &chip_strs).is_some());
     }
 
     #[test]
@@ -526,11 +530,10 @@ mod tests {
             ".............",
         ];
 
-        check_all_matched(&exec_strs, &chip_strs);
+        assert!(check_all_matched(&exec_strs, &chip_strs).is_some());
     }
 
     #[test]
-    #[should_panic(expected = "Expected and actual droplets are of different lengths")]
     fn test_mix_split_diff() {
         let exec_strs = vec![
             "aa...........",
@@ -546,6 +549,6 @@ mod tests {
             ".............",
         ];
 
-        check_all_matched(&exec_strs, &chip_strs);
+        assert!(check_all_matched(&exec_strs, &chip_strs).is_none());
     }
 }

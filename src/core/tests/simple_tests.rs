@@ -169,7 +169,7 @@ fn input_does_not_fit() {
 }
 
 fn check_mix_dimensions(dim1: Location, dim2: Location, dim_result: Location) {
-    let man = manager_from_rect(9, 9);
+    let man = manager_from_rect(20, 20);
     let p = man.get_new_process("test");
 
     let id1 = p.input(None, 1.0, Some(dim1)).unwrap();
