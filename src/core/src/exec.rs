@@ -102,6 +102,8 @@ impl Executor {
                             .as_mut()
                             .map(|pi| pi.output_pins(&gv.grid, &snapshot));
 
+                        sleep(sleep_time);
+
                         #[cfg(feature = "vision")]
                         {
                             let correction = snapshot.correct(&blobs.lock().unwrap());
