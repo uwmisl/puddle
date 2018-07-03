@@ -177,11 +177,11 @@ impl Blob for PolygonBlob {
         let dim_point = bbox.maxs();
         let location = Location {
             y: loc_point.y.floor() as i32,
-            x: loc_point.y.floor() as i32,
+            x: loc_point.x.floor() as i32,
         };
         let dimensions = Location {
-            y: loc_point.y.ceil() as i32,
-            x: loc_point.y.ceil() as i32,
+            y: dim_point.y.ceil() as i32,
+            x: dim_point.x.ceil() as i32,
         };
         // FIXME this is fake!
         let volume = 1.0;
