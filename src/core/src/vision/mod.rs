@@ -30,7 +30,8 @@ struct MyPoint {
 
 impl MyPoint {
     fn to_point(&self) -> Point {
-        Point::new(self.y as f32, self.x as f32)
+        // Points in ncollide2d are x then y!
+        Point::new(self.x as f32, self.y as f32)
     }
 }
 
@@ -100,8 +101,8 @@ impl Detector {
 
         // the y coordinates (first) were measured from an image
         // the x coordinates (second) are taken from the alignment of the design
-        let square_center_measured = Point::new(-1.424, 0.5);
-        let penta_center_measured = Point::new(-1.357, 7.5);
+        let square_center_measured = Point::new(0.5, -1.424);
+        let penta_center_measured = Point::new(7.5, -1.357);
 
         let similarity = match_fiducial(
             square_center_measured,
@@ -119,7 +120,20 @@ impl Detector {
             })
             .collect();
 
-        trace!("Found {} blobs!", blobs.len());
+        trace!("Found {} blobs: {:#?}", blobs.len(),
+               blobs.iter().map(|b| {
+                   let ident = Isometry2::identity();
+                   let bbox: AABB<f32> = b.polygon.bounding_volume(&ident);
+                   bbox
+               }).collect::<Vec<_>>()
+        );
+        debug!("Blobs represent these droplets with fake ids: {:#?}", {
+            let id = DropletId { id: 0, process_id: 0 };
+            blobs.iter().map(|b| {
+                // NOTE: to_droplet will panic if location or dimensions are negative
+                ::std::panic::catch_unwind(|| b.to_droplet(id))
+            }).collect::<Vec<_>>()
+        });
 
         if should_quit {
             info!("Detector should quit soon")
@@ -175,14 +189,14 @@ impl Blob for PolygonBlob {
         let ident = Isometry2::identity();
         let bbox: AABB<f32> = self.polygon.bounding_volume(&ident);
         let loc_point = bbox.mins();
-        let dim_point = bbox.maxs();
+        let dim_point = bbox.maxs() - loc_point;
         let location = Location {
-            y: loc_point.y.floor() as i32,
-            x: loc_point.x.floor() as i32,
+            y: loc_point.y.round() as i32,
+            x: loc_point.x.round() as i32,
         };
         let dimensions = Location {
-            y: dim_point.y.ceil() as i32,
-            x: dim_point.x.ceil() as i32,
+            y: dim_point.y.round() as i32,
+            x: dim_point.x.round() as i32,
         };
         // FIXME this is fake!
         let volume = 1.0;
@@ -201,10 +215,10 @@ fn droplet_to_shape(droplet: &Droplet) -> ConvexPolygon<f32> {
     assert!(dx > 0.0);
 
     let corners = vec![
-        Point::new(y, x),
-        Point::new(y + dy, x),
-        Point::new(y + dy, x + dx),
-        Point::new(y, x + dx),
+        Point::new(x, y),
+        Point::new(x, y + dy),
+        Point::new(x + dx, y + dy),
+        Point::new(x + dx, y),
     ];
 
     // the try_new constructor *assumes* the convexity of the points
@@ -292,7 +306,7 @@ fn points_in_area(
             (0..x_steps).map(move |_| {
                 let dx = x;
                 x += delta;
-                Point::new(dy, dx)
+                Point::new(dx, dy)
             })
         });
 
@@ -312,7 +326,7 @@ mod tests {
     #[test]
     fn test_points_in_area() {
         let loc = Location { y: 0, x: 0 };
-        let dim = Location { y: 1, x: 1 };
+        let dim = Location { y: 2, x: 1 };
 
         let y0 = loc.y as f32;
         let x0 = loc.x as f32;
@@ -322,8 +336,8 @@ mod tests {
         {
             let (n_pts, pts_iter) = points_in_area(loc, dim, 0.5);
             let pts: Vec<_> = pts_iter.collect();
-            assert!(n_pts == pts.len());
-            assert!(n_pts == 9);
+            assert_eq!(n_pts, pts.len());
+            assert_eq!(n_pts, 15);
             for pt in pts {
                 assert!(y0 <= pt.y);
                 assert!(pt.y <= y1);
@@ -334,8 +348,8 @@ mod tests {
         {
             let (n_pts, pts_iter) = points_in_area(loc, dim, 0.3);
             let pts: Vec<_> = pts_iter.collect();
-            assert!(n_pts == pts.len());
-            assert!(n_pts == 16);
+            assert_eq!(n_pts, pts.len());
+            assert_eq!(n_pts, 28);
             for pt in pts {
                 assert!(y0 <= pt.y);
                 assert!(pt.y <= y1);
@@ -383,5 +397,31 @@ mod tests {
             assert_close(d0, sim * m0);
             assert_close(d1, sim * m1);
         }
+    }
+
+    fn droplet_from_corners(mins: (f32, f32), maxs: (f32, f32)) -> Droplet {
+        let (y0, x0) = mins;
+        let (y1, x1) = maxs;
+        let polygon = ConvexPolygon::try_new(vec![
+            Point::new(x0, y0),
+            Point::new(x0, y1),
+            Point::new(x1, y1),
+            Point::new(x1, y0),
+        ]).unwrap();
+        let blob = PolygonBlob { polygon };
+        blob.to_droplet(DropletId { id: 0, process_id: 0})
+    }
+
+    #[test]
+    fn test_blob_to_droplet() {
+        let d = droplet_from_corners((0.9, 0.1), (1.8, 1.4));
+        println!("{:#?}", d);
+        assert_eq!(d.location, Location {y: 1, x: 0});
+        assert_eq!(d.dimensions, Location {y: 1, x: 1});
+
+        let d = droplet_from_corners((4.7, 4.1), (5.8, 5.2));
+        println!("{:#?}", d);
+        assert_eq!(d.location, Location {y: 5, x: 4});
+        assert_eq!(d.dimensions, Location {y: 1, x: 1});
     }
 }

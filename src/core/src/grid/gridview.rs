@@ -311,8 +311,11 @@ impl GridView {
         self.planned[just_planned].commands_to_finalize.push(cmd)
     }
 
-    pub fn rollback(&mut self) {
+    pub fn rollback(&mut self, new_snapshot: &Snapshot) {
         let old_planned: Vec<_> = self.planned.drain(..).collect();
+        self.planned.push_back(new_snapshot.new_with_same_droplets());
+        assert_eq!(self.planned.len(), 1);
+
         for planned_snapshot in old_planned {
             planned_snapshot.abort(self)
         }

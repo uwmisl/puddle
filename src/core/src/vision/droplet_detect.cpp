@@ -298,7 +298,10 @@ bool detect_from_camera(DetectionState *det, DetectionResponse* resp, bool shoul
 
     switch (waitKey(10)) {
     case 'q': return true;
-    case 'p': while (waitKey(10) != 'p');
+    case 'p':
+      cout << "Pausing..." << endl;
+      while (waitKey(10) != 'p');
+      cout << "Resuming..." << endl;
     }
   }
 

@@ -32,12 +32,16 @@ impl Executor {
             Ok(s) => if s == "1" {
                 let mut pi = RaspberryPi::new().unwrap();
                 pi.init_hv507();
+                info!("Initialized the pi!");
                 Some(pi)
             } else {
                 warn!("Couldn't read PUDDLE_PI={}", s);
                 None
             },
-            Err(_) => None,
+            Err(_) => {
+                info!("Did not start the pi!");
+                None
+            }
         };
 
         Executor {
@@ -110,7 +114,7 @@ impl Executor {
                             if let Some(new_snapshot) = correction {
                                 info!("old snapshot: {:#?}", snapshot);
                                 info!("new snapshot: {:#?}", new_snapshot);
-                                gv.rollback();
+                                gv.rollback(&new_snapshot);
                                 snapshot = new_snapshot;
                             };
                         }
@@ -126,7 +130,7 @@ impl Executor {
                             if let Some(new_snapshot) = snapshot.correct(&blobs) {
                                 info!("old snapshot: {:#?}", snapshot);
                                 info!("new snapshot: {:#?}", new_snapshot);
-                                gv.rollback();
+                                gv.rollback(&new_snapshot);
                                 snapshot = new_snapshot;
                             };
                         }
