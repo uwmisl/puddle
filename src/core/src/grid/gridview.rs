@@ -115,7 +115,10 @@ impl Snapshot {
         for (&id, droplet) in &self.droplets {
             ids.push(id);
             for blob in blobs {
-                matches.push(blob.get_similarity(&droplet));
+                let similarity = blob.get_similarity(&droplet);
+                // must be non-negative for the algorithm to work
+                assert!(similarity >= 0);
+                matches.push(similarity);
             }
         }
 
@@ -143,11 +146,13 @@ impl Snapshot {
             .iter()
             .map(|(&id, blob)| {
                 let d = &self.droplets[&id];
-                if blob.get_similarity(d) > 0 {
+                let d_new = blob.to_droplet(id);
+                if d.location != d_new.location || d.dimensions != d_new.dimensions {
                     info!("Found error in droplet {:?}", id);
+                    debug!("Droplet error\n  Expected: {:#?}\n  Found: {:#?}", d, d_new);
                     was_error = true;
                 }
-                (id, blob.to_droplet(id))
+                (id, d_new)
             })
             .collect();
 
