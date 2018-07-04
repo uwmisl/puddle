@@ -5,6 +5,8 @@
 #include "opencv2/highgui/highgui.hpp"
 
 #include <iostream>
+#include <thread>
+#include <mutex>
 #include <math.h>
 
 #define UNUSED(x) (void)(x)
@@ -108,6 +110,8 @@ struct DetectionResponse {
 
 struct DetectionState {
   VideoCapture* cap;
+  std::mutex lock;
+  std::thread* grabber;
   unsigned iteration = 0;
 
   int lo_h = 60, lo_s = 60, lo_v = 20;
@@ -120,12 +124,22 @@ struct DetectionState {
   int bonus = 0;
 };
 
+void grab_frames(DetectionState* det) {
+  auto delay = std::chrono::milliseconds(10);
+  while (true) {
+    det->lock.lock();
+    det->cap->grab();
+    // cout << "grabbed" << endl;
+    det->lock.unlock();
+    std::this_thread::sleep_for(delay);
+  }
+}
+
 extern "C"
 DetectionState *makeDetectionState(bool trackbars) {
   DetectionState *det = new DetectionState;
 
   det->cap = new VideoCapture(0);
-
   cout << "VideoCapture opened: " << det->cap->isOpened() << endl;
 
   det->cap->set(CV_CAP_PROP_FRAME_WIDTH, 320);
@@ -147,8 +161,7 @@ DetectionState *makeDetectionState(bool trackbars) {
     createTrackbar("bonus", "settings", &det->bonus, 15, NULL, NULL);
   }
 
-  Mat currentFrame;
-  det->cap->read(currentFrame);
+  det->grabber = new std::thread(grab_frames, det);
   return det;
 }
 
@@ -160,7 +173,11 @@ bool detect_from_camera(DetectionState *det, DetectionResponse* resp, bool shoul
 
   // cout << "VideoCapture opened: " << det->cap->isOpened() << endl;
 
-  det->cap->read(raw);
+  det->lock.lock();
+  det->cap->retrieve(raw);
+  // cout << "retrieved!!!!" << endl;
+  det->lock.unlock();
+
   Mat blurred;
   int blur_size = max(det->blur_size, 1);
   blur(raw, blurred, Size(blur_size, blur_size));
