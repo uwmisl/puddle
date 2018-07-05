@@ -7,8 +7,8 @@ extern crate log;
 use clap::{App, Arg, SubCommand};
 use std::error::Error;
 use std::fs::File;
-use std::time::Duration;
 use std::thread;
+use std::time::Duration;
 
 use puddle_core::grid::{Droplet, DropletId, Grid, Location, Snapshot};
 use puddle_core::pi::RaspberryPi;
@@ -43,7 +43,11 @@ fn main() -> Result<(), Box<Error>> {
                 .arg(Arg::with_name("gridpath").takes_value(true).required(true))
                 .arg(Arg::with_name("y").takes_value(true).required(true))
                 .arg(Arg::with_name("x").takes_value(true).required(true))
-                .arg(Arg::with_name("height").takes_value(true).default_value("1"))
+                .arg(
+                    Arg::with_name("height")
+                        .takes_value(true)
+                        .default_value("1"),
+                )
                 .arg(Arg::with_name("width").takes_value(true).default_value("1")),
         )
         .subcommand(
@@ -51,9 +55,17 @@ fn main() -> Result<(), Box<Error>> {
                 .arg(Arg::with_name("gridpath").takes_value(true).required(true))
                 .arg(Arg::with_name("y").takes_value(true).required(true))
                 .arg(Arg::with_name("x").takes_value(true).required(true))
-                .arg(Arg::with_name("height").takes_value(true).default_value("2"))
+                .arg(
+                    Arg::with_name("height")
+                        .takes_value(true)
+                        .default_value("2"),
+                )
                 .arg(Arg::with_name("width").takes_value(true).default_value("2"))
-                .arg(Arg::with_name("sleep").takes_value(true).default_value("1000")),
+                .arg(
+                    Arg::with_name("sleep")
+                        .takes_value(true)
+                        .default_value("1000"),
+                ),
         )
         .get_matches();
 
@@ -93,7 +105,10 @@ fn main() -> Result<(), Box<Error>> {
             let droplet = Droplet {
                 id: id,
                 location: Location { y, x },
-                dimensions: Location { y: height, x: width },
+                dimensions: Location {
+                    y: height,
+                    x: width,
+                },
                 volume: 1.0,
                 destination: None,
                 collision_group: 0,
@@ -147,7 +162,10 @@ fn main() -> Result<(), Box<Error>> {
             pi.output_pins(&grid, &snapshot);
 
             let mut set_loc = |yo, xo| {
-                let loc = Location {y: y + yo, x: x + xo};
+                let loc = Location {
+                    y: y + yo,
+                    x: x + xo,
+                };
                 snapshot.droplets.get_mut(&id).unwrap().location = loc;
                 pi.output_pins(&grid, &snapshot);
                 println!("Droplet at {}", loc);
@@ -158,13 +176,13 @@ fn main() -> Result<(), Box<Error>> {
                     set_loc(xo, 0);
                 }
                 for yo in 0..height {
-                    set_loc(width-1, yo);
+                    set_loc(width - 1, yo);
                 }
                 for xo in 0..width {
-                    set_loc(width-1-xo, height-1);
+                    set_loc(width - 1 - xo, height - 1);
                 }
                 for yo in 0..height {
-                    set_loc(0, height-1-yo);
+                    set_loc(0, height - 1 - yo);
                 }
             }
 

@@ -51,7 +51,7 @@ pub mod pi;
 
 pub use exec::Executor;
 pub use grid::parse;
-pub use grid::{DropletId, DropletInfo, Grid, Location, Blob};
+pub use grid::{Blob, DropletId, DropletInfo, Grid, Location};
 pub use process::*;
 
 #[cfg(test)]

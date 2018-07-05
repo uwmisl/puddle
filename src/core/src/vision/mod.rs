@@ -10,7 +10,6 @@ use ncollide2d::{
     bounding_volume::{HasBoundingVolume, AABB}, query::PointQuery, shape::ConvexPolygon,
 };
 
-
 type Point = Point2<f32>;
 
 extern "C" {
@@ -116,23 +115,34 @@ impl Detector {
             .map(|points| {
                 let transformed_points: Vec<_> = points.iter().map(|pt| similarity * pt).collect();
                 let polygon = ConvexPolygon::try_from_points(&transformed_points).unwrap();
-                PolygonBlob {polygon}
+                PolygonBlob { polygon }
             })
             .collect();
 
-        trace!("Found {} blobs: {:#?}", blobs.len(),
-               blobs.iter().map(|b| {
-                   let ident = Isometry2::identity();
-                   let bbox: AABB<f32> = b.polygon.bounding_volume(&ident);
-                   bbox
-               }).collect::<Vec<_>>()
+        trace!(
+            "Found {} blobs: {:#?}",
+            blobs.len(),
+            blobs
+                .iter()
+                .map(|b| {
+                    let ident = Isometry2::identity();
+                    let bbox: AABB<f32> = b.polygon.bounding_volume(&ident);
+                    bbox
+                })
+                .collect::<Vec<_>>()
         );
         debug!("Blobs represent these droplets with fake ids: {:#?}", {
-            let id = DropletId { id: 0, process_id: 0 };
-            blobs.iter().map(|b| {
-                // NOTE: to_droplet will panic if location or dimensions are negative
-                ::std::panic::catch_unwind(|| b.to_droplet(id))
-            }).collect::<Vec<_>>()
+            let id = DropletId {
+                id: 0,
+                process_id: 0,
+            };
+            blobs
+                .iter()
+                .map(|b| {
+                    // NOTE: to_droplet will panic if location or dimensions are negative
+                    ::std::panic::catch_unwind(|| b.to_droplet(id))
+                })
+                .collect::<Vec<_>>()
         });
 
         if should_quit {
@@ -148,7 +158,7 @@ impl Detector {
             *blobs.lock().unwrap() = new_blobs;
 
             if should_quit {
-                break
+                break;
             }
         }
     }
@@ -409,19 +419,22 @@ mod tests {
             Point::new(x1, y0),
         ]).unwrap();
         let blob = PolygonBlob { polygon };
-        blob.to_droplet(DropletId { id: 0, process_id: 0})
+        blob.to_droplet(DropletId {
+            id: 0,
+            process_id: 0,
+        })
     }
 
     #[test]
     fn test_blob_to_droplet() {
         let d = droplet_from_corners((0.9, 0.1), (1.8, 1.4));
         println!("{:#?}", d);
-        assert_eq!(d.location, Location {y: 1, x: 0});
-        assert_eq!(d.dimensions, Location {y: 1, x: 1});
+        assert_eq!(d.location, Location { y: 1, x: 0 });
+        assert_eq!(d.dimensions, Location { y: 1, x: 1 });
 
         let d = droplet_from_corners((4.7, 4.1), (5.8, 5.2));
         println!("{:#?}", d);
-        assert_eq!(d.location, Location {y: 5, x: 4});
-        assert_eq!(d.dimensions, Location {y: 1, x: 1});
+        assert_eq!(d.location, Location { y: 5, x: 4 });
+        assert_eq!(d.dimensions, Location { y: 1, x: 1 });
     }
 }

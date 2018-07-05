@@ -3,13 +3,14 @@
 # -e terminate the script on errors
 set -e
 
+## allow warnings for now
 # deny all warnings, converting them to errors
-if [[ $CI == "true" ]]; then
-    echo "Denying Rust warnings..."
-    export RUSTFLAGS="-D warnings"
-else
-    echo "Allowing Rust warnings..."
-fi
+# if [[ $CI == "true" ]]; then
+#     echo "Denying Rust warnings..."
+#     export RUSTFLAGS="-D warnings"
+# else
+#     echo "Allowing Rust warnings..."
+# fi
 
 # -v print every line before running it
 set -v

@@ -6,8 +6,8 @@ use std::time::Duration;
 use rand::Rng;
 
 use grid::{DropletInfo, ExecResponse, GridView};
-use util::mk_rng;
 use util::endpoint::Endpoint;
+use util::mk_rng;
 
 #[cfg(feature = "pi")]
 use pi::RaspberryPi;
@@ -63,16 +63,18 @@ impl Executor {
 
         #[cfg(feature = "vision")]
         let blobs = {
-            use vision::Detector;
             use std::thread;
+            use vision::Detector;
             let blobs = Arc::default();
             let blob_ref = Arc::clone(&blobs);
             let trackbars = false;
             let should_draw = true;
-            let det_thread = thread::Builder::new().name("detector".into()).spawn(move || {
-                let mut detector = Detector::new(trackbars);
-                detector.run(should_draw, blob_ref)
-            });
+            let det_thread = thread::Builder::new()
+                .name("detector".into())
+                .spawn(move || {
+                    let mut detector = Detector::new(trackbars);
+                    detector.run(should_draw, blob_ref)
+                });
             blobs
         };
 

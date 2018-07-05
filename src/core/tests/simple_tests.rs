@@ -3,8 +3,8 @@ use std::env;
 
 extern crate puddle_core;
 
-use puddle_core::PuddleError;
 use puddle_core::plan;
+use puddle_core::PuddleError;
 
 extern crate crossbeam;
 
@@ -165,7 +165,10 @@ fn input_does_not_fit() {
     let _id1 = p.input(None, 1.0, None).unwrap();
     let id2 = p.input(None, 1.0, None);
 
-    assert_matches!(id2, Err(PuddleError::PlanError(plan::PlanError::PlaceError)));
+    assert_matches!(
+        id2,
+        Err(PuddleError::PlanError(plan::PlanError::PlaceError))
+    );
 }
 
 fn check_mix_dimensions(dim1: Location, dim2: Location, dim_result: Location) {

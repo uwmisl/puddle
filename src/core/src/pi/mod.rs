@@ -205,9 +205,11 @@ impl RaspberryPi {
                     };
                     let electrode = grid.get_cell(&loc).unwrap();
                     pins[electrode.pin as usize] = 1;
-                    trace!("Setting pin {} at ({}, {})", electrode.pin,
-                           d.location.y + i,
-                           d.location.x + j,
+                    trace!(
+                        "Setting pin {} at ({}, {})",
+                        electrode.pin,
+                        d.location.y + i,
+                        d.location.x + j,
                     );
                 }
             }

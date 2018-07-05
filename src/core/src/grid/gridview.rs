@@ -102,7 +102,7 @@ impl Snapshot {
         // Ensure lengths are the same
         if self.droplets.len() != blobs.len() {
             error!("Expected and actual droplets are of different lengths");
-            return None
+            return None;
         }
         let mut result = Map::new(); // to be returned
         let mut ids = vec![]; // store corresponding ids to indeces
@@ -313,7 +313,8 @@ impl GridView {
 
     pub fn rollback(&mut self, new_snapshot: &Snapshot) {
         let old_planned: Vec<_> = self.planned.drain(..).collect();
-        self.planned.push_back(new_snapshot.new_with_same_droplets());
+        self.planned
+            .push_back(new_snapshot.new_with_same_droplets());
         assert_eq!(self.planned.len(), 1);
 
         for planned_snapshot in old_planned {
@@ -469,7 +470,10 @@ mod tests {
         (id_to_char, snapshot)
     }
 
-    fn check_all_matched(snapshot_strs: &[&str], blob_strs: &[&str]) -> Option<Map<DropletId, SimpleBlob>> {
+    fn check_all_matched(
+        snapshot_strs: &[&str],
+        blob_strs: &[&str],
+    ) -> Option<Map<DropletId, SimpleBlob>> {
         let (id_to_char, snapshot) = parse_snapshot(&snapshot_strs);
         let (_, chip_blobs) = parse_strings(&blob_strs);
 
@@ -485,8 +489,10 @@ mod tests {
 
         for id in expected.keys() {
             // we can't compare blobs or droplets, so we get the droplet_info
-            assert_eq!(result.get(id).map(|blob| blob.to_droplet(*id).info()),
-                       expected.get(id).map(|blob| blob.to_droplet(*id).info()))
+            assert_eq!(
+                result.get(id).map(|blob| blob.to_droplet(*id).info()),
+                expected.get(id).map(|blob| blob.to_droplet(*id).info())
+            )
         }
 
         Some(result)
