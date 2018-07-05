@@ -87,10 +87,11 @@ pub mod tests {
 
     use serde_json as sj;
 
-    use grid::{droplet::Blob, Grid, Location};
+    use grid::{droplet::SimpleBlob, Grid, Location};
     use std::collections::{HashMap, HashSet};
+    use std::env;
 
-    pub fn parse_strings(rows: &[&str]) -> (Grid, HashMap<char, Blob>) {
+    pub fn parse_strings(rows: &[&str]) -> (Grid, HashMap<char, SimpleBlob>) {
         use grid::location::tests::connected_components;
 
         let mut droplet_map = HashMap::new();
@@ -126,7 +127,7 @@ pub mod tests {
                 // make sure it only has one connected component
                 let labels = connected_components(locs.iter().cloned());
                 assert!(labels.values().all(|v| *v == 0));
-                (ch, Blob::from_locations(&locs).expect("not a blob!"))
+                (ch, SimpleBlob::from_locations(&locs).expect("not a blob!"))
             })
             .collect();
 
@@ -170,6 +171,15 @@ pub mod tests {
     fn test_parse_files() {
         let mut successes = 0;
         let _ = env_logger::try_init();
+
+        if let Ok(s) = env::var("RUNNING_IN_CROSS") {
+            if s == "1" {
+                // we have to skip because the test files are out-of-tree
+                info!("Skipping test because we're running in qemu");
+                return;
+            }
+        }
+
         debug!("{}", project_path("/tests/arches/*.json"));
         for entry in glob(&project_path("/tests/arches/*.json")).unwrap() {
             trace!("Testing {:?}", entry);

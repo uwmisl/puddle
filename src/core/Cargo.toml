@@ -6,13 +6,18 @@ authors = ["Max Willsey <me@mwillsey.com>"]
 [features]
 # only works with --target armv7-unknown-linux-gnueabihf
 pi = []
+vision = []
+
+[[bin]]
+name = "puddle-server"
 
 [[bin]]
 name = "pi-test"
 required-features = ["pi"]
 
 [[bin]]
-name = "puddle-server"
+name = "vision-test"
+required-features = ["vision"]
 
 [dependencies]
 
@@ -41,5 +46,12 @@ pathfinding = "0.7"
 
 float-ord = "0.2.0"
 
+nalgebra = "0.15"
+ncollide2d = "0.16"
+
 [dev-dependencies]
 glob = "^0.2"
+matches = "0.1"
+
+[build-dependencies]
+cc = "1.0"

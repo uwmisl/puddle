@@ -6,3 +6,6 @@
 # editor stuff
 .idea
 *.swp
+
+# build artifacts
+*.s

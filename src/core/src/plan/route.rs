@@ -6,8 +6,9 @@ use plan::minheap::MinHeap;
 
 use util::collections::Entry::*;
 use util::collections::{Map, Set};
+use util::mk_rng;
 
-use rand::{thread_rng, Rng};
+use rand::Rng;
 
 pub type Path = Vec<Location>;
 
@@ -145,7 +146,7 @@ impl Node {
 impl GridView {
     pub fn route(&self) -> Option<Map<DropletId, Path>> {
         let mut droplets = self.snapshot().droplets.iter().collect::<Vec<_>>();
-        let mut rng = thread_rng();
+        let mut rng = mk_rng();
         for i in 1..50 {
             rng.shuffle(&mut droplets);
             let result = route_many(&droplets, &self.grid);

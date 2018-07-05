@@ -30,20 +30,28 @@ extern crate pathfinding;
 
 extern crate float_ord;
 
+#[cfg(feature = "vision")]
+extern crate nalgebra;
+#[cfg(feature = "vision")]
+extern crate ncollide2d;
+
 // these need to be pub until we have an api
 mod command;
 mod exec;
 pub mod grid;
-mod plan;
+pub mod plan;
 mod process;
 pub mod util;
+
+#[cfg(feature = "vision")]
+pub mod vision;
 
 #[cfg(feature = "pi")]
 pub mod pi;
 
 pub use exec::Executor;
 pub use grid::parse;
-pub use grid::{DropletId, DropletInfo, Grid, Location};
+pub use grid::{DropletId, DropletInfo, Grid, Location, Blob};
 pub use process::*;
 
 #[cfg(test)]

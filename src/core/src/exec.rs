@@ -3,10 +3,10 @@ use std::sync::{Arc, Mutex};
 use std::thread::sleep;
 use std::time::Duration;
 
-use rand::prelude::thread_rng;
 use rand::Rng;
 
 use grid::{DropletInfo, ExecResponse, GridView};
+use util::mk_rng;
 use util::endpoint::Endpoint;
 
 #[cfg(feature = "pi")]
@@ -32,12 +32,16 @@ impl Executor {
             Ok(s) => if s == "1" {
                 let mut pi = RaspberryPi::new().unwrap();
                 pi.init_hv507();
+                info!("Initialized the pi!");
                 Some(pi)
             } else {
                 warn!("Couldn't read PUDDLE_PI={}", s);
                 None
             },
-            Err(_) => None,
+            Err(_) => {
+                info!("Did not start the pi!");
+                None
+            }
         };
 
         Executor {
@@ -55,7 +59,22 @@ impl Executor {
             .unwrap_or(STEP_DELAY);
         let sleep_time = Duration::from_millis(sleep_ms);
 
-        let mut rng = thread_rng();
+        let mut rng = mk_rng();
+
+        #[cfg(feature = "vision")]
+        let blobs = {
+            use vision::Detector;
+            use std::thread;
+            let blobs = Arc::default();
+            let blob_ref = Arc::clone(&blobs);
+            let trackbars = false;
+            let should_draw = true;
+            let det_thread = thread::Builder::new().name("detector".into()).spawn(move || {
+                let mut detector = Detector::new(trackbars);
+                detector.run(should_draw, blob_ref)
+            });
+            blobs
+        };
 
         loop {
             if self.blocking {
@@ -82,9 +101,24 @@ impl Executor {
                     }
 
                     #[cfg(feature = "pi")]
-                    self.pi
-                        .as_mut()
-                        .map(|pi| pi.output_pins(&gv.grid, &snapshot));
+                    {
+                        self.pi
+                            .as_mut()
+                            .map(|pi| pi.output_pins(&gv.grid, &snapshot));
+
+                        sleep(sleep_time);
+
+                        #[cfg(feature = "vision")]
+                        {
+                            let correction = snapshot.correct(&blobs.lock().unwrap());
+                            if let Some(new_snapshot) = correction {
+                                info!("old snapshot: {:#?}", snapshot);
+                                info!("new snapshot: {:#?}", new_snapshot);
+                                gv.rollback(&new_snapshot);
+                                snapshot = new_snapshot;
+                            };
+                        }
+                    }
 
                     let should_perturb = rng.gen_bool(0.0);
                     if should_perturb {
@@ -96,7 +130,7 @@ impl Executor {
                             if let Some(new_snapshot) = snapshot.correct(&blobs) {
                                 info!("old snapshot: {:#?}", snapshot);
                                 info!("new snapshot: {:#?}", new_snapshot);
-                                gv.rollback();
+                                gv.rollback(&new_snapshot);
                                 snapshot = new_snapshot;
                             };
                         }

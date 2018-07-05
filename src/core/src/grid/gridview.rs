@@ -5,7 +5,7 @@ use pathfinding::kuhn_munkres::kuhn_munkres_min;
 use pathfinding::matrix::Matrix;
 
 use command::Command;
-use grid::droplet::Blob;
+use grid::droplet::{Blob, SimpleBlob};
 use plan::Path;
 use process::ProcessId;
 use util::collections::{Map, Set};
@@ -55,7 +55,9 @@ impl Snapshot {
     pub fn abort(mut self, gridview: &mut GridView) {
         for cmd in self.commands_to_finalize.drain(..) {
             debug!("Sending command back for replanning: {:#?}", cmd);
-            gridview.plan(cmd).unwrap();
+            gridview.plan(cmd).unwrap_or_else(|err| {
+                panic!("Couldn't replan a command, there was an error: {:#?}", err)
+            })
         }
     }
 
@@ -85,7 +87,7 @@ impl Snapshot {
         None
     }
 
-    pub fn to_blobs(&self) -> Vec<Blob> {
+    pub fn to_blobs(&self) -> Vec<SimpleBlob> {
         self.droplets.values().map(|d| d.to_blob()).collect()
     }
 
@@ -96,10 +98,11 @@ impl Snapshot {
     ///
     /// Can currently only handle where both views contain
     /// the same number of 'droplets'
-    fn match_with_blobs(&self, blobs: &[Blob]) -> Map<DropletId, Blob> {
+    fn match_with_blobs<B: Blob>(&self, blobs: &[B]) -> Option<Map<DropletId, B>> {
         // Ensure lengths are the same
         if self.droplets.len() != blobs.len() {
-            panic!("Expected and actual droplets are of different lengths");
+            error!("Expected and actual droplets are of different lengths");
+            return None
         }
         let mut result = Map::new(); // to be returned
         let mut ids = vec![]; // store corresponding ids to indeces
@@ -112,7 +115,10 @@ impl Snapshot {
         for (&id, droplet) in &self.droplets {
             ids.push(id);
             for blob in blobs {
-                matches.push(blob.get_similarity(&droplet));
+                let similarity = blob.get_similarity(&droplet);
+                // must be non-negative for the algorithm to work
+                assert!(similarity >= 0);
+                matches.push(similarity);
             }
         }
 
@@ -128,23 +134,25 @@ impl Snapshot {
         for i in 0..n {
             result.insert(ids[i], blobs[km[i]].clone());
         }
-        result
+        Some(result)
     }
 
     // this will take commands_to_finalize from the old snapshot into the new
     // one if an error is found produced
-    pub fn correct(&mut self, blobs: &[Blob]) -> Option<Snapshot> {
-        let blob_matching = self.match_with_blobs(blobs);
+    pub fn correct(&mut self, blobs: &[impl Blob]) -> Option<Snapshot> {
+        let blob_matching = self.match_with_blobs(blobs)?;
         let mut was_error = false;
         let new_droplets: Map<_, _> = blob_matching
             .iter()
             .map(|(&id, blob)| {
                 let d = &self.droplets[&id];
-                if blob.get_similarity(d) > 0 {
+                let d_new = blob.to_droplet(id);
+                if d.location != d_new.location || d.dimensions != d_new.dimensions {
                     info!("Found error in droplet {:?}", id);
+                    debug!("Droplet error\n  Expected: {:#?}\n  Found: {:#?}", d, d_new);
                     was_error = true;
                 }
-                (id, blob.to_droplet(id))
+                (id, d_new)
             })
             .collect();
 
@@ -303,8 +311,11 @@ impl GridView {
         self.planned[just_planned].commands_to_finalize.push(cmd)
     }
 
-    pub fn rollback(&mut self) {
+    pub fn rollback(&mut self, new_snapshot: &Snapshot) {
         let old_planned: Vec<_> = self.planned.drain(..).collect();
+        self.planned.push_back(new_snapshot.new_with_same_droplets());
+        assert_eq!(self.planned.len(), 1);
+
         for planned_snapshot in old_planned {
             planned_snapshot.abort(self)
         }
@@ -458,23 +469,27 @@ mod tests {
         (id_to_char, snapshot)
     }
 
-    fn check_all_matched(snapshot_strs: &[&str], blob_strs: &[&str]) {
+    fn check_all_matched(snapshot_strs: &[&str], blob_strs: &[&str]) -> Option<Map<DropletId, SimpleBlob>> {
         let (id_to_char, snapshot) = parse_snapshot(&snapshot_strs);
         let (_, chip_blobs) = parse_strings(&blob_strs);
 
-        let blobs: Vec<Blob> = chip_blobs.values().cloned().collect();
-        let result: Map<DropletId, Blob> = snapshot.match_with_blobs(&blobs);
+        let blobs: Vec<SimpleBlob> = chip_blobs.values().cloned().collect();
+        let result: Map<DropletId, SimpleBlob> = snapshot.match_with_blobs(&blobs)?;
 
         // create the expected map by mapping the ids in the snapshot
         // to the associated blob which corresponds to the character
-        let mut expected: Map<DropletId, Blob> = Map::new();
+        let mut expected: Map<DropletId, SimpleBlob> = Map::new();
         for id in snapshot.droplets.keys() {
             expected.insert(*id, chip_blobs[&id_to_char[id]].clone());
         }
 
         for id in expected.keys() {
-            assert_eq!(result.get(id), expected.get(id));
+            // we can't compare blobs or droplets, so we get the droplet_info
+            assert_eq!(result.get(id).map(|blob| blob.to_droplet(*id).info()),
+                       expected.get(id).map(|blob| blob.to_droplet(*id).info()))
         }
+
+        Some(result)
     }
 
     #[test]
@@ -485,7 +500,7 @@ mod tests {
             ".............",
             ".............",
         ];
-        check_all_matched(&strs, &strs);
+        assert!(check_all_matched(&strs, &strs).is_some());
     }
 
     #[test]
@@ -504,7 +519,7 @@ mod tests {
             ".............",
         ];
 
-        check_all_matched(&exec_strs, &chip_strs);
+        assert!(check_all_matched(&exec_strs, &chip_strs).is_some());
     }
 
     #[test]
@@ -523,11 +538,10 @@ mod tests {
             ".............",
         ];
 
-        check_all_matched(&exec_strs, &chip_strs);
+        assert!(check_all_matched(&exec_strs, &chip_strs).is_some());
     }
 
     #[test]
-    #[should_panic(expected = "Expected and actual droplets are of different lengths")]
     fn test_mix_split_diff() {
         let exec_strs = vec![
             "aa...........",
@@ -543,6 +557,6 @@ mod tests {
             ".............",
         ];
 
-        check_all_matched(&exec_strs, &chip_strs);
+        assert!(check_all_matched(&exec_strs, &chip_strs).is_none());
     }
 }

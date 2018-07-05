@@ -26,7 +26,9 @@ pub struct Droplet {
     pub collision_group: usize,
 }
 
-#[derive(Debug, Serialize)]
+// derive PartialEq because Droplets don't, and it's useful to compare them.
+// comparing the info is a safer way to do so
+#[derive(Debug, Serialize, PartialEq)]
 pub struct DropletInfo {
     pub id: DropletId,
     pub location: Location,
@@ -102,8 +104,8 @@ impl Droplet {
         }
     }
 
-    pub fn to_blob(&self) -> Blob {
-        Blob {
+    pub fn to_blob(&self) -> SimpleBlob {
+        SimpleBlob {
             location: self.location,
             dimensions: self.dimensions,
             volume: self.volume,
@@ -112,31 +114,19 @@ impl Droplet {
 }
 
 #[derive(Debug, Clone)]
-pub struct Blob {
+pub struct SimpleBlob {
     pub location: Location,
     pub dimensions: Location,
-    // TODO: why eq? consider implementing
-    // Otherwise FNV Hashing
     pub volume: f64,
 }
 
-impl PartialEq for Blob {
-    fn eq(&self, other: &Blob) -> bool {
-        self.location == other.location
-            && self.dimensions == other.dimensions
-            && float_epsilon_equal(self.volume, other.volume)
-    }
+pub trait Blob: Clone {
+    fn get_similarity(&self, droplet: &Droplet) -> i32;
+    fn to_droplet(&self, id: DropletId) -> Droplet;
 }
 
-fn float_epsilon_equal(float1: f64, float2: f64) -> bool {
-    let epsilon = 0.00001f64;
-    (float1 - float2).abs() < epsilon
-}
-
-// impl Eq for Blob {}
-
-impl Blob {
-    pub fn from_locations(locs: &[Location]) -> Option<Blob> {
+impl SimpleBlob {
+    pub fn from_locations(locs: &[Location]) -> Option<SimpleBlob> {
         let location = Location {
             y: locs.iter().map(|l| l.y).min().unwrap_or(0),
             x: locs.iter().map(|l| l.x).min().unwrap_or(0),
@@ -164,7 +154,7 @@ impl Blob {
         let volume: f64 = (dimensions.x * dimensions.y).into();
 
         if set1 == set2 {
-            Some(Blob {
+            Some(SimpleBlob {
                 location,
                 dimensions,
                 volume,
@@ -173,14 +163,16 @@ impl Blob {
             None
         }
     }
+}
 
-    pub fn get_similarity(&self, droplet: &Droplet) -> i32 {
+impl Blob for SimpleBlob {
+    fn get_similarity(&self, droplet: &Droplet) -> i32 {
         self.location.distance_to(&droplet.location) as i32
             + self.dimensions.distance_to(&droplet.dimensions) as i32
             + ((self.volume - droplet.volume) as i32).abs()
     }
 
-    pub fn to_droplet(&self, id: DropletId) -> Droplet {
+    fn to_droplet(&self, id: DropletId) -> Droplet {
         Droplet::new(id, self.volume, self.location, self.dimensions)
     }
 }
