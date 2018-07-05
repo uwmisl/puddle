@@ -5,6 +5,10 @@ extern crate cc;
 use std::env;
 
 fn main() {
+    // If we're in CI, just don't build the cpp
+    if let Ok(_) = env::var("CI") {
+        return;
+    }
     if let Ok(_) = env::var("CARGO_FEATURE_VISION") {
         println!("cargo:rustc-link-lib=opencv_core");
         println!("cargo:rustc-link-lib=opencv_imgproc");
