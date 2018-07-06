@@ -291,6 +291,49 @@ fn match_fiducial(d0: Point, d1: Point, m0: Point, m1: Point) -> Similarity2<f32
     Similarity2::from_parts(translation, rotation, scale)
 }
 
+use nalgebra::{inverse, MatrixMN, MatrixN, VectorN, U3, U8};
+
+fn get_projective(src: &[Point], dst: &[Point]) -> Projective2<f32> {
+
+    assert_eq!(src.len(), 4);
+    assert_eq!(dst.len(), 4);
+
+    let mut a = MatrixN::<f32, U8>::from_element(0.0);
+    let mut b = VectorN::<f32, U8>::from_element(0.0);
+
+    for i in 0..4 {
+        a[(i,0)] = src[i].x;
+        a[(i+4,3)] = src[i].x;
+        a[(i,1)] = src[i].y;
+        a[(i+4,4)] = src[i].y;
+        a[(i,2)] = 1.0;
+        a[(i+4,5)] = 1.0;
+        a[(i,6)] = -src[i].x*dst[i].x;
+        a[(i,7)] = -src[i].y*dst[i].x;
+        a[(i+4,6)] = -src[i].x*dst[i].y;
+        a[(i+4,7)] = -src[i].y*dst[i].y;
+        b[i] = dst[i].x;
+        b[i+4] = dst[i].y;
+    }
+
+    println!("a: {}", a);
+    println!("b: {}", b);
+
+    let compute_u = true;
+    let compute_v = true;
+    let eps = 0.001;
+    let x = a.svd(compute_u, compute_v).solve(&b, eps);
+    println!("x: {:#?}", x);
+
+    let mut transform = MatrixN::<f32, U3>::from_element(1.0);
+    for i in 0..8 {
+        transform[i] = x[i];
+    }
+
+    println!("transform: {}", transform);
+
+    Projective2::from_matrix_unchecked(transform.transpose())
+}
 fn points_in_area(
     location: Location,
     dimension: Location,
