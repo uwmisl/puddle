@@ -62,6 +62,7 @@ impl Executor {
         let mut rng = mk_rng();
 
         #[cfg(feature = "vision")]
+        #[allow(unused_variables)]
         let blobs = {
             use std::thread;
             use vision::Detector;

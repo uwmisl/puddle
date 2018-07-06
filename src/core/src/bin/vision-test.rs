@@ -4,7 +4,7 @@ extern crate puddle_core;
 #[macro_use]
 extern crate log;
 
-use clap::{App, Arg, SubCommand};
+use clap::{App, SubCommand};
 use std::error::Error;
 use std::sync::Arc;
 
@@ -22,7 +22,7 @@ fn main() -> Result<(), Box<Error>> {
         .get_matches();
 
     match matches.subcommand() {
-        ("cam", Some(m)) => {
+        ("cam", Some(_m)) => {
             let should_draw = true;
             let trackbars = true;
 
