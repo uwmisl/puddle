@@ -18,79 +18,6 @@ int find_dist(int x1, int y1, int x2, int y2) {
 	return pow(x2 - x1, 2) + pow(y2 - y1, 2);
 }
 
-// // helper function:
-// // finds a cosine of angle between vectors
-// // from pt0->pt1 and from pt0->pt2
-// static double angle( Point pt1, Point pt2, Point pt0 )
-// {
-//   double dx1 = pt1.x - pt0.x;
-//   double dy1 = pt1.y - pt0.y;
-//   double dx2 = pt2.x - pt0.x;
-//   double dy2 = pt2.y - pt0.y;
-//   return (dx1*dx2 + dy1*dy2)/sqrt((dx1*dx1 + dy1*dy1)*(dx2*dx2 + dy2*dy2) + 1e-10);
-// }
-
-// img must be grayscale current frame, maxArea is max area of fiducial marker, numsides is sides of the fiducial marker
-vector<Point> find_fiducial(Mat img, int maxArea, unsigned numSides) {
-  Mat edges;
-  vector< vector<Point> > fiducialContours;
-  vector< vector<Point> > finalContours;
-
-  Canny(img, edges, 80, 200);
-
-  findContours(edges, fiducialContours, RETR_EXTERNAL, CHAIN_APPROX_SIMPLE);
-
-  double minArea = img.rows * img.cols * 0.001;
-
-  for (unsigned i = 0; i < fiducialContours.size(); i++) {
-    auto contour = fiducialContours[i];
-    if (contourArea(contour) > minArea) {
-      finalContours.push_back(contour);
-    }
-  }
-
-  vector<Point> bestContour;
-  double bestContourScore = HUGE_VAL;
-  for(unsigned i = 0; i < finalContours.size(); i++){
-
-    auto contour = finalContours[i];
-
-    if (contourArea(contour) > maxArea) {
-      continue;
-    }
-
-    vector<Point> approxCurve;
-    approxPolyDP(contour, approxCurve, arcLength(contour, true) * 0.05, true);
-
-    if (approxCurve.size() != numSides || !isContourConvex(approxCurve)) {
-      continue;
-    }
-
-    vector<double> sideLengths;
-		for (unsigned j = 0; j < approxCurve.size() - 1; j++) {
-			Point p0 = approxCurve[j];
-			Point p1 = approxCurve[j + 1];
-			double dy = p0.y - p1.y;
-			double dx = p0.x - p1.x;
-			double len = sqrt(pow(dy, 2) + pow(dx, 2));
-			sideLengths.push_back(len);
-		}
-
-		vector<double> mean;
-		vector<double> stdDev;
-		meanStdDev(sideLengths, mean, stdDev);
-
-		double score = stdDev[0] / 12 - contourArea(approxCurve) / 2500;
-
-		if (score < bestContourScore) {
-			bestContourScore = score;
-			bestContour = approxCurve;
-		}
-	}
-
-  return bestContour;
-}
-
 struct MyPoint {
   unsigned y;
   unsigned x;
@@ -104,8 +31,6 @@ struct Contour {
 struct DetectionResponse {
   size_t numContours;
   struct Contour *contours;
-  struct MyPoint pentaCenter;
-  struct MyPoint squareCenter;
 };
 
 struct DetectionState {
@@ -202,27 +127,6 @@ bool detect_from_camera(DetectionState *det, DetectionResponse* resp, bool shoul
   Mat open_bonus_morph = getStructuringElement(MORPH_ELLIPSE, Size(open_size + det->bonus, open_size + det->bonus));
   dilate(opened, opened, open_bonus_morph);
 
-  // find the centers of the fiducial markers
-  vector<Point> squareFiducial = find_fiducial(raw, 20000, 4);
-  vector<Point> pentaFiducial = find_fiducial(raw, 20000, 5);
-  // fill the response if we found one
-  if (squareFiducial.size() > 0) {
-    Moments squareMoments =  moments(squareFiducial, false);
-    Point2f squareCenter = Point2f(squareMoments.m10/squareMoments.m00, squareMoments.m01/squareMoments.m00);
-    resp->squareCenter.y = squareCenter.y;
-    resp->squareCenter.x = squareCenter.x;
-  } else {
-    cout << "Could not find square fiducial!" << endl;
-  }
-  if (pentaFiducial.size() > 0) {
-    Moments pentaMoments =  moments(pentaFiducial, false);
-    Point2f pentaCenter = Point2f(pentaMoments.m10/pentaMoments.m00, pentaMoments.m01/pentaMoments.m00);
-    resp->pentaCenter.y = pentaCenter.y;
-    resp->pentaCenter.x = pentaCenter.x;
-  } else {
-    cout << "Could not find penta fiducial!" << endl;
-  }
-
   // Find all the contours in the image, and filter them
   vector< vector<Point> > contours;
   findContours(opened, contours, RETR_EXTERNAL, CHAIN_APPROX_SIMPLE);
@@ -280,19 +184,6 @@ bool detect_from_camera(DetectionState *det, DetectionResponse* resp, bool shoul
 
     Scalar color(0,0,255);
     drawContours(raw, filteredContours, -1, color, 2);
-
-    vector< vector<Point> > contour_holder;
-    if (pentaFiducial.size() > 0) {
-      contour_holder.clear();
-      contour_holder.push_back(pentaFiducial);
-      drawContours(raw, contour_holder, -1, Scalar(255,255,255), 2);
-    }
-    if (squareFiducial.size() > 0) {
-      contour_holder.clear();
-      contour_holder.push_back(squareFiducial);
-      drawContours(raw, contour_holder, -1, Scalar(255,255,255), 2);
-    }
-		// cout << "Polygon with " << approxCurve.size() << " sides." << endl;
 
     imshow("Colored", raw);
 

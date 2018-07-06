@@ -4,7 +4,10 @@ use std::sync::{Arc, Mutex};
 
 use grid::{Blob, Droplet, DropletId, Location};
 
-use nalgebra::{geometry::Translation2, norm, Isometry2, Point2, Similarity2, UnitComplex};
+mod transform;
+use self::transform::GridTransformer;
+
+use nalgebra::{Isometry2, Point2};
 use ncollide2d as nc;
 use ncollide2d::{
     bounding_volume::{HasBoundingVolume, AABB}, query::PointQuery, shape::ConvexPolygon,
@@ -78,6 +81,7 @@ impl DetectionResponse {
 pub struct Detector {
     state: *const DetectionState,
     response: DetectionResponse,
+    transformer: GridTransformer,
 }
 
 impl Detector {
@@ -86,6 +90,7 @@ impl Detector {
         Detector {
             state: unsafe { makeDetectionState(trackbars) },
             response: DetectionResponse::default(),
+            transformer: GridTransformer::default(),
         }
     }
 
@@ -95,25 +100,14 @@ impl Detector {
         let should_quit = unsafe { detect_from_camera(self.state, &self.response, should_draw) };
 
         let raw_contours = self.response.contours();
-        let square_center = self.response.square_center.to_point();
-        let penta_center = self.response.penta_center.to_point();
-
-        // the y coordinates (first) were measured from an image
-        // the x coordinates (second) are taken from the alignment of the design
-        let square_center_measured = Point::new(0.5, -1.424);
-        let penta_center_measured = Point::new(7.5, -1.357);
-
-        let similarity = match_fiducial(
-            square_center_measured,
-            penta_center_measured,
-            square_center,
-            penta_center,
-        );
 
         let blobs: Vec<_> = raw_contours
             .iter()
             .map(|points| {
-                let transformed_points: Vec<_> = points.iter().map(|pt| similarity * pt).collect();
+                let transformed_points: Vec<_> = points
+                    .iter()
+                    .map(|pt| self.transformer.transform(pt))
+                    .collect();
                 let polygon = ConvexPolygon::try_from_points(&transformed_points).unwrap();
                 PolygonBlob { polygon }
             })
@@ -267,73 +261,6 @@ fn initialize_camera() {
     }
 }
 
-///
-/// d0: the desired first fiducial coordinate
-/// d1: the desired second fiducial coordinate
-/// m0: the measured first fiducial coordinate
-/// m1: the measured second fiducial coordinate
-fn match_fiducial(d0: Point, d1: Point, m0: Point, m1: Point) -> Similarity2<f32> {
-    let vec_d = d1 - d0;
-    let vec_m_prescale = m1 - m0;
-    let scale = norm(&vec_d) / norm(&vec_m_prescale);
-
-    let m0_scaled = m0 * scale;
-    let m1_scaled = m1 * scale;
-    trace!("m0_scaled: {}", m0_scaled);
-    trace!("m1_scaled: {}", m1_scaled);
-
-    let vec_m = m1_scaled - m0_scaled;
-    let rotation = UnitComplex::rotation_between(&vec_m, &vec_d);
-    trace!("rotation: {}", rotation);
-
-    let translation = Translation2::from_vector(d0 - rotation * m0_scaled);
-    trace!("translation: {}", translation);
-    Similarity2::from_parts(translation, rotation, scale)
-}
-
-use nalgebra::{inverse, MatrixMN, MatrixN, VectorN, U3, U8};
-
-fn get_projective(src: &[Point], dst: &[Point]) -> Projective2<f32> {
-
-    assert_eq!(src.len(), 4);
-    assert_eq!(dst.len(), 4);
-
-    let mut a = MatrixN::<f32, U8>::from_element(0.0);
-    let mut b = VectorN::<f32, U8>::from_element(0.0);
-
-    for i in 0..4 {
-        a[(i,0)] = src[i].x;
-        a[(i+4,3)] = src[i].x;
-        a[(i,1)] = src[i].y;
-        a[(i+4,4)] = src[i].y;
-        a[(i,2)] = 1.0;
-        a[(i+4,5)] = 1.0;
-        a[(i,6)] = -src[i].x*dst[i].x;
-        a[(i,7)] = -src[i].y*dst[i].x;
-        a[(i+4,6)] = -src[i].x*dst[i].y;
-        a[(i+4,7)] = -src[i].y*dst[i].y;
-        b[i] = dst[i].x;
-        b[i+4] = dst[i].y;
-    }
-
-    println!("a: {}", a);
-    println!("b: {}", b);
-
-    let compute_u = true;
-    let compute_v = true;
-    let eps = 0.001;
-    let x = a.svd(compute_u, compute_v).solve(&b, eps);
-    println!("x: {:#?}", x);
-
-    let mut transform = MatrixN::<f32, U3>::from_element(1.0);
-    for i in 0..8 {
-        transform[i] = x[i];
-    }
-
-    println!("transform: {}", transform);
-
-    Projective2::from_matrix_unchecked(transform.transpose())
-}
 fn points_in_area(
     location: Location,
     dimension: Location,
@@ -371,9 +298,6 @@ mod tests {
 
     use super::*;
 
-    use nalgebra::{
-        base::Unit, geometry::Translation2, norm, Point2, Similarity2, UnitComplex, Vector2,
-    };
     use ncollide2d as nc;
 
     #[test]
@@ -409,46 +333,6 @@ mod tests {
                 assert!(x0 <= pt.x);
                 assert!(pt.x <= x1);
             }
-        }
-    }
-
-    fn assert_close(p0: Point, p1: Point) {
-        let epsilon = 0.00001f32;
-        let diff = p0 - p1;
-        let dist = norm(&diff);
-        if dist > epsilon {
-            panic!("{} and {} too far: {}", p0, p1, dist)
-        }
-    }
-
-    #[test]
-    fn test_match_fiducial() {
-        {
-            let d0 = Point::new(0.0, 0.0);
-            let d1 = Point::new(0.0, 1.0);
-            let m0 = Point::new(1.0, 1.0);
-            let m1 = Point::new(2.0, 2.0);
-            let sim = match_fiducial(d0, d1, m0, m1);
-            trace!("sim: {}", sim);
-
-            trace!("d0:  {}", d0);
-            trace!("d1:  {}", d1);
-            trace!("m0': {}", sim * m0);
-            trace!("m1': {}", sim * m1);
-
-            assert_close(d0, sim * m0);
-            assert_close(d1, sim * m1);
-        }
-
-        {
-            let d0 = Point::new(-1.0, -1.0);
-            let d1 = Point::new(0.0, 1.0);
-            let m0 = Point::new(1.0, 1.0);
-            let m1 = Point::new(2.0, 2.0);
-            let sim = match_fiducial(d0, d1, m0, m1);
-
-            assert_close(d0, sim * m0);
-            assert_close(d1, sim * m1);
         }
     }
 
