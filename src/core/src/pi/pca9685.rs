@@ -49,13 +49,13 @@ impl From<Mode1> for u8 {
     }
 }
 
-pub struct PCA9685 {
+pub struct Pca9685 {
     i2c: I2cHandle,
 }
 
-impl PCA9685 {
-    pub fn new(i2c: I2cHandle) -> Result<PCA9685> {
-        let mut pca = PCA9685 { i2c };
+impl Pca9685 {
+    pub fn new(i2c: I2cHandle) -> Result<Pca9685> {
+        let mut pca = Pca9685 { i2c };
         pca.init().map(|_| pca)
     }
 

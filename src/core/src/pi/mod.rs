@@ -1,14 +1,17 @@
+pub mod max31865;
 pub mod mcp4725;
 pub mod pca9685;
 
 use std::ffi::CStr;
 use std::fmt;
 use std::os::raw::{c_char, c_int, c_uint};
+use std::ptr;
 
 use grid::{Grid, Location, Snapshot};
 
-use self::mcp4725::{MCP4725, MCP4725_DEFAULT_ADDRESS};
-use self::pca9685::{PCA9685, PCA9685_DEFAULT_ADDRESS};
+use self::max31865::{MAX31865_DEFAULT_CONFIG, Max31865};
+use self::mcp4725::{MCP4725_DEFAULT_ADDRESS, Mcp4725};
+use self::pca9685::{PCA9685_DEFAULT_ADDRESS, Pca9685};
 
 #[allow(non_camel_case_types)]
 type int = c_int;
@@ -23,11 +26,23 @@ extern "C" {
     fn gpio_write(pi: int, gpio: unsigned, level: unsigned) -> int;
     fn hardware_PWM(pi: int, gpio: unsigned, pwm_freq: unsigned, pwm_duty: u32) -> int;
     fn pigpio_error(code: int) -> *const c_char;
+
     fn i2c_open(pi: int, i2c_bus: unsigned, i2c_addr: unsigned, i2c_flags: unsigned) -> int;
     fn i2c_close(pi: int, handle: unsigned) -> int;
-    // fn i2c_write_byte(pi: int, handle: unsigned, byte: unsigned) -> int;
     fn i2c_write_device(pi: int, handle: unsigned, buf: *const u8, count: unsigned) -> int;
     fn i2c_read_device(pi: int, handle: unsigned, buf: *mut u8, count: unsigned) -> int;
+
+    fn spi_open(pi: int, spi_channel: unsigned, baud: unsigned, spi_flags: unsigned) -> int;
+    fn spi_close(pi: int, handle: unsigned) -> int;
+    fn spi_xfer(
+        pi: int,
+        handle: unsigned,
+        tx_buf: *const u8,
+        rx_buf: *mut u8,
+        count: unsigned,
+    ) -> int;
+    fn spi_write(pi: int, handle: unsigned, buf: *const u8, count: unsigned) -> int;
+    fn spi_read(pi: int, handle: unsigned, buf: *mut u8, count: unsigned) -> int;
 }
 
 pub enum GpioPin {
@@ -111,35 +126,57 @@ macro_rules! res {
 
 pub struct RaspberryPi {
     pi_num: i32,
-    pub mcp4725: MCP4725,
-    pub pca9685: PCA9685,
+    pub mcp4725: Mcp4725,
+    pub pca9685: Pca9685,
+    pub max31865: Max31865,
 }
 
 impl RaspberryPi {
     pub fn new() -> Result<RaspberryPi> {
         let pi_num = {
-            let null = ::std::ptr::null();
-            let r = unsafe { pigpio_start(null, null) };
+            let r = unsafe { pigpio_start(ptr::null(), ptr::null()) };
             res!(r, r)?
         };
 
+        // at this point, the pi_num is validated by the res! macro
+        assert!(pi_num >= 0);
+
+        let i2c_bus = 1;
+        let i2c_flags = 0;
+
+        // FIXME THESE ARE FAKE
+        warn!("The SPI params are probably not right yet, and haven't been tested");
+        let spi_channel = 0;
+        let spi_baud = 40_000;
+        let spi_mode = 1;
+
         let mcp4725 = {
-            let i2c = I2cHandle::new(pi_num, MCP4725_DEFAULT_ADDRESS)?;
-            MCP4725::new(i2c)
+            let i2c = I2cHandle::new(pi_num, i2c_bus, MCP4725_DEFAULT_ADDRESS, i2c_flags)?;
+            Mcp4725::new(i2c)
         };
 
         let pca9685 = {
-            let i2c = I2cHandle::new(pi_num, PCA9685_DEFAULT_ADDRESS)?;
-            PCA9685::new(i2c)?
+            let i2c = I2cHandle::new(pi_num, i2c_bus, PCA9685_DEFAULT_ADDRESS, i2c_flags)?;
+            Pca9685::new(i2c)?
         };
 
-        res!(pi_num, {
-            RaspberryPi {
-                pi_num,
-                mcp4725,
-                pca9685,
-            }
-        })
+        let max31865 = {
+            let spi = SpiHandle::new(pi_num, spi_channel, spi_baud, spi_mode)?;
+            let low_threshold = 0;
+            let high_threshold = 1;
+            Max31865::new(spi, MAX31865_DEFAULT_CONFIG, low_threshold, high_threshold)?
+        };
+
+        let mut pi = RaspberryPi {
+            pi_num,
+            mcp4725,
+            pca9685,
+            max31865,
+        };
+
+        pi.init_hv507();
+
+        Ok(pi)
     }
 
     pub fn gpio_write(&mut self, gpio: GpioPin, level: u8) -> Result<()> {
@@ -161,7 +198,7 @@ impl RaspberryPi {
         res!(code)
     }
 
-    pub fn init_hv507(&mut self) {
+    fn init_hv507(&mut self) {
         // setup the HV507 for serial data write
         // see row "LOAD S/R" in table 3-2 in
         // http://ww1.microchip.com/downloads/en/DeviceDoc/20005845A.pdf
@@ -236,16 +273,10 @@ pub struct I2cHandle {
 }
 
 impl I2cHandle {
-    fn new_with_bus_and_flags(pi_num: i32, bus: u8, address: u16, flags: u8) -> Result<I2cHandle> {
+    fn new(pi_num: i32, bus: u8, address: u16, flags: u8) -> Result<I2cHandle> {
         let handle_result = unsafe { i2c_open(pi_num, bus as u32, address as u32, flags as u32) };
         let handle = res!(handle_result, handle_result)? as u32;
         Ok(I2cHandle { pi_num, handle })
-    }
-
-    fn new(pi_num: i32, address: u16) -> Result<I2cHandle> {
-        let bus = 1;
-        let flags = 0;
-        I2cHandle::new_with_bus_and_flags(pi_num, bus, address, flags)
     }
 
     pub fn write(&mut self, buf: &[u8]) -> Result<()> {
@@ -271,6 +302,71 @@ impl I2cHandle {
 impl Drop for I2cHandle {
     fn drop(&mut self) {
         let result = res!(unsafe { i2c_close(self.pi_num, self.handle) });
+        match result {
+            Ok(()) => debug!("Successfully dropped {:#?}", self),
+            Err(err) => error!("Error while dropping {:#?}: {:#?}", self, err),
+        }
+    }
+}
+
+#[derive(Debug)]
+pub struct SpiHandle {
+    pi_num: i32,
+    handle: u32,
+}
+
+impl SpiHandle {
+    fn new(pi_num: i32, channel: u8, baud: u32, mode: u8) -> Result<SpiHandle> {
+        // mode is 0-3, and is the only flag we care about for now
+        // for the rest, we use the pigpio defaults of 0
+        assert!(mode <= 3);
+        let flags = mode as u32;
+
+        let handle_result = unsafe { spi_open(pi_num, channel as u32, baud, flags) };
+        let handle = res!(handle_result, handle_result)? as u32;
+        Ok(SpiHandle { pi_num, handle })
+    }
+
+    pub fn write(&mut self, buf: &[u8]) -> Result<()> {
+        res!(unsafe { spi_write(self.pi_num, self.handle, buf.as_ptr(), buf.len() as u32) })
+    }
+
+    pub fn read(&mut self, count: usize) -> Result<Vec<u8>> {
+        let mut buf = vec![0; count];
+        self.read_into(&mut buf)?;
+        Ok(buf)
+    }
+
+    pub fn transfer(&mut self, tx_buf: &[u8], rx_buf: &mut [u8]) -> Result<()> {
+        // to prevent unexpected behavior, we just assert that the buffers are the same length
+        assert_eq!(tx_buf.len(), rx_buf.len());
+        let count = tx_buf.len() as u32;
+        let xfer_result = unsafe {
+            spi_xfer(
+                self.pi_num,
+                self.handle,
+                tx_buf.as_ptr(),
+                rx_buf.as_mut_ptr(),
+                count,
+            )
+        };
+        let n_read = res!(xfer_result, xfer_result)?;
+        assert_eq!(n_read as usize, rx_buf.len());
+        Ok(())
+    }
+
+    pub fn read_into(&mut self, buf: &mut [u8]) -> Result<()> {
+        let read_result =
+            unsafe { spi_read(self.pi_num, self.handle, buf.as_mut_ptr(), buf.len() as u32) };
+        let n_read = res!(read_result, read_result)?;
+        assert!(n_read as usize == buf.len());
+        Ok(())
+    }
+}
+
+impl Drop for SpiHandle {
+    fn drop(&mut self) {
+        let result = res!(unsafe { spi_close(self.pi_num, self.handle) });
         match result {
             Ok(()) => debug!("Successfully dropped {:#?}", self),
             Err(err) => error!("Error while dropping {:#?}: {:#?}", self, err),

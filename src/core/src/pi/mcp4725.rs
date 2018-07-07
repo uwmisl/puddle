@@ -8,15 +8,15 @@ enum Command {
     WriteDacAndEeprom = 0b1100_0000,
 }
 
-pub struct MCP4725 {
+pub struct Mcp4725 {
     i2c: I2cHandle,
 }
 
 pub const MCP4725_DEFAULT_ADDRESS: u16 = 0x60;
 
-impl MCP4725 {
-    pub fn new(i2c: I2cHandle) -> MCP4725 {
-        MCP4725 { i2c }
+impl Mcp4725 {
+    pub fn new(i2c: I2cHandle) -> Mcp4725 {
+        Mcp4725 { i2c }
     }
 
     pub fn write(&mut self, data: u16) -> Result<()> {

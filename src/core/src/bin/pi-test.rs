@@ -67,6 +67,7 @@ fn main() -> Result<(), Box<Error>> {
                         .default_value("1000"),
                 ),
         )
+        .subcommand(SubCommand::with_name("temp"))
         .get_matches();
 
     let mut pi = RaspberryPi::new()?;
@@ -123,7 +124,6 @@ fn main() -> Result<(), Box<Error>> {
             let reader = File::open(gridpath)?;
             let grid = Grid::from_reader(reader)?;
 
-            pi.init_hv507();
             pi.output_pins(&grid, &snapshot);
             Ok(())
         }
@@ -158,7 +158,6 @@ fn main() -> Result<(), Box<Error>> {
             let reader = File::open(gridpath)?;
             let grid = Grid::from_reader(reader)?;
 
-            pi.init_hv507();
             pi.output_pins(&grid, &snapshot);
 
             let mut set_loc = |yo, xo| {
@@ -171,6 +170,7 @@ fn main() -> Result<(), Box<Error>> {
                 println!("Droplet at {}", loc);
                 thread::sleep(duration);
             };
+
             loop {
                 for xo in 0..width {
                     set_loc(xo, 0);
@@ -185,9 +185,12 @@ fn main() -> Result<(), Box<Error>> {
                     set_loc(0, height - 1 - yo);
                 }
             }
-
-            Ok(())
         }
+        ("temp", Some(_)) => loop {
+            let resistance = pi.max31865.read_resistance()?;
+            let temp = pi.max31865.read_temperature()?;
+            println!("Temp: {}C, Resistance: {} ohms", temp, resistance);
+        },
         _ => {
             println!("Please pick a subcommmand.");
             Ok(())

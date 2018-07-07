@@ -31,7 +31,6 @@ impl Executor {
         let pi = match env::var("PUDDLE_PI") {
             Ok(s) => if s == "1" {
                 let mut pi = RaspberryPi::new().unwrap();
-                pi.init_hv507();
                 info!("Initialized the pi!");
                 Some(pi)
             } else {
