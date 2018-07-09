@@ -22,7 +22,13 @@ impl GridTransformer {
     }
 
     pub fn transform(&self, image_pt: &Point) -> Point {
-        self.projection * (self.similarity * image_pt)
+        // do similarity then projection for floating point accuracy
+        let sim_pt = self.similarity * image_pt;
+        let proj_pt = self.projection * sim_pt;
+        trace!("Transforming point: {}", image_pt);
+        trace!("  after similarity: {}", sim_pt);
+        trace!("  after projection: {}", proj_pt);
+        proj_pt
     }
 }
 

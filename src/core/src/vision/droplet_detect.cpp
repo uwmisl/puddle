@@ -39,7 +39,7 @@ struct DetectionState {
   std::thread* grabber;
   unsigned iteration = 0;
 
-  int lo_h = 60, lo_s = 60, lo_v = 20;
+  int lo_h = 60, lo_s = 83, lo_v = 20;
   int hi_h = 80, hi_s = 255, hi_v = 255;
 
   int blur_size = 3;

@@ -13,6 +13,8 @@ use ncollide2d::{
     bounding_volume::{HasBoundingVolume, AABB}, query::PointQuery, shape::ConvexPolygon,
 };
 
+// Points are x,y in nalgebra, but we just ignore those names. We only use
+// pt[0], pt[1] instead because we use them as y,x
 type Point = Point2<f32>;
 
 extern "C" {
@@ -33,7 +35,7 @@ struct MyPoint {
 impl MyPoint {
     fn to_point(&self) -> Point {
         // Points in ncollide2d are x then y!
-        Point::new(self.x as f32, self.y as f32)
+        Point::new(self.y as f32, self.x as f32)
     }
 }
 
@@ -194,13 +196,14 @@ impl Blob for PolygonBlob {
         let bbox: AABB<f32> = self.polygon.bounding_volume(&ident);
         let loc_point = bbox.mins();
         let dim_point = bbox.maxs() - loc_point;
+        // note the xy flip here, in nalgebra::Point, x is the first field, and y is the seconds
         let location = Location {
-            y: loc_point.y.round() as i32,
-            x: loc_point.x.round() as i32,
+            y: loc_point[0].round() as i32,
+            x: loc_point[1].round() as i32,
         };
         let dimensions = Location {
-            y: dim_point.y.round() as i32,
-            x: dim_point.x.round() as i32,
+            y: dim_point[0].round() as i32,
+            x: dim_point[1].round() as i32,
         };
         // FIXME this is fake!
         let volume = 1.0;
@@ -219,10 +222,10 @@ fn droplet_to_shape(droplet: &Droplet) -> ConvexPolygon<f32> {
     assert!(dx > 0.0);
 
     let corners = vec![
-        Point::new(x, y),
-        Point::new(x, y + dy),
-        Point::new(x + dx, y + dy),
-        Point::new(x + dx, y),
+        Point::new(y, x),
+        Point::new(y + dy, x),
+        Point::new(y + dy, x + dx),
+        Point::new(y, x + dx),
     ];
 
     // the try_new constructor *assumes* the convexity of the points
@@ -286,7 +289,7 @@ fn points_in_area(
             (0..x_steps).map(move |_| {
                 let dx = x;
                 x += delta;
-                Point::new(dx, dy)
+                Point::new(dy, dx)
             })
         });
 
@@ -340,10 +343,10 @@ mod tests {
         let (y0, x0) = mins;
         let (y1, x1) = maxs;
         let polygon = ConvexPolygon::try_new(vec![
-            Point::new(x0, y0),
-            Point::new(x0, y1),
-            Point::new(x1, y1),
-            Point::new(x1, y0),
+            Point::new(y0, x0),
+            Point::new(y1, x0),
+            Point::new(y1, x1),
+            Point::new(y0, x1),
         ]).unwrap();
         let blob = PolygonBlob { polygon };
         blob.to_droplet(DropletId {
