@@ -191,7 +191,7 @@ fn main() -> Result<(), Box<Error>> {
             let temp = pi.max31865.read_temperature()?;
             println!("Temp: {}C, Resistance: {} ohms", temp, resistance);
             Ok(())
-        },
+        }
         _ => {
             println!("Please pick a subcommmand.");
             Ok(())

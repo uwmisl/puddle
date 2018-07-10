@@ -180,7 +180,9 @@ impl Snapshot {
 
     pub fn diff_droplet(&self, id: &DropletId, other: &Snapshot) -> DropletDiff {
         use self::DropletDiff::*;
-        let droplet = self.droplets.get(id).expect("id should be in self snapshot");
+        let droplet = self.droplets
+            .get(id)
+            .expect("id should be in self snapshot");
         if let Some(other_droplet) = other.droplets.get(id) {
             // NOTE we only care about location diffs for now
             let loc = droplet.location;
@@ -514,7 +516,7 @@ mod tests {
                 return DropletId {
                     id: u as usize,
                     process_id: 0,
-                }
+                };
             }
         }
         panic!("Can't make {} a u8", c);
@@ -649,13 +651,12 @@ mod tests {
         ]);
 
         // locations for droplet a
-        let from = Location {y: 0, x: 1};
-        let to = Location {y: 1, x: 1};
+        let from = Location { y: 0, x: 1 };
+        let to = Location { y: 1, x: 1 };
 
-        assert_eq!(old.diff_droplet(&c2id('a'), &new), Moved {from, to});
+        assert_eq!(old.diff_droplet(&c2id('a'), &new), Moved { from, to });
         assert_eq!(old.diff_droplet(&c2id('b'), &new), DidNotMove);
         assert_eq!(old.diff_droplet(&c2id('c'), &new), Disappeared);
-
 
         let error_edges = {
             let planned = &new;

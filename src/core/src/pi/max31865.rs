@@ -79,7 +79,7 @@ impl Max31865 {
             high_threshold,
             n_samples: 10,
             reference_resistance: 4000.0,
-            resistance_at_zero: 1000.0
+            resistance_at_zero: 1000.0,
         };
         max.initalize()?;
         Ok(max)
@@ -129,7 +129,10 @@ impl Max31865 {
         let status = rx_buf[8];
 
         debug!("Configuration:  {:08b}", config);
-        debug!("Raw Resistance: {:04x} ({})", resistance_bits, resistance_bits);
+        debug!(
+            "Raw Resistance: {:04x} ({})",
+            resistance_bits, resistance_bits
+        );
         debug!("Hi Threshold:   {:04x}", hi_threshold);
         debug!("Lo Threshold:   {:04x}", lo_threshold);
         debug!("Status:         {:08b}", status);
@@ -140,7 +143,10 @@ impl Max31865 {
         let resistance = (resistance_bits as f32) * self.reference_resistance / ((1 << 15) as f32);
         debug!("Resistance:     {}", resistance);
         // using the linear formula from the datasheet
-        debug!("ADC Resistance: {}", ((resistance_bits) as f32) / 32.0 - 256.0);
+        debug!(
+            "ADC Resistance: {}",
+            ((resistance_bits) as f32) / 32.0 - 256.0
+        );
 
         Ok(resistance)
     }
@@ -175,7 +181,6 @@ impl Max31865 {
     }
 
     pub fn read_temperature(&mut self) -> Result<f32> {
-
         let mut sum = 0.0;
         for _ in 0..self.n_samples {
             sum += self.read_one_temperature()?;
@@ -196,5 +201,5 @@ fn pack_word(word: u16) -> (u8, u8) {
 fn unpack_word(msbs: u8, lsbs: u8) -> (u16, bool) {
     let word = ((msbs as u16) << 8) | (lsbs as u16);
     let low_bit = (word & 1) == 1;
-    return (word >> 1, low_bit)
+    return (word >> 1, low_bit);
 }

@@ -342,7 +342,11 @@ impl SpiHandle {
     pub fn transfer(&mut self, tx_buf: &[u8], rx_buf: &mut [u8]) -> Result<()> {
         // to prevent unexpected behavior, we just assert that the buffers are the same length
         assert_eq!(tx_buf.len(), rx_buf.len());
-        trace!("SPI transfer tx with handle {}: {:#x?}", self.handle, tx_buf);
+        trace!(
+            "SPI transfer tx with handle {}: {:#x?}",
+            self.handle,
+            tx_buf
+        );
         let count = tx_buf.len() as u32;
         let xfer_result = unsafe {
             spi_xfer(
@@ -353,7 +357,11 @@ impl SpiHandle {
                 count,
             )
         };
-        trace!("SPI transfer rx with handle {}: {:#x?}", self.handle, rx_buf);
+        trace!(
+            "SPI transfer rx with handle {}: {:#x?}",
+            self.handle,
+            rx_buf
+        );
         let n_read = res!(xfer_result, xfer_result)?;
         assert_eq!(n_read as usize, rx_buf.len());
         Ok(())
