@@ -162,8 +162,9 @@ impl RaspberryPi {
 
         let max31865 = {
             let spi = SpiHandle::new(pi_num, spi_channel, spi_baud, spi_mode)?;
+            // use min and max thresholds, we don't care about faults
             let low_threshold = 0;
-            let high_threshold = 1;
+            let high_threshold = 0x7fff;
             Max31865::new(spi, MAX31865_DEFAULT_CONFIG, low_threshold, high_threshold)?
         };
 
@@ -328,6 +329,7 @@ impl SpiHandle {
     }
 
     pub fn write(&mut self, buf: &[u8]) -> Result<()> {
+        trace!("SPI write on handle {}: {:#x?}", self.handle, buf);
         res!(unsafe { spi_write(self.pi_num, self.handle, buf.as_ptr(), buf.len() as u32) })
     }
 
@@ -340,6 +342,7 @@ impl SpiHandle {
     pub fn transfer(&mut self, tx_buf: &[u8], rx_buf: &mut [u8]) -> Result<()> {
         // to prevent unexpected behavior, we just assert that the buffers are the same length
         assert_eq!(tx_buf.len(), rx_buf.len());
+        trace!("SPI transfer tx with handle {}: {:#x?}", self.handle, tx_buf);
         let count = tx_buf.len() as u32;
         let xfer_result = unsafe {
             spi_xfer(
@@ -350,6 +353,7 @@ impl SpiHandle {
                 count,
             )
         };
+        trace!("SPI transfer rx with handle {}: {:#x?}", self.handle, rx_buf);
         let n_read = res!(xfer_result, xfer_result)?;
         assert_eq!(n_read as usize, rx_buf.len());
         Ok(())
@@ -358,6 +362,7 @@ impl SpiHandle {
     pub fn read_into(&mut self, buf: &mut [u8]) -> Result<()> {
         let read_result =
             unsafe { spi_read(self.pi_num, self.handle, buf.as_mut_ptr(), buf.len() as u32) };
+        trace!("SPI read from handle {}: {:#x?}", self.handle, buf);
         let n_read = res!(read_result, read_result)?;
         assert!(n_read as usize == buf.len());
         Ok(())
@@ -368,7 +373,7 @@ impl Drop for SpiHandle {
     fn drop(&mut self) {
         let result = res!(unsafe { spi_close(self.pi_num, self.handle) });
         match result {
-            Ok(()) => debug!("Successfully dropped {:#?}", self),
+            Ok(()) => trace!("Successfully dropped {:#?}", self),
             Err(err) => error!("Error while dropping {:#?}: {:#?}", self, err),
         }
     }

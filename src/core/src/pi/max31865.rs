@@ -22,7 +22,7 @@ impl Register {
 
     fn write(self) -> u8 {
         // msb is marked when writing
-        (self as u8) & 0b1000_0000
+        (self as u8) | 0b1000_0000
     }
 }
 
@@ -48,12 +48,18 @@ pub enum Config {
 
 pub struct Max31865 {
     spi: SpiHandle,
+    n_samples: u32,
     config: u8,
     low_threshold: u16,
     high_threshold: u16,
+    reference_resistance: f32,
+    resistance_at_zero: f32,
 }
 
-pub const MAX31865_DEFAULT_CONFIG: u8 = 0;
+pub const MAX31865_DEFAULT_CONFIG: u8 = {
+    use self::Config::*;
+    VBias as u8 | ConversionMode as u8
+};
 
 impl Max31865 {
     pub fn new(
@@ -71,6 +77,9 @@ impl Max31865 {
             config,
             low_threshold,
             high_threshold,
+            n_samples: 10,
+            reference_resistance: 4000.0,
+            resistance_at_zero: 1000.0
         };
         max.initalize()?;
         Ok(max)
@@ -83,14 +92,11 @@ impl Max31865 {
 
         // now write out the thresholds, knowing that it will auto-increment
         // starting from the HighFaultThresholdMsb register
-        let ht_msbs = (self.high_threshold >> 8) as u8;
-        let ht_lsbs = self.high_threshold as u8;
-        let lt_msbs = (self.low_threshold >> 8) as u8;
-        let lt_lsbs = self.low_threshold as u8;
+        let (ht_msbs, ht_lsbs) = pack_word(self.high_threshold);
+        let (lt_msbs, lt_lsbs) = pack_word(self.low_threshold);
 
         self.spi.write(&[
             Register::HighFaultThresholdMsb.write(),
-            self.config,
             ht_msbs,
             ht_lsbs,
             lt_msbs,
@@ -98,8 +104,11 @@ impl Max31865 {
         ])
     }
 
-    pub fn read_resistance(&mut self) -> Result<u16> {
-        let count = 8;
+    pub fn read_one_resistance(&mut self) -> Result<f32> {
+        // we are going to write 1 byte, then receive 8
+        // but we have to use transfer instead of write/read because we need
+        // clock line to stay low
+        let count = 9;
 
         let mut tx_buf = vec![0; count];
         let mut rx_buf = vec![0; count];
@@ -109,11 +118,29 @@ impl Max31865 {
 
         self.spi.transfer(&tx_buf, &mut rx_buf)?;
 
-        let _config = rx_buf[0];
-        let resistance = word(rx_buf[1], rx_buf[2]);
-        let _hi_threshold = word(rx_buf[3], rx_buf[4]);
-        let _lo_threshold = word(rx_buf[5], rx_buf[6]);
-        let _status = rx_buf[7];
+        // ignore the first byte, because that's when we were sending the
+        // register to read from
+        assert!(rx_buf[0] == 0);
+
+        let config = rx_buf[1];
+        let (resistance_bits, _) = unpack_word(rx_buf[2], rx_buf[3]);
+        let (hi_threshold, _) = unpack_word(rx_buf[4], rx_buf[5]);
+        let (lo_threshold, _) = unpack_word(rx_buf[6], rx_buf[7]);
+        let status = rx_buf[8];
+
+        debug!("Configuration:  {:08b}", config);
+        debug!("Raw Resistance: {:04x} ({})", resistance_bits, resistance_bits);
+        debug!("Hi Threshold:   {:04x}", hi_threshold);
+        debug!("Lo Threshold:   {:04x}", lo_threshold);
+        debug!("Status:         {:08b}", status);
+
+        // we don't handle status in anyway right now, so just make sure it's nothing
+        // assert_eq!(status, 0);
+
+        let resistance = (resistance_bits as f32) * self.reference_resistance / ((1 << 15) as f32);
+        debug!("Resistance:     {}", resistance);
+        // using the linear formula from the datasheet
+        debug!("ADC Resistance: {}", ((resistance_bits) as f32) / 32.0 - 256.0);
 
         Ok(resistance)
     }
@@ -123,15 +150,15 @@ impl Max31865 {
     ///
     /// R: resistance
     /// T: temperature
-    /// R₀: resistance as 0C
+    /// R₀: resistance at 0C
     /// a = 3.90830e-3
     /// b = -5.77500e-7
     /// c = -4.18301e-12 for -200C <= T <= 0C, 0 for 0C <= T <= +850C
     ///
     /// We will assume temperatures above 0C, so c = 0, allowing us to use the quadratic equation
-    pub fn read_temperature(&mut self) -> Result<f32> {
-        let resistance = self.read_resistance()? as f32;
-        let r0 = 100.0;
+    pub fn read_one_temperature(&mut self) -> Result<f32> {
+        let resistance = self.read_one_resistance()? as f32;
+        let r0 = self.resistance_at_zero;
 
         let rtd_a = 3.90830e-3;
         let rtd_b = -5.77500e-7;
@@ -140,14 +167,34 @@ impl Max31865 {
         // between these and the rtd constants
         let a = rtd_b;
         let b = rtd_a;
-        let c = (resistance / r0) - 1.0;
+        let c = 1.0 - (resistance / r0);
 
         let root = (-b + f32::sqrt(b * b - 4.0 * a * c)) / (2.0 * a);
 
         Ok(root)
     }
+
+    pub fn read_temperature(&mut self) -> Result<f32> {
+
+        let mut sum = 0.0;
+        for _ in 0..self.n_samples {
+            sum += self.read_one_temperature()?;
+        }
+
+        Ok(sum / self.n_samples as f32)
+    }
 }
 
-fn word(hi: u8, lo: u8) -> u16 {
-    ((hi as u16) << 8) | (lo as u16)
+fn pack_word(word: u16) -> (u8, u8) {
+    // make sure high bit is clear
+    assert!((0x8000 & word) == 0);
+    let msbs = (word >> 7) as u8;
+    let lsbs = (word << 1) as u8;
+    (msbs, lsbs)
+}
+
+fn unpack_word(msbs: u8, lsbs: u8) -> (u16, bool) {
+    let word = ((msbs as u16) << 8) | (lsbs as u16);
+    let low_bit = (word & 1) == 1;
+    return (word >> 1, low_bit)
 }
