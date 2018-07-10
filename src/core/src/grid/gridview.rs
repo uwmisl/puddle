@@ -27,6 +27,13 @@ pub struct Snapshot {
     pub commands_to_finalize: Vec<Box<dyn Command>>,
 }
 
+#[derive(Debug, PartialEq)]
+pub enum DropletDiff {
+    Disappeared,
+    DidNotMove,
+    Moved { from: Location, to: Location },
+}
+
 impl Snapshot {
     fn new_with_same_droplets(&self) -> Snapshot {
         let mut new_snapshot = Snapshot::default();
@@ -169,6 +176,48 @@ impl Snapshot {
         } else {
             None
         }
+    }
+
+    pub fn diff_droplet(&self, id: &DropletId, other: &Snapshot) -> DropletDiff {
+        use self::DropletDiff::*;
+        let droplet = self.droplets.get(id).expect("id should be in self snapshot");
+        if let Some(other_droplet) = other.droplets.get(id) {
+            // NOTE we only care about location diffs for now
+            let loc = droplet.location;
+            let other_loc = other_droplet.location;
+            if loc != other_loc {
+                // for now, just assert that we are only moving one spot at a time
+                assert_eq!((&loc - &other_loc).norm(), 1);
+                Moved {
+                    from: loc,
+                    to: other_loc,
+                }
+            } else {
+                DidNotMove
+            }
+        } else {
+            Disappeared
+        }
+    }
+
+    pub fn get_error_edges(
+        &self,
+        planned_outcome: &Snapshot,
+        actual_outcome: &Snapshot,
+    ) -> Vec<(Location, Location)> {
+        use self::DropletDiff::*;
+
+        self.droplets
+            .keys()
+            .filter_map(|id| {
+                let planned_diff = self.diff_droplet(id, planned_outcome);
+                let actual_diff = self.diff_droplet(id, actual_outcome);
+                match (planned_diff, actual_diff) {
+                    (Moved { from, to }, DidNotMove) => Some((from, to)),
+                    _ => None,
+                }
+            })
+            .collect()
     }
 }
 
@@ -453,28 +502,43 @@ mod tests {
     use super::*;
     use grid::parse::tests::parse_strings;
 
-    fn parse_snapshot(strs: &[&str]) -> (Map<DropletId, char>, Snapshot) {
+    fn id2c(id: &DropletId) -> char {
+        assert!(id.id < 255);
+        (id.id as u8) as char
+    }
+
+    fn c2id(c: char) -> DropletId {
+        for u in 0x00u8..0xff {
+            let c2 = u as char;
+            if c == c2 {
+                return DropletId {
+                    id: u as usize,
+                    process_id: 0,
+                }
+            }
+        }
+        panic!("Can't make {} a u8", c);
+    }
+
+    fn parse_snapshot(strs: &[&str]) -> Snapshot {
+        // same chars are guaranteed to have the same ids
+
         let (_, blobs) = parse_strings(&strs);
-        let mut id_to_char = Map::new();
         let mut snapshot = Snapshot::default();
 
-        for (i, (ch, blob)) in blobs.iter().enumerate() {
-            let id = DropletId {
-                id: i,
-                process_id: 0,
-            };
-            id_to_char.insert(id, *ch);
+        for (ch, blob) in blobs.iter() {
+            let id = c2id(*ch);
             snapshot.droplets.insert(id, blob.to_droplet(id));
         }
 
-        (id_to_char, snapshot)
+        snapshot
     }
 
     fn check_all_matched(
         snapshot_strs: &[&str],
         blob_strs: &[&str],
     ) -> Option<Map<DropletId, SimpleBlob>> {
-        let (id_to_char, snapshot) = parse_snapshot(&snapshot_strs);
+        let snapshot = parse_snapshot(&snapshot_strs);
         let (_, chip_blobs) = parse_strings(&blob_strs);
 
         let blobs: Vec<SimpleBlob> = chip_blobs.values().cloned().collect();
@@ -484,7 +548,7 @@ mod tests {
         // to the associated blob which corresponds to the character
         let mut expected: Map<DropletId, SimpleBlob> = Map::new();
         for id in snapshot.droplets.keys() {
-            expected.insert(*id, chip_blobs[&id_to_char[id]].clone());
+            expected.insert(*id, chip_blobs[&id2c(id)].clone());
         }
 
         for id in expected.keys() {
@@ -564,5 +628,42 @@ mod tests {
         ];
 
         assert!(check_all_matched(&exec_strs, &chip_strs).is_none());
+    }
+
+    #[test]
+    fn test_droplet_diff() {
+        use self::DropletDiff::*;
+
+        let old = parse_snapshot(&[
+            ".a...........",
+            ".....bb..c...",
+            ".............",
+            ".............",
+        ]);
+
+        let new = parse_snapshot(&[
+            ".............",
+            ".a...bb......",
+            ".............",
+            ".............",
+        ]);
+
+        // locations for droplet a
+        let from = Location {y: 0, x: 1};
+        let to = Location {y: 1, x: 1};
+
+        assert_eq!(old.diff_droplet(&c2id('a'), &new), Moved {from, to});
+        assert_eq!(old.diff_droplet(&c2id('b'), &new), DidNotMove);
+        assert_eq!(old.diff_droplet(&c2id('c'), &new), Disappeared);
+
+
+        let error_edges = {
+            let planned = &new;
+            let actual = &old;
+            old.get_error_edges(planned, actual)
+        };
+
+        assert_eq!(error_edges.len(), 1);
+        assert_eq!(error_edges[0], (from, to));
     }
 }
