@@ -33,6 +33,10 @@ cargo check --tests --features pi
 cargo check --features vision
 cargo check --tests --features vision
 
+# just check the things that require vision and pi
+cargo check --features vision,pi
+cargo check --tests --features vision,pi
+
 popd
 
 
