@@ -15,6 +15,29 @@
         [  56,  57,  58,  59,  66,  67,  75,  71,  70,  69,  68 ],
         [  61, " ", " ", " ", " ",  63, " ", " ", " ", " ",  65 ],
         [  60, " ", " ", " ", " ",  62, " ", " ", " ", " ",  64 ]
-    ]
+    ],
 
+    "peripherals": {
+        "60": {
+            "type": "Heater",
+            "pwm_channel": 0,
+            "spi_channel": 0
+        },
+        "62": {
+            "type": "Heater",
+            "pwm_channel": 1,
+            "spi_channel": 1
+        },
+        "64": {
+            "type": "Heater",
+            "pwm_channel": 2,
+            "spi_channel": 2
+        },
+        "111": {
+            "type": "Input"
+        },
+        "84": {
+            "type": "Input"
+        }
+    }
 }

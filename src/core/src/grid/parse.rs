@@ -1,9 +1,9 @@
-use grid::Electrode;
+use util::collections::Map;
 
-use serde::{Deserialize, Deserializer, Serialize, Serializer};
+use grid::grid::*;
 
 #[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
-enum Mark {
+pub enum Mark {
     #[serde(rename = " ")]
     Empty,
     #[serde(rename = "a")]
@@ -12,68 +12,76 @@ enum Mark {
 
 #[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(untagged)]
-enum ElectrodeIndex {
+pub enum ParsedElectrode {
     Marked(Mark),
     Index(u32),
 }
 
-use self::ElectrodeIndex::*;
 use self::Mark::*;
+use self::ParsedElectrode::*;
 
-type ParsedGridVec = Vec<Vec<ElectrodeIndex>>;
-type GridVec = Vec<Vec<Option<Electrode>>>;
-
-pub fn deserialize<'de, D>(d: D) -> Result<GridVec, D::Error>
-where
-    D: Deserializer<'de>,
-{
-    let pg_vec: ParsedGridVec = Vec::deserialize(d)?;
-
-    // find a pin that higher than anything listed
-    let mut next_auto_pin = pg_vec
-        .iter()
-        .flat_map(|row| row.iter())
-        .filter_map(|ci| match ci {
-            Index(n) => Some(n + 1),
-            _ => None,
-        })
-        .max()
-        .unwrap_or(0);
-
-    let mut f = |ci: &ElectrodeIndex| match ci {
-        Marked(Empty) => Ok(None),
-        Marked(Auto) => {
-            let pin = next_auto_pin;
-            next_auto_pin += 1;
-            Ok(Some(Electrode { pin: pin }))
-        }
-        Index(n) => Ok(Some(Electrode { pin: *n })),
-    };
-
-    pg_vec
-        .iter()
-        .map(|row| row.iter().map(&mut f).collect())
-        .collect()
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ParsedGrid {
+    pub board: Vec<Vec<ParsedElectrode>>,
+    #[serde(default)]
+    pub peripherals: Map<String, Peripheral>,
 }
 
-// clippy will complain about type synonyms
-#[cfg_attr(feature = "cargo-clippy", allow(ptr_arg))]
-pub fn serialize<S>(gv: &GridVec, s: S) -> Result<S::Ok, S::Error>
-where
-    S: Serializer,
-{
-    let pg_vec: ParsedGridVec = gv.iter()
-        .map(|row| {
-            row.iter()
-                .map(|opt: &Option<Electrode>| match opt {
-                    None => Marked(Empty),
-                    Some(e) => Index(e.pin),
-                })
-                .collect()
-        })
-        .collect();
+impl ParsedGrid {
+    pub fn to_grid(&self) -> Grid {
+        // find a pin that higher than anything listed
+        let mut next_auto_pin = self.board
+            .iter()
+            .flat_map(|row| row.iter())
+            .filter_map(|ci| match ci {
+                Index(n) => Some(n + 1),
+                _ => None,
+            })
+            .max()
+            .unwrap_or(0);
 
-    pg_vec.serialize(s)
+        let mut f = |pe: &ParsedElectrode| match pe {
+            Marked(Empty) => None,
+            Marked(Auto) => {
+                let pin = next_auto_pin;
+                next_auto_pin += 1;
+                Some(Electrode {
+                    pin: pin,
+                    peripheral: None,
+                })
+            }
+            Index(n) => Some(Electrode {
+                pin: *n,
+                peripheral: None,
+            }),
+        };
+
+        let mut grid = Grid {
+            vec: self.board
+                .iter()
+                .map(|row| row.iter().map(&mut f).collect())
+                .collect(),
+        };
+
+        'outer: for (pin, periph) in self.peripherals.iter() {
+            let pin: u32 = pin.parse().unwrap();
+            for row in grid.vec.iter_mut() {
+                for e_opt in row {
+                    if let Some(electrode) = e_opt {
+                        if electrode.pin == pin {
+                            assert_eq!(electrode.peripheral, None);
+                            electrode.peripheral = Some(*periph);
+                            continue 'outer;
+                        }
+                    }
+                }
+            }
+            panic!("Couldn't find pin {}", pin);
+        }
+
+        grid
+    }
 }
 
 #[cfg(test)]
@@ -136,7 +144,10 @@ pub mod tests {
             if cell_locs.contains(&loc) {
                 let pin = next_pin;
                 next_pin += 1;
-                Some(Electrode { pin })
+                Some(Electrode {
+                    pin,
+                    peripheral: None,
+                })
             } else {
                 None
             }
@@ -151,9 +162,13 @@ pub mod tests {
 
     #[test]
     fn test_simple_parse() {
-        let _: ParsedGridVec = sj::from_str(
-            "[[\"a\", \"a\", \"a\"],
-              [\"a\", \"a\", \"a\"]]",
+        let _: ParsedGrid = sj::from_str(
+            r#"
+            {
+                "board": [["a", "a", "a"],
+                          ["a", "a", "a"]]
+            }
+        "#,
         ).expect("parse failed");
     }
 

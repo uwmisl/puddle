@@ -1,13 +1,25 @@
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use serde_json;
+
 use std::collections::HashSet;
 use std::io::Read;
 
 use super::{Location, Snapshot};
 use util::collections::{Map, Set};
 
+use grid::parse::{Mark, ParsedElectrode, ParsedGrid};
+
 #[derive(Debug, PartialEq, Eq, Hash, Serialize, Deserialize, Clone, Copy)]
 pub struct Electrode {
     pub pin: u32,
+    pub peripheral: Option<Peripheral>,
+}
+
+#[derive(Debug, PartialEq, Eq, Hash, Serialize, Deserialize, Clone, Copy)]
+#[serde(tag = "type")]
+pub enum Peripheral {
+    Heater { pwm_channel: u32, spi_channel: u8 },
+    Input,
 }
 
 impl Electrode {
@@ -16,10 +28,8 @@ impl Electrode {
     }
 }
 
-#[derive(Debug, PartialEq, Eq, Clone, Serialize, Deserialize)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct Grid {
-    #[serde(rename = "board")]
-    #[serde(with = "super::parse")]
     pub vec: Vec<Vec<Option<Electrode>>>,
 }
 
@@ -46,10 +56,34 @@ const NEIGHBORS_4: [Location; 4] = [
 ];
 
 impl Grid {
+    pub fn to_parsed_grid(&self) -> ParsedGrid {
+        let mut peripherals = Map::new();
+        let board = self.vec
+            .iter()
+            .map(|row| {
+                row.iter()
+                    .map(|e_opt| match e_opt {
+                        None => ParsedElectrode::Marked(Mark::Empty),
+                        Some(e) => {
+                            if let Some(peripheral) = e.peripheral {
+                                peripherals.insert(e.pin.to_string(), peripheral);
+                            }
+                            ParsedElectrode::Index(e.pin)
+                        }
+                    })
+                    .collect()
+            })
+            .collect();
+        ParsedGrid { board, peripherals }
+    }
+
     pub fn rectangle(h: usize, w: usize) -> Self {
         let mut pin = 0;
         let always_cell = |_| {
-            let cell = Some(Electrode { pin: pin });
+            let cell = Some(Electrode {
+                pin: pin,
+                peripheral: None,
+            });
             pin += 1;
             cell
         };
@@ -74,7 +108,8 @@ impl Grid {
     }
 
     pub fn from_reader<R: Read>(reader: R) -> Result<Grid, serde_json::Error> {
-        serde_json::from_reader(reader)
+        let parsed_grid: ParsedGrid = serde_json::from_reader(reader)?;
+        Ok(parsed_grid.to_grid())
     }
 
     pub fn locations<'a>(&'a self) -> impl Iterator<Item = (Location, Electrode)> + 'a {
@@ -250,6 +285,24 @@ impl Grid {
     }
 }
 
+impl Serialize for Grid {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        self.to_parsed_grid().serialize(serializer)
+    }
+}
+
+impl<'de> Deserialize<'de> for Grid {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        ParsedGrid::deserialize(deserializer).map(|pg| pg.to_grid())
+    }
+}
+
 #[cfg(test)]
 pub mod tests {
     use super::*;
@@ -258,7 +311,10 @@ pub mod tests {
 
     #[test]
     fn test_connected() {
-        let cell = Some(Electrode { pin: 0 });
+        let cell = Some(Electrode {
+            pin: 0,
+            peripheral: None,
+        });
         let grid1 = Grid {
             vec: vec![vec![None, cell], vec![cell, None]],
         };
