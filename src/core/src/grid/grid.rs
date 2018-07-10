@@ -3,7 +3,7 @@ use std::collections::HashSet;
 use std::io::Read;
 
 use super::{Location, Snapshot};
-use util::collections::Map;
+use util::collections::{Map, Set};
 
 #[derive(Debug, PartialEq, Eq, Hash, Serialize, Deserialize, Clone, Copy)]
 pub struct Electrode {
@@ -95,15 +95,26 @@ impl Grid {
 
     /// Tests if this grid is compatible within `bigger` when `offset` is applied
     /// to `self`
-    fn is_compatible_within(&self, offset: Location, bigger: &Self, snapshot: &Snapshot) -> bool {
+    fn is_compatible_within(
+        &self,
+        offset: Location,
+        bigger: &Self,
+        snapshot: &Snapshot,
+        bad_edges: &Set<(Location, Location)>,
+    ) -> bool {
         self.locations().all(|(loc, my_cell)| {
             let their_loc = &loc + &offset;
             bigger.get_cell(&their_loc).map_or(false, |theirs| {
+                // make sure that it's not the case that an internal edge to this subgrid is a bad edge in the larger grid
                 my_cell.is_compatible(&theirs) && !snapshot.droplets.values().any(|droplet| {
                     let corner1 = droplet.location;
                     let corner2 = &droplet.location + &droplet.dimensions;
                     their_loc.min_distance_to_box(corner1, corner2) <= 0
                 })
+                    && !(self.get_cell(&loc.south()).is_some()
+                        && bad_edges.contains(&(their_loc, their_loc.south())))
+                    && !(self.get_cell(&loc.east()).is_some()
+                        && bad_edges.contains(&(their_loc, their_loc.east())))
             })
         })
     }
@@ -124,7 +135,12 @@ impl Grid {
         map
     }
 
-    pub fn place(&self, smaller: &Self, snapshot: &Snapshot) -> Option<Map<Location, Location>> {
+    pub fn place(
+        &self,
+        smaller: &Self,
+        snapshot: &Snapshot,
+        bad_edges: &Set<(Location, Location)>,
+    ) -> Option<Map<Location, Location>> {
         let offset_found = self.vec
             .iter()
             .enumerate()
@@ -134,7 +150,7 @@ impl Grid {
                     x: j as i32,
                 })
             })
-            .find(|&offset| smaller.is_compatible_within(offset, self, snapshot));
+            .find(|&offset| smaller.is_compatible_within(offset, self, snapshot, bad_edges));
 
         let result =
             offset_found.map(|offset| smaller.mapping_into_other_from_offset(offset, self));
@@ -259,14 +275,18 @@ pub mod tests {
         let g1 = Grid::rectangle(5, 4);
         let g2 = Grid::rectangle(5, 4);
         let zero = Location { x: 0, y: 0 };
-        assert!(g1.is_compatible_within(zero, &g2, &Snapshot::default()))
+        let snapshot = &Snapshot::default();
+        let bad_edges = &Set::default();
+        assert!(g1.is_compatible_within(zero, &g2, snapshot, bad_edges))
     }
 
     #[test]
     fn grid_self_place() {
         let grid = Grid::rectangle(5, 4);
 
-        let map = grid.place(&grid, &Snapshot::default()).unwrap();
+        let snapshot = &Snapshot::default();
+        let bad_edges = &Set::default();
+        let map = grid.place(&grid, snapshot, bad_edges).unwrap();
 
         let identity_locs: Map<Location, Location> =
             Map::from_iter(grid.locations().map(|(loc, _)| (loc, loc)));

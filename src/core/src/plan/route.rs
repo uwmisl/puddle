@@ -35,8 +35,6 @@ type Cost = u32;
 const MOVE_COST: Cost = 100;
 const STAY_COST: Cost = 1;
 
-type NextVec = Vec<(Cost, Node)>;
-
 #[derive(Default)]
 struct AvoidanceSet {
     max_time: Time,
@@ -45,13 +43,8 @@ struct AvoidanceSet {
 }
 
 impl AvoidanceSet {
-    fn filter(&self, vec: NextVec) -> NextVec {
-        vec.into_iter()
-            .filter(|&(_cost, node)|
-                    // make sure that it's either not in the map
-                    !self.collides(&node)
-                    && !self.collides_with_final(&node))
-            .collect()
+    fn should_avoid(&self, node: &Node) -> bool {
+        self.collides(&node) || self.collides_with_final(&node)
     }
 
     fn collides(&self, node: &Node) -> bool {
@@ -117,7 +110,7 @@ impl Node {
     /// Returns a vector representing possible locations on the given `Grid` that can be the next
     /// location for this `Node`. This uses `neighbors4`, since droplets only move in the cardinal
     /// directions.
-    fn expand(&self, grid: &Grid) -> NextVec {
+    fn expand(&self, grid: &Grid) -> Vec<(Cost, Node)> {
         let mut vec: Vec<(Cost, Node)> = grid.neighbors4(&self.location)
             .iter()
             .map(|&location| {
@@ -149,7 +142,7 @@ impl GridView {
         let mut rng = mk_rng();
         for i in 1..50 {
             rng.shuffle(&mut droplets);
-            let result = route_many(&droplets, &self.grid);
+            let result = route_many(&droplets, &self.grid, &self.bad_edges);
             if result.is_some() {
                 return result;
             }
@@ -160,7 +153,11 @@ impl GridView {
     }
 }
 
-fn route_many(droplets: &[(&DropletId, &Droplet)], grid: &Grid) -> Option<Map<DropletId, Path>> {
+fn route_many(
+    droplets: &[(&DropletId, &Droplet)],
+    grid: &Grid,
+    bad_edges: &Set<(Location, Location)>,
+) -> Option<Map<DropletId, Path>> {
     let mut av_set = AvoidanceSet::default();
     let num_cells = grid.locations().count();
 
@@ -169,17 +166,28 @@ fn route_many(droplets: &[(&DropletId, &Droplet)], grid: &Grid) -> Option<Map<Dr
 
     for &(&id, droplet) in droplets.iter() {
         // route a single droplet
-        let result = route_one(
-            &droplet,
-            num_cells as Time + max_t,
-            |node| av_set.filter(node.expand(grid)),
-            |node| {
+        let result = {
+            let max_time = num_cells as Time + max_t;
+            let next_fn = |node: &Node| {
+                node.expand(grid)
+                    .iter()
+                    .filter(|(_cost, n)| {
+                        let l1 = node.location;
+                        let l2 = n.location;
+                        !av_set.should_avoid(n) && !bad_edges.contains(&(l1, l2))
+                    })
+                    .cloned()
+                    .collect::<Vec<_>>()
+            };
+            let done_fn = |node: &Node| {
                 node.location == match droplet.destination {
                     Some(x) => x,
                     None => droplet.location,
                 } && !av_set.would_finally_collide(node)
-            },
-        );
+            };
+
+            route_one(&droplet, max_time, next_fn, done_fn)
+        };
         let path = match result {
             None => return None,
             Some(path) => path,
@@ -202,7 +210,7 @@ fn route_one<FNext, FDone>(
     mut done_fn: FDone,
 ) -> Option<Path>
 where
-    FNext: FnMut(&Node) -> NextVec,
+    FNext: FnMut(&Node) -> Vec<(Cost, Node)>,
     FDone: FnMut(&Node) -> bool,
 {
     let start_time = Instant::now();

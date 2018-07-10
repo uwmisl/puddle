@@ -116,6 +116,7 @@ impl Executor {
                             if let Some(new_snapshot) = correction {
                                 info!("old snapshot: {:#?}", snapshot);
                                 info!("new snapshot: {:#?}", new_snapshot);
+                                gv.add_error_edges(&snapshot, &new_snapshot);
                                 gv.rollback(&new_snapshot);
                                 snapshot = new_snapshot;
                             };
@@ -132,6 +133,7 @@ impl Executor {
                             if let Some(new_snapshot) = snapshot.correct(&blobs) {
                                 info!("old snapshot: {:#?}", snapshot);
                                 info!("new snapshot: {:#?}", new_snapshot);
+                                gv.add_error_edges(&snapshot, &new_snapshot);
                                 gv.rollback(&new_snapshot);
                                 snapshot = new_snapshot;
                             };

@@ -14,10 +14,10 @@ use super::{Droplet, DropletId, DropletInfo, Grid, Location};
 
 pub struct GridView {
     pub grid: Grid,
-
     completed: Vec<Snapshot>,
     planned: VecDeque<Snapshot>,
     pub done: bool,
+    pub bad_edges: Set<(Location, Location)>,
 }
 
 #[must_use]
@@ -239,6 +239,7 @@ impl GridView {
             planned,
             completed: Vec::new(),
             done: false,
+            bad_edges: Set::new(),
         }
     }
 
@@ -393,6 +394,16 @@ impl GridView {
         }
 
         Some(now2)
+    }
+
+    pub fn add_error_edges(&mut self, planned: &Snapshot, actual: &Snapshot) {
+        let previous = self.completed.last().unwrap();
+        let edges = previous.get_error_edges(planned, actual);
+        for (loc1, loc2) in edges {
+            // for now, insert edges both ways
+            self.bad_edges.insert((loc1, loc2));
+            self.bad_edges.insert((loc2, loc1));
+        }
     }
 }
 

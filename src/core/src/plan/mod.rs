@@ -60,7 +60,7 @@ impl GridView {
         } else {
             // TODO place should be a method of gridview
             self.grid
-                .place(&shape, self.snapshot())
+                .place(&shape, self.snapshot(), &self.bad_edges)
                 .ok_or(PlanError::PlaceError)?
         };
 
