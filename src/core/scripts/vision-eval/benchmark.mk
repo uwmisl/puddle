@@ -6,7 +6,7 @@ vision_cpp=${cargo_path}/src/vision/droplet_detect.cpp
 
 ## paths to set
 # where the output files are made
-out = /tmp/pi-pics
+out = /tmp/pi-pics-${USER}
 # where original images are
 original_path = ./data
 # where the labeled gimp files are, if we need to make the labeled images
