@@ -1,5 +1,5 @@
 use std::ops::{Deref, DerefMut, Drop};
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, MutexGuard};
 use std::thread;
 
 use exec::Executor;
@@ -42,8 +42,8 @@ impl<'a> DerefMut for ProcessHandle<'a> {
 
 #[allow(dead_code)]
 pub struct Manager {
-    processes: Mutex<Map<ProcessId, Process>>,
     gridview: Arc<Mutex<GridView>>,
+    processes: Mutex<Map<ProcessId, Process>>,
     exec_endpoint: Mutex<Endpoint<(), Vec<DropletInfo>>>,
     exec_thread: thread::JoinHandle<()>,
     blocking: bool,
@@ -69,6 +69,10 @@ impl Manager {
             gridview: gv_lock,
             blocking: blocking,
         }
+    }
+
+    pub fn gridview(&self) -> MutexGuard<GridView> {
+        self.gridview.lock().unwrap()
     }
 
     fn take_process(&self, pid: ProcessId) -> PuddleResult<Process> {

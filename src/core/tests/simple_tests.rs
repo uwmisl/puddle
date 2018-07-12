@@ -15,6 +15,17 @@ extern crate matches;
 
 use puddle_core::*;
 
+fn manager_from_str<'a>(json_str: &str) -> Manager {
+    let grid = Grid::from_reader(json_str.as_bytes()).unwrap();
+    // reduce the step delay for testing
+    env::set_var("PUDDLE_STEP_DELAY_MS", "1");
+
+    let blocking = false;
+    let man = Manager::new(blocking, grid);
+    let _ = env_logger::try_init();
+    man
+}
+
 fn manager_from_rect<'a>(rows: usize, cols: usize) -> Manager {
     manager_from_rect_with_error(rows, cols)
 }
@@ -28,7 +39,8 @@ fn manager_from_rect_with_error<'a>(rows: usize, cols: usize) -> Manager {
     // reduce the step delay for testing
     env::set_var("PUDDLE_STEP_DELAY_MS", "1");
 
-    let man = Manager::new(false, grid);
+    let blocking = false;
+    let man = Manager::new(blocking, grid);
     let _ = env_logger::try_init();
     man
 }
@@ -289,4 +301,37 @@ fn split_single_nonzero_dimensions() {
     assert_eq!(droplets.len(), 2);
     assert_eq!(droplets[&id1].dimensions, dim);
     assert_eq!(droplets[&id2].dimensions, dim);
+}
+
+#[test]
+fn heat_droplet() {
+    let board_str = r#"{
+        "board": [
+            [ "a", "a", "a", "a", "a" ],
+            [ "a", "a", "a", "a", "a" ],
+            [ "a", "a", "a", "a", "a" ],
+            [ "a", "a", "a", "a", "a" ]
+        ],
+        "peripherals": {
+            "(3, 2)": {
+                "type": "Heater",
+                "pwm_channel": 0,
+                "spi_channel": 0
+            }
+        }
+    }"#;
+
+    let man = manager_from_str(board_str);
+    let p = man.get_new_process("test");
+
+    let dim = Location { y: 1, x: 1 };
+    let id0 = p.input(None, 1.0, Some(dim)).unwrap();
+    let temp = 60.0;
+    let id1 = p.heat(id0, temp).unwrap();
+
+    let droplets = info_dict(&p);
+    let header_loc = Location { y: 3, x: 2 };
+
+    assert_eq!(droplets.len(), 1);
+    assert_eq!(droplets[&id1].location, header_loc);
 }

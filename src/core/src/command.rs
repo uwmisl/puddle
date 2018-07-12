@@ -2,7 +2,7 @@ use grid::gridview::{GridSubView, GridView};
 use std::fmt;
 use std::sync::mpsc::Sender;
 
-use grid::{Droplet, DropletId, DropletInfo, Grid, Location, Snapshot};
+use grid::{Droplet, DropletId, DropletInfo, Grid, Location, Peripheral, Snapshot};
 
 use process::{ProcessId, PuddleResult};
 
@@ -379,5 +379,83 @@ impl Command for Split {
         gridview.move_west(out0);
         gridview.move_east(out1);
         gridview.tick();
+    }
+}
+
+#[derive(Debug)]
+pub struct Heat {
+    inputs: Vec<DropletId>,
+    outputs: Vec<DropletId>,
+    temperature: f32,
+}
+
+impl Heat {
+    pub fn new(id: DropletId, out_id: DropletId, temperature: f32) -> PuddleResult<Heat> {
+        Ok(Heat {
+            inputs: vec![id],
+            outputs: vec![out_id],
+            temperature,
+        })
+    }
+}
+
+impl Command for Heat {
+    fn input_droplets(&self) -> Vec<DropletId> {
+        self.inputs.clone()
+    }
+
+    fn output_droplets(&self) -> Vec<DropletId> {
+        self.outputs.clone()
+    }
+
+    fn dynamic_info(&self, gridview: &GridView) -> DynamicCommandInfo {
+        let droplets = &gridview.snapshot().droplets;
+        let d = droplets.get(&self.inputs[0]).unwrap();
+        // we only split in the x right now, so we don't need y padding
+        let x_dim = d.dimensions.x as usize;
+        let y_dim = d.dimensions.y as usize;
+
+        // right now we can only heat droplets that are 1x1
+        assert_eq!(y_dim, 1);
+        assert_eq!(x_dim, 1);
+        let mut grid = Grid::rectangle(y_dim, x_dim);
+
+        // the parameters of heater here don't matter, as it's just used to
+        // match up with the "real" heater in the actual grid
+        let loc = Location { y: 0, x: 0 };
+        grid.get_cell_mut(&loc).unwrap().peripheral = Some(Peripheral::Heater {
+            pwm_channel: 0,
+            spi_channel: 0,
+        });
+
+        let input_locations = vec![loc];
+
+        DynamicCommandInfo {
+            shape: grid,
+            input_locations: input_locations,
+        }
+    }
+
+    fn run(&self, gridview: &mut GridSubView) {
+        #[cfg(feature = "pi")]
+        {
+            let loc = Location { y: 0, x: 0 };
+            let heater = gridview
+                .get_electrode(&loc)
+                .unwrap()
+                .peripheral
+                .unwrap()
+                .clone();
+            assert_matches!(heater, Peripheral::Heater{..});
+            gridview.with_pi(|pi| pi.heat(heater));
+        }
+        let old_id = self.inputs[0];
+        let new_id = self.outputs[0];
+
+        let mut d = gridview.remove(&old_id);
+        // NOTE this is a rare place it's ok to change an id, like move
+        d.id = new_id;
+        gridview.insert(d);
+        gridview.tick()
     }
 }

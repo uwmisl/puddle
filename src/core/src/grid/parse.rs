@@ -64,20 +64,11 @@ impl ParsedGrid {
                 .collect(),
         };
 
-        'outer: for (pin, periph) in self.peripherals.iter() {
-            let pin: u32 = pin.parse().unwrap();
-            for row in grid.vec.iter_mut() {
-                for e_opt in row {
-                    if let Some(electrode) = e_opt {
-                        if electrode.pin == pin {
-                            assert_eq!(electrode.peripheral, None);
-                            electrode.peripheral = Some(*periph);
-                            continue 'outer;
-                        }
-                    }
-                }
-            }
-            panic!("Couldn't find pin {}", pin);
+        for (location, periph) in self.peripherals.iter() {
+            let loc = location.parse().unwrap();
+            let electrode = grid.get_cell_mut(&loc).unwrap();
+            assert_eq!(electrode.peripheral, None);
+            electrode.peripheral = Some(*periph);
         }
 
         grid

@@ -35,6 +35,9 @@ extern crate nalgebra;
 #[cfg(feature = "vision")]
 extern crate ncollide2d;
 
+#[macro_use]
+extern crate matches;
+
 // these need to be pub until we have an api
 mod command;
 mod exec;

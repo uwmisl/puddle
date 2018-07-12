@@ -1,14 +1,19 @@
 use rand::Rng;
 use std::collections::VecDeque;
+use std::env;
 
 use pathfinding::kuhn_munkres::kuhn_munkres_min;
 use pathfinding::matrix::Matrix;
 
 use command::Command;
 use grid::droplet::{Blob, SimpleBlob};
+use grid::Electrode;
 use plan::Path;
 use process::ProcessId;
 use util::collections::{Map, Set};
+
+#[cfg(feature = "pi")]
+use pi::RaspberryPi;
 
 use super::{Droplet, DropletId, DropletInfo, Grid, Location};
 
@@ -18,6 +23,8 @@ pub struct GridView {
     planned: VecDeque<Snapshot>,
     pub done: bool,
     pub bad_edges: Set<(Location, Location)>,
+    #[cfg(feature = "pi")]
+    pub pi: Option<RaspberryPi>,
 }
 
 #[must_use]
@@ -234,12 +241,31 @@ impl GridView {
     pub fn new(grid: Grid) -> GridView {
         let mut planned = VecDeque::new();
         planned.push_back(Snapshot::default());
+
+        #[cfg(feature = "pi")]
+        let pi = match env::var("PUDDLE_PI") {
+            Ok(s) => if s == "1" {
+                let mut pi = RaspberryPi::new().unwrap();
+                info!("Initialized the pi!");
+                Some(pi)
+            } else {
+                warn!("Couldn't read PUDDLE_PI={}", s);
+                None
+            },
+            Err(_) => {
+                info!("Did not start the pi!");
+                None
+            }
+        };
+
         GridView {
             grid: grid,
             planned,
             completed: Vec::new(),
             done: false,
             bad_edges: Set::new(),
+            #[cfg(feature = "pi")]
+            pi,
         }
     }
 
@@ -416,6 +442,16 @@ pub struct GridSubView<'a> {
 impl<'a> GridSubView<'a> {
     pub fn tick(&mut self) {
         self.backing_gridview.tick()
+    }
+
+    #[cfg(feature = "pi")]
+    pub fn with_pi<T>(&mut self, f: impl FnOnce(&mut RaspberryPi) -> T) -> Option<T> {
+        self.backing_gridview.pi.as_mut().map(f)
+    }
+
+    pub fn get_electrode(&self, loc: &Location) -> Option<&Electrode> {
+        let actual_loc = self.mapping.get(loc)?;
+        self.backing_gridview.grid.get_cell(&actual_loc)
     }
 
     // TODO: translate or somehow hide the untranslated location of this

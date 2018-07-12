@@ -7,7 +7,7 @@ use std::fmt;
 use std::os::raw::{c_char, c_int, c_uint};
 use std::ptr;
 
-use grid::{Grid, Location, Snapshot};
+use grid::{Grid, Location, Peripheral, Snapshot};
 
 use self::max31865::{MAX31865_DEFAULT_CONFIG, Max31865};
 use self::mcp4725::{MCP4725_DEFAULT_ADDRESS, Mcp4725};
@@ -223,6 +223,11 @@ impl RaspberryPi {
 
         self.gpio_set_mode(Data, Output).unwrap();
         self.gpio_write(Data, 0).unwrap();
+    }
+
+    pub fn heat(&mut self, heater: Peripheral) {
+        // TODO should probably break this into a separate type
+        assert_matches!(heater, Peripheral::Heater{..});
     }
 
     pub fn output_pins(&mut self, grid: &Grid, snapshot: &Snapshot) {

@@ -9,9 +9,6 @@ use grid::{DropletInfo, ExecResponse, GridView};
 use util::endpoint::Endpoint;
 use util::mk_rng;
 
-#[cfg(feature = "pi")]
-use pi::RaspberryPi;
-
 /// delay between steps in milliseconds
 #[cfg(feature = "pi")]
 static STEP_DELAY: u64 = 100;
@@ -21,34 +18,11 @@ static STEP_DELAY: u64 = 1;
 pub struct Executor {
     blocking: bool,
     gridview: Arc<Mutex<GridView>>,
-    #[cfg(feature = "pi")]
-    pi: Option<RaspberryPi>,
 }
 
 impl Executor {
     pub fn new(blocking: bool, gridview: Arc<Mutex<GridView>>) -> Self {
-        #[cfg(feature = "pi")]
-        let pi = match env::var("PUDDLE_PI") {
-            Ok(s) => if s == "1" {
-                let mut pi = RaspberryPi::new().unwrap();
-                info!("Initialized the pi!");
-                Some(pi)
-            } else {
-                warn!("Couldn't read PUDDLE_PI={}", s);
-                None
-            },
-            Err(_) => {
-                info!("Did not start the pi!");
-                None
-            }
-        };
-
-        Executor {
-            blocking,
-            gridview,
-            #[cfg(feature = "pi")]
-            pi,
-        }
+        Executor { blocking, gridview }
     }
 
     pub fn run(&mut self, endpoint: Endpoint<Vec<DropletInfo>, ()>) {
@@ -104,9 +78,12 @@ impl Executor {
 
                     #[cfg(feature = "pi")]
                     {
-                        self.pi
-                            .as_mut()
-                            .map(|pi| pi.output_pins(&gv.grid, &snapshot));
+                        // must `take` the pi out of the gv temporarily so we
+                        // can use &gv.grid immutably
+                        if let Some(mut pi) = gv.pi.take() {
+                            pi.output_pins(&gv.grid, &snapshot);
+                            gv.pi = Some(pi);
+                        }
 
                         sleep(sleep_time);
 

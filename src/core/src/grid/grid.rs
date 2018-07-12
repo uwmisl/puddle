@@ -23,8 +23,19 @@ pub enum Peripheral {
 }
 
 impl Electrode {
-    fn is_compatible(&self, _other: &Self) -> bool {
-        true
+    fn is_compatible(&self, other: &Self) -> bool {
+        let (mine, theirs) = match (self.peripheral, other.peripheral) {
+            (None, None) => return true,
+            (Some(p1), Some(p2)) => (p1, p2),
+            _ => return false,
+        };
+
+        use self::Peripheral::*;
+        match (mine, theirs) {
+            (Input, Input) => true,
+            (Heater { .. }, Heater { .. }) => true,
+            _ => false,
+        }
     }
 }
 
@@ -60,13 +71,19 @@ impl Grid {
         let mut peripherals = Map::new();
         let board = self.vec
             .iter()
-            .map(|row| {
+            .enumerate()
+            .map(|(i, row)| {
                 row.iter()
-                    .map(|e_opt| match e_opt {
+                    .enumerate()
+                    .map(|(j, e_opt)| match e_opt {
                         None => ParsedElectrode::Marked(Mark::Empty),
                         Some(e) => {
                             if let Some(peripheral) = e.peripheral {
-                                peripherals.insert(e.pin.to_string(), peripheral);
+                                let loc = Location {
+                                    y: i as i32,
+                                    x: j as i32,
+                                };
+                                peripherals.insert(loc.to_string(), peripheral);
                             }
                             ParsedElectrode::Index(e.pin)
                         }
@@ -237,6 +254,17 @@ impl Grid {
             .and_then(|row| row.get(j).and_then(|cell_opt| cell_opt.as_ref()))
     }
 
+    pub fn get_cell_mut(&mut self, loc: &Location) -> Option<&mut Electrode> {
+        if loc.x < 0 || loc.y < 0 {
+            return None;
+        }
+        let i = loc.y as usize;
+        let j = loc.x as usize;
+        self.vec
+            .get_mut(i)
+            .and_then(|row| row.get_mut(j).and_then(|cell_opt| cell_opt.as_mut()))
+    }
+
     fn locations_from_offsets<'a, I>(&self, loc: &Location, offsets: I) -> Vec<Location>
     where
         I: Iterator<Item = &'a Location>,
@@ -324,6 +352,33 @@ pub mod tests {
 
         assert!(!grid1.is_connected());
         assert!(grid2.is_connected())
+    }
+
+    #[test]
+    fn test_place_heater() {
+        let mut grid = Grid::rectangle(3, 3);
+        let heater_loc = Location { y: 2, x: 1 };
+        grid.get_cell_mut(&heater_loc).unwrap().peripheral = Some(Peripheral::Heater {
+            // these don't matter, they shouldn't be used for compatibility
+            pwm_channel: 10,
+            spi_channel: 42,
+        });
+
+        let mut small_grid = Grid::rectangle(1, 1);
+        small_grid
+            .get_cell_mut(&Location { y: 0, x: 0 })
+            .unwrap()
+            .peripheral = Some(Peripheral::Heater {
+            pwm_channel: 0,
+            spi_channel: 0,
+        });
+
+        let snapshot = &Snapshot::default();
+        let bad_edges = &Set::default();
+
+        let map = grid.place(&small_grid, snapshot, bad_edges).unwrap();
+
+        assert_eq!(map.get(&Location { y: 0, x: 0 }), Some(&heater_loc));
     }
 
     #[test]

@@ -1,5 +1,7 @@
 use std::fmt;
+use std::num::ParseIntError;
 use std::ops::{Add, Sub};
+use std::str::FromStr;
 
 #[derive(PartialEq, Eq, PartialOrd, Ord, Hash, Clone, Copy, Serialize, Deserialize)]
 pub struct Location {
@@ -88,6 +90,27 @@ impl fmt::Debug for Location {
 impl fmt::Display for Location {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "({}, {})", self.y, self.x)
+    }
+}
+
+impl FromStr for Location {
+    type Err = ParseIntError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let coords: Vec<&str> = s.trim()
+            .trim_matches(|p| p == '(' || p == ')')
+            .split(",")
+            .map(|s| s.trim())
+            .collect();
+
+        if coords.len() != 2 {
+            panic!("A location is 2 comma-separated ints. Given: '{}'", s)
+        }
+
+        let y = coords[0].parse()?;
+        let x = coords[1].parse()?;
+
+        Ok(Location { y, x })
     }
 }
 

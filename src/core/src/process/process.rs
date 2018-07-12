@@ -113,6 +113,13 @@ impl Process {
         Ok((out1, out2))
     }
 
+    pub fn heat(&self, d: DropletId, temperature: f32) -> PuddleResult<DropletId> {
+        let out = self.new_droplet_id();
+        let heat_cmd = command::Heat::new(d, out, temperature)?;
+        self.plan(Box::new(heat_cmd))?;
+        Ok(out)
+    }
+
     pub fn close(&mut self) {
         let mut gv = match self.gridview.lock() {
             Ok(gv) => gv,
