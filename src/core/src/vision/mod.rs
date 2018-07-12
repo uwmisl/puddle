@@ -1,9 +1,9 @@
+use std::ffi::CString;
+use std::os::raw::c_char;
+use std::path::Path;
 use std::process::Command;
 use std::slice;
 use std::sync::{Arc, Mutex};
-use std::path::Path;
-use std::ffi::CString;
-use std::os::raw::c_char;
 
 use grid::{Blob, Droplet, DropletId, Location};
 
@@ -26,7 +26,11 @@ extern "C" {
         response: *const DetectionResponse,
         should_draw: bool,
     ) -> bool;
-    fn makeDetectionState(trackbars: bool, src_path: *const c_char, dst_path: *const c_char) -> *const DetectionState;
+    fn makeDetectionState(
+        trackbars: bool,
+        src_path: *const c_char,
+        dst_path: *const c_char,
+    ) -> *const DetectionState;
 }
 
 #[repr(C)]
@@ -115,7 +119,8 @@ impl Detector {
             CString::new(src_str).unwrap()
         };
         let c_dst = {
-            let dst_str = dst.to_str().expect("Destination filename was invalid string!");
+            let dst_str = dst.to_str()
+                .expect("Destination filename was invalid string!");
             CString::new(dst_str).unwrap()
         };
 
