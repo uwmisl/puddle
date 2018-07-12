@@ -39,6 +39,9 @@ struct DetectionState {
   std::thread* grabber;
   unsigned iteration = 0;
 
+  // if non-NULL, save the detected droplets here as a black and white image
+  char* dst_path;
+
   int lo_h = 60, lo_s = 83, lo_v = 20;
   int hi_h = 80, hi_s = 255, hi_v = 255;
 
@@ -61,10 +64,16 @@ void grab_frames(DetectionState* det) {
 }
 
 extern "C"
-DetectionState *makeDetectionState(bool trackbars) {
+DetectionState *makeDetectionState(bool trackbars, char* src_path, char* dst_path) {
   DetectionState *det = new DetectionState;
 
-  det->cap = new VideoCapture(0);
+  if (src_path == NULL) {
+    det->cap = new VideoCapture(0);
+    det->dst_path = NULL;
+  } else {
+    det->cap = new VideoCapture(src_path);
+    det->dst_path = dst_path;
+  }
   cout << "VideoCapture opened: " << det->cap->isOpened() << endl;
 
   det->cap->set(CV_CAP_PROP_FRAME_WIDTH, 320);
@@ -86,7 +95,10 @@ DetectionState *makeDetectionState(bool trackbars) {
     createTrackbar("bonus", "settings", &det->bonus, 15, NULL, NULL);
   }
 
-  det->grabber = new std::thread(grab_frames, det);
+  if (src_path != NULL) {
+    // only start the grabber if we are using the camera
+    det->grabber = new std::thread(grab_frames, det);
+  }
   return det;
 }
 
@@ -98,10 +110,16 @@ bool detect_from_camera(DetectionState *det, DetectionResponse* resp, bool shoul
 
   // cout << "VideoCapture opened: " << det->cap->isOpened() << endl;
 
-  det->lock.lock();
-  det->cap->retrieve(raw);
-  // cout << "retrieved!!!!" << endl;
-  det->lock.unlock();
+  if (det->dst_path != NULL) {
+    // no path to save image, so we are using the camera
+    det->lock.lock();
+    det->cap->retrieve(raw);
+    // cout << "retrieved!!!!" << endl;
+    det->lock.unlock();
+  } else {
+    // we are working from a file here, so just read the one time
+    det->cap->read(raw);
+  }
 
   Mat blurred;
   int blur_size = max(det->blur_size, 1);
@@ -174,6 +192,17 @@ bool detect_from_camera(DetectionState *det, DetectionResponse* resp, bool shoul
   }
 
   det->iteration += 1;
+
+  if (det->dst_path != NULL) {
+    Mat black_on_white = raw.clone();
+    Scalar white(255, 255, 255);
+    Scalar black(0, 0, 0);
+    black_on_white = white;
+    int contour_index = -1; // all
+    int thickness = -1; // fill
+    drawContours(black_on_white, filteredContours, contour_index, black, thickness);
+    imwrite(det->dst_path, black_on_white);
+  }
 
   // draw the contours
   if (shouldDraw) {

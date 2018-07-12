@@ -1,6 +1,9 @@
 use std::process::Command;
 use std::slice;
 use std::sync::{Arc, Mutex};
+use std::path::Path;
+use std::ffi::CString;
+use std::os::raw::c_char;
 
 use grid::{Blob, Droplet, DropletId, Location};
 
@@ -23,7 +26,7 @@ extern "C" {
         response: *const DetectionResponse,
         should_draw: bool,
     ) -> bool;
-    fn makeDetectionState(trackbars: bool) -> *const DetectionState;
+    fn makeDetectionState(trackbars: bool, src_path: *const c_char, dst_path: *const c_char) -> *const DetectionState;
 }
 
 #[repr(C)]
@@ -84,15 +87,45 @@ pub struct Detector {
     state: *const DetectionState,
     response: DetectionResponse,
     transformer: GridTransformer,
+
+    // these are only used to keep the paths alive until the detector might need the pointers
+    #[allow(dead_code)]
+    src_path: Option<CString>,
+    #[allow(dead_code)]
+    dst_path: Option<CString>,
 }
 
 impl Detector {
     pub fn new(trackbars: bool) -> Detector {
         initialize_camera();
+        let null = ::std::ptr::null();
         Detector {
-            state: unsafe { makeDetectionState(trackbars) },
+            state: unsafe { makeDetectionState(trackbars, null, null) },
             response: DetectionResponse::default(),
             transformer: GridTransformer::default(),
+            src_path: None,
+            dst_path: None,
+        }
+    }
+
+    pub fn from_filename(src: &Path, dst: &Path) -> Detector {
+        let c_src = {
+            assert!(src.is_file());
+            let src_str = src.to_str().expect("Source filename was invalid string!");
+            CString::new(src_str).unwrap()
+        };
+        let c_dst = {
+            let dst_str = dst.to_str().expect("Destination filename was invalid string!");
+            CString::new(dst_str).unwrap()
+        };
+
+        let trackbars = false;
+        Detector {
+            state: unsafe { makeDetectionState(trackbars, c_src.as_ptr(), c_dst.as_ptr()) },
+            response: DetectionResponse::default(),
+            transformer: GridTransformer::default(),
+            src_path: Some(c_src),
+            dst_path: Some(c_dst),
         }
     }
 
