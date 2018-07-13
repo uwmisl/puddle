@@ -339,8 +339,6 @@ mod tests {
 
     use super::*;
 
-    use ncollide2d as nc;
-
     #[test]
     fn test_points_in_area() {
         let loc = Location { y: 0, x: 0 };

@@ -1,6 +1,5 @@
 use rand::Rng;
 use std::collections::VecDeque;
-use std::env;
 
 use pathfinding::kuhn_munkres::kuhn_munkres_min;
 use pathfinding::matrix::Matrix;
@@ -243,7 +242,7 @@ impl GridView {
         planned.push_back(Snapshot::default());
 
         #[cfg(feature = "pi")]
-        let pi = match env::var("PUDDLE_PI") {
+        let pi = match ::std::env::var("PUDDLE_PI") {
             Ok(s) => if s == "1" {
                 let mut pi = RaspberryPi::new().unwrap();
                 info!("Initialized the pi!");
