@@ -4,7 +4,7 @@ extern crate puddle_core;
 #[macro_use]
 extern crate log;
 
-use clap::{App, Arg, SubCommand};
+use clap::{App, Arg, SubCommand, ArgMatches};
 use std::error::Error;
 use std::fs::File;
 use std::thread;
@@ -40,27 +40,16 @@ fn main() -> Result<(), Box<Error>> {
         )
         .subcommand(
             SubCommand::with_name("set-loc")
-                .arg(Arg::with_name("gridpath").takes_value(true).required(true))
-                .arg(Arg::with_name("y").takes_value(true).required(true))
-                .arg(Arg::with_name("x").takes_value(true).required(true))
-                .arg(
-                    Arg::with_name("height")
-                        .takes_value(true)
-                        .default_value("1"),
-                )
-                .arg(Arg::with_name("width").takes_value(true).default_value("1")),
+                .arg(Arg::with_name("grid").takes_value(true).required(true))
+                .arg(Arg::with_name("location").takes_value(true).required(true))
+                .arg(Arg::with_name("dimensions").takes_value(true).default_value("(1,1)"))
         )
         .subcommand(
             SubCommand::with_name("circle")
-                .arg(Arg::with_name("gridpath").takes_value(true).required(true))
-                .arg(Arg::with_name("y").takes_value(true).required(true))
-                .arg(Arg::with_name("x").takes_value(true).required(true))
-                .arg(
-                    Arg::with_name("height")
-                        .takes_value(true)
-                        .default_value("2"),
-                )
-                .arg(Arg::with_name("width").takes_value(true).default_value("2"))
+                .arg(Arg::with_name("grid").takes_value(true).required(true))
+                .arg(Arg::with_name("location").takes_value(true).required(true))
+                .arg(Arg::with_name("dimensions").takes_value(true).default_value("(1,1)"))
+                .arg(Arg::with_name("circle").takes_value(true).default_value("(2,2)"))
                 .arg(
                     Arg::with_name("sleep")
                         .takes_value(true)
@@ -73,10 +62,11 @@ fn main() -> Result<(), Box<Error>> {
     let mut pi = RaspberryPi::new()?;
     debug!("Pi started successfully!");
 
-    let result = match matches.subcommand() {
+    match matches.subcommand() {
         ("dac", Some(m)) => {
             let value = m.value_of("value").unwrap().parse().unwrap();
-            pi.mcp4725.write(value)
+            pi.mcp4725.write(value)?;
+            Ok(())
         }
         ("pwm", Some(m)) => {
             let channel = m.value_of("channel").unwrap().parse().unwrap();
@@ -90,102 +80,11 @@ fn main() -> Result<(), Box<Error>> {
             let channel = m.value_of("channel").unwrap().parse().unwrap();
             let frequency = m.value_of("frequency").unwrap().parse().unwrap();
             let duty = m.value_of("duty").unwrap().parse().unwrap();
-            pi.set_pwm(channel, frequency, duty)
-        }
-        ("set-loc", Some(m)) => {
-            let gridpath = m.value_of("gridpath").unwrap();
-            let y = m.value_of("y").unwrap().parse().unwrap();
-            let x = m.value_of("x").unwrap().parse().unwrap();
-            let height = m.value_of("height").unwrap().parse().unwrap();
-            let width = m.value_of("width").unwrap().parse().unwrap();
-            let mut droplets = Map::new();
-            let id = DropletId {
-                id: 0,
-                process_id: 0,
-            };
-            let droplet = Droplet {
-                id: id,
-                location: Location { y, x },
-                dimensions: Location {
-                    y: height,
-                    x: width,
-                },
-                volume: 1.0,
-                destination: None,
-                collision_group: 0,
-            };
-            info!("Using {:#?}", droplet);
-            droplets.insert(id, droplet);
-            let snapshot = Snapshot {
-                droplets: droplets,
-                commands_to_finalize: vec![],
-            };
-
-            let reader = File::open(gridpath)?;
-            let grid = Grid::from_reader(reader)?;
-
-            pi.output_pins(&grid, &snapshot);
+            pi.set_pwm(channel, frequency, duty)?;
             Ok(())
         }
-        ("circle", Some(m)) => {
-            let gridpath = m.value_of("gridpath").unwrap();
-            let y = m.value_of("y").unwrap().parse().unwrap();
-            let x = m.value_of("x").unwrap().parse().unwrap();
-            let height = m.value_of("height").unwrap().parse().unwrap();
-            let width = m.value_of("width").unwrap().parse().unwrap();
-            let duration = Duration::from_millis(m.value_of("sleep").unwrap().parse().unwrap());
-
-            let mut droplets = Map::new();
-            let id = DropletId {
-                id: 0,
-                process_id: 0,
-            };
-            let droplet = Droplet {
-                id: id,
-                location: Location { y, x },
-                dimensions: Location { y: 1, x: 1 },
-                volume: 1.0,
-                destination: None,
-                collision_group: 0,
-            };
-            info!("Using {:#?}", droplet);
-            droplets.insert(id, droplet);
-            let mut snapshot = Snapshot {
-                droplets: droplets,
-                commands_to_finalize: vec![],
-            };
-
-            let reader = File::open(gridpath)?;
-            let grid = Grid::from_reader(reader)?;
-
-            pi.output_pins(&grid, &snapshot);
-
-            let mut set_loc = |yo, xo| {
-                let loc = Location {
-                    y: y + yo,
-                    x: x + xo,
-                };
-                snapshot.droplets.get_mut(&id).unwrap().location = loc;
-                pi.output_pins(&grid, &snapshot);
-                println!("Droplet at {}", loc);
-                thread::sleep(duration);
-            };
-
-            loop {
-                for xo in 0..width {
-                    set_loc(xo, 0);
-                }
-                for yo in 0..height {
-                    set_loc(width - 1, yo);
-                }
-                for xo in 0..width {
-                    set_loc(width - 1 - xo, height - 1);
-                }
-                for yo in 0..height {
-                    set_loc(0, height - 1 - yo);
-                }
-            }
-        }
+        ("set-loc", Some(m)) => set_loc(&m, &mut pi),
+        ("circle", Some(m)) => circle(&m, &mut pi),
         ("temp", Some(_)) => {
             let resistance = pi.max31865.read_one_resistance()?;
             let temp = pi.max31865.read_temperature()?;
@@ -196,7 +95,87 @@ fn main() -> Result<(), Box<Error>> {
             println!("Please pick a subcommmand.");
             Ok(())
         }
+    }
+
+    // result.map_err(|e| e.into())
+}
+
+fn mk_grid(m: &ArgMatches) -> Result<Grid, Box<Error>> {
+    let gridpath = m.value_of("grid").unwrap();
+    let reader = File::open(gridpath)?;
+    let grid = Grid::from_reader(reader)?;
+    Ok(grid)
+}
+
+fn mk_snapshot(location: Location, dimensions: Location) -> (DropletId, Snapshot) {
+    let mut droplets = Map::new();
+    // just use a dummy id
+    let id = DropletId {
+        id: 0,
+        process_id: 0,
+    };
+    let droplet = Droplet {
+        id: id,
+        location,
+        dimensions,
+        volume: 1.0,
+        destination: None,
+        collision_group: 0,
+    };
+    info!("Using {:#?}", droplet);
+    droplets.insert(id, droplet);
+    let snapshot = Snapshot {
+        droplets: droplets,
+        commands_to_finalize: vec![],
+    };
+    (id, snapshot)
+}
+
+fn set_loc(m: &ArgMatches, pi: &mut RaspberryPi) -> Result<(), Box<Error>> {
+    let grid = mk_grid(m)?;
+    let location = m.value_of("location").unwrap().parse()?;
+    let dimensions = m.value_of("dimensions").unwrap().parse()?;
+    let (_, snapshot) = mk_snapshot(location, dimensions);
+    pi.output_pins(&grid, &snapshot);
+    Ok(())
+}
+
+fn circle(m: &ArgMatches, pi: &mut RaspberryPi) -> Result<(), Box<Error>> {
+
+    let grid = mk_grid(m)?;
+
+    let location = m.value_of("location").unwrap().parse()?;
+    let dimensions = m.value_of("dimensions").unwrap().parse()?;
+    let (id, mut snapshot) = mk_snapshot(location, dimensions);
+
+    let size: Location = m.value_of("circle").unwrap().parse()?;
+    let duration = Duration::from_millis(m.value_of("sleep").unwrap().parse()?);
+
+    pi.output_pins(&grid, &snapshot);
+
+    let mut set = |yo, xo| {
+        let loc = Location {
+            y: location.y + yo,
+            x: location.x + xo,
+        };
+        snapshot.droplets.get_mut(&id).unwrap().location = loc;
+        pi.output_pins(&grid, &snapshot);
+        println!("Droplet at {}", loc);
+        thread::sleep(duration);
     };
 
-    result.map_err(|e| e.into())
+    loop {
+        for xo in 0..size.x {
+            set(xo, 0);
+        }
+        for yo in 0..size.y {
+            set(size.x - 1, yo);
+        }
+        for xo in 0..size.x {
+            set(size.x - 1 - xo, size.y - 1);
+        }
+        for yo in 0..size.y {
+            set(0, size.y - 1 - yo);
+        }
+    }
 }
