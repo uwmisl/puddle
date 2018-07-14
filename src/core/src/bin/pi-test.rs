@@ -22,6 +22,7 @@ fn main() -> Result<(), Box<Error>> {
         .version("0.1")
         .author("Max Willsey <me@mwillsey.com>")
         .about("Test out some of the hardware on the pi")
+        .subcommand(SubCommand::with_name("off"))
         .subcommand(
             SubCommand::with_name("dac")
                 .arg(Arg::with_name("value").takes_value(true).required(true)),
@@ -75,6 +76,11 @@ fn main() -> Result<(), Box<Error>> {
     debug!("Pi started successfully!");
 
     match matches.subcommand() {
+        ("off", Some(_m)) => {
+            pi.pca9685.all_off()?;
+            pi.mcp4725.write(0)?;
+            Ok(())
+        }
         ("dac", Some(m)) => {
             let value = m.value_of("value").unwrap().parse()?;
             pi.mcp4725.write(value)?;

@@ -138,15 +138,20 @@ impl Pca9685 {
             off_h,
         ])
     }
+
+    pub fn all_off(&mut self) -> Result<()> {
+        for chan in 0..NUM_LEDS {
+            self.set_duty_cycle(chan, 0)?;
+        }
+        Ok(())
+    }
 }
 
 impl Drop for Pca9685 {
     fn drop(&mut self) {
-        for chan in 0..NUM_LEDS {
-            let res = self.set_duty_cycle(chan, 0);
-            if res.is_err() {
-                error!("Failed to shutdown pwm channel {}: {:#?}", chan, res);
-            }
+        let res = self.all_off();
+        if res.is_err() {
+            error!("Failed to shutdown pwm channels {:#?}", res);
         }
     }
 }
