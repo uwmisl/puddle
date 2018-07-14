@@ -230,13 +230,13 @@ impl RaspberryPi {
 
     pub fn heat(
         &mut self,
-        heater: Peripheral,
+        heater: &Peripheral,
         target_temperature: f64,
         duration: Duration,
     ) -> Result<()> {
         // FIXME: for now, this simply blocks
 
-        if let Peripheral::Heater { pwm_channel, .. } = heater {
+        if let Peripheral::Heater { pwm_channel, .. } = *heater {
             let mut pid = PidController::default();
             pid.p_gain = 1.0;
             pid.i_gain = 1.0;

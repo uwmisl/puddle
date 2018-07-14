@@ -1,5 +1,6 @@
 use std::f64::{INFINITY, NAN};
 use std::time::Duration;
+use util::duration_seconds;
 
 pub struct PidController {
     pub p_gain: f64,
@@ -74,8 +75,4 @@ impl Default for PidController {
             prev_error: NAN,
         }
     }
-}
-
-fn duration_seconds(duration: &Duration) -> f64 {
-    (duration.as_secs() as f64) + (duration.subsec_nanos() as f64) * 1e9
 }

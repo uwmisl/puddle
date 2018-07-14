@@ -48,3 +48,14 @@ impl Timer {
         lap_time
     }
 }
+
+pub fn duration_seconds(duration: &Duration) -> f64 {
+    (duration.as_secs() as f64) + (duration.subsec_nanos() as f64) / 1e9
+}
+
+pub fn seconds_duration(seconds: f64) -> Duration {
+    assert!(seconds >= 0.0);
+    let secs = seconds.trunc();
+    let nanos = seconds.fract() * 1e9;
+    Duration::new(secs as u64, nanos as u32)
+}

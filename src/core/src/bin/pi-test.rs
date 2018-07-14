@@ -12,7 +12,7 @@ use std::time::Duration;
 
 use puddle_core::grid::{Droplet, DropletId, Grid, Location, Snapshot};
 use puddle_core::pi::RaspberryPi;
-use puddle_core::util::collections::Map;
+use puddle_core::util::{collections::Map, seconds_duration};
 
 fn main() -> Result<(), Box<Error>> {
     // enable logging
@@ -70,6 +70,13 @@ fn main() -> Result<(), Box<Error>> {
                 ),
         )
         .subcommand(SubCommand::with_name("temp"))
+        .subcommand(
+            SubCommand::with_name("heat")
+                .arg(Arg::with_name("grid").takes_value(true).required(true))
+                .arg(Arg::with_name("heater").takes_value(true).required(true))
+                .arg(Arg::with_name("temp").takes_value(true).required(true))
+                .arg(Arg::with_name("seconds").takes_value(true).required(true)),
+        )
         .get_matches();
 
     let mut pi = RaspberryPi::new()?;
@@ -109,6 +116,7 @@ fn main() -> Result<(), Box<Error>> {
             println!("Temp: {}C, Resistance: {} ohms", temp, resistance);
             Ok(())
         }
+        ("heat", Some(m)) => heat(&m, &mut pi),
         _ => {
             println!("Please pick a subcommmand.");
             Ok(())
@@ -195,4 +203,21 @@ fn circle(m: &ArgMatches, pi: &mut RaspberryPi) -> Result<(), Box<Error>> {
             set(0, size.y - 1 - yo);
         }
     }
+}
+
+fn heat(m: &ArgMatches, pi: &mut RaspberryPi) -> Result<(), Box<Error>> {
+    let grid = mk_grid(&m)?;
+    let heater_loc = m.value_of("heater").unwrap().parse()?;
+    let temp = m.value_of("temp").unwrap().parse()?;
+    let seconds = m.value_of("seconds").unwrap().parse()?;
+
+    let heater = grid.get_cell(&heater_loc)
+        .unwrap()
+        .peripheral
+        .expect("Given location wasn't a heater!");
+    let duration = seconds_duration(seconds);
+
+    pi.heat(&heater, temp, duration)?;
+
+    Ok(())
 }

@@ -450,7 +450,7 @@ impl Command for Heat {
                 .unwrap()
                 .clone();
             assert_matches!(heater, Peripheral::Heater{..});
-            gridview.with_pi(|pi| pi.heat(heater, temperature, duration));
+            gridview.with_pi(|pi| pi.heat(&heater, temperature, duration));
         }
         let old_id = self.inputs[0];
         let new_id = self.outputs[0];
