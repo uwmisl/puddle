@@ -18,7 +18,7 @@ pub struct Electrode {
 #[derive(Debug, PartialEq, Eq, Hash, Serialize, Deserialize, Clone, Copy)]
 #[serde(tag = "type")]
 pub enum Peripheral {
-    Heater { pwm_channel: u32, spi_channel: u8 },
+    Heater { pwm_channel: u8, spi_channel: u8 },
     Input,
 }
 

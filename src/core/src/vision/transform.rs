@@ -113,7 +113,7 @@ mod tests {
 
     use super::*;
 
-    use nalgebra::{norm};
+    use nalgebra::norm;
 
     fn assert_close(p0: Point, p1: Point, epsilon: f32) {
         let diff = p0 - p1;

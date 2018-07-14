@@ -4,7 +4,7 @@ extern crate puddle_core;
 #[macro_use]
 extern crate log;
 
-use clap::{App, Arg, SubCommand, ArgMatches};
+use clap::{App, Arg, ArgMatches, SubCommand};
 use std::error::Error;
 use std::fs::File;
 use std::thread;
@@ -42,14 +42,26 @@ fn main() -> Result<(), Box<Error>> {
             SubCommand::with_name("set-loc")
                 .arg(Arg::with_name("grid").takes_value(true).required(true))
                 .arg(Arg::with_name("location").takes_value(true).required(true))
-                .arg(Arg::with_name("dimensions").takes_value(true).default_value("(1,1)"))
+                .arg(
+                    Arg::with_name("dimensions")
+                        .takes_value(true)
+                        .default_value("(1,1)"),
+                ),
         )
         .subcommand(
             SubCommand::with_name("circle")
                 .arg(Arg::with_name("grid").takes_value(true).required(true))
                 .arg(Arg::with_name("location").takes_value(true).required(true))
-                .arg(Arg::with_name("dimensions").takes_value(true).default_value("(1,1)"))
-                .arg(Arg::with_name("circle").takes_value(true).default_value("(2,2)"))
+                .arg(
+                    Arg::with_name("dimensions")
+                        .takes_value(true)
+                        .default_value("(1,1)"),
+                )
+                .arg(
+                    Arg::with_name("circle")
+                        .takes_value(true)
+                        .default_value("(2,2)"),
+                )
                 .arg(
                     Arg::with_name("sleep")
                         .takes_value(true)
@@ -64,22 +76,22 @@ fn main() -> Result<(), Box<Error>> {
 
     match matches.subcommand() {
         ("dac", Some(m)) => {
-            let value = m.value_of("value").unwrap().parse().unwrap();
+            let value = m.value_of("value").unwrap().parse()?;
             pi.mcp4725.write(value)?;
             Ok(())
         }
         ("pwm", Some(m)) => {
-            let channel = m.value_of("channel").unwrap().parse().unwrap();
-            let duty = m.value_of("duty").unwrap().parse().unwrap();
-            let freq = m.value_of("freq").unwrap().parse().unwrap();
-            pi.pca9685.set_pwm_freq(freq);
-            pi.pca9685.set_duty_cycle(channel, duty);
+            let channel = m.value_of("channel").unwrap().parse()?;
+            let duty = m.value_of("duty").unwrap().parse()?;
+            let freq = m.value_of("freq").unwrap().parse()?;
+            pi.pca9685.set_pwm_freq(freq)?;
+            pi.pca9685.set_duty_cycle(channel, duty)?;
             Ok(())
         }
         ("pi-pwm", Some(m)) => {
-            let channel = m.value_of("channel").unwrap().parse().unwrap();
-            let frequency = m.value_of("frequency").unwrap().parse().unwrap();
-            let duty = m.value_of("duty").unwrap().parse().unwrap();
+            let channel = m.value_of("channel").unwrap().parse()?;
+            let frequency = m.value_of("frequency").unwrap().parse()?;
+            let duty = m.value_of("duty").unwrap().parse()?;
             pi.set_pwm(channel, frequency, duty)?;
             Ok(())
         }
@@ -141,7 +153,6 @@ fn set_loc(m: &ArgMatches, pi: &mut RaspberryPi) -> Result<(), Box<Error>> {
 }
 
 fn circle(m: &ArgMatches, pi: &mut RaspberryPi) -> Result<(), Box<Error>> {
-
     let grid = mk_grid(m)?;
 
     let location = m.value_of("location").unwrap().parse()?;

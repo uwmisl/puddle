@@ -1,6 +1,7 @@
 use grid::gridview::{GridSubView, GridView};
 use std::fmt;
 use std::sync::mpsc::Sender;
+use std::time::Duration;
 
 use grid::{Droplet, DropletId, DropletInfo, Grid, Location, Peripheral, Snapshot};
 
@@ -440,6 +441,8 @@ impl Command for Heat {
         #[cfg(feature = "pi")]
         {
             let loc = Location { y: 0, x: 0 };
+            let temperature = 50.0;
+            let duration = Duration::from_secs(1);
             let heater = gridview
                 .get_electrode(&loc)
                 .unwrap()
@@ -447,7 +450,7 @@ impl Command for Heat {
                 .unwrap()
                 .clone();
             assert_matches!(heater, Peripheral::Heater{..});
-            gridview.with_pi(|pi| pi.heat(heater));
+            gridview.with_pi(|pi| pi.heat(heater, temperature, duration));
         }
         let old_id = self.inputs[0];
         let new_id = self.outputs[0];

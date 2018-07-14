@@ -31,6 +31,8 @@ const NUM_LEDS: u8 = 16;
 /// LED*_ON_L, LED*_ON_H, LED*_OFF_L, LED*_OFF_H
 const REGISTERS_PER_LED: u8 = 4;
 
+pub const DUTY_CYCLE_MAX: u16 = 4095;
+
 #[cfg_attr(rustfmt, rustfmt_skip)]
 enum Mode1 {
     Restart       = 0b1000_0000,
@@ -65,22 +67,23 @@ impl Pca9685 {
         // self.i2c.write(&[MODE2, OUTDRV]).unwrap();
     }
 
-    fn write_reg(&mut self, reg: Register, data: impl Into<u8>) {
-        self.i2c.write(&[reg as u8, data.into()]).unwrap();
+    fn write_reg(&mut self, reg: Register, data: impl Into<u8>) -> Result<()> {
+        self.i2c.write(&[reg as u8, data.into()])
     }
 
-    fn read_reg(&mut self, reg: Register) -> u8 {
-        self.i2c.write(&[reg as u8]).unwrap();
-        let buf = self.i2c.read(1).unwrap();
-        buf[0]
+    fn read_reg(&mut self, reg: Register) -> Result<u8> {
+        self.i2c.write(&[reg as u8])?;
+        let buf = self.i2c.read(1)?;
+        Ok(buf[0])
     }
 
-    pub fn reset(&mut self) {
-        self.write_reg(Register::Mode1, Mode1::Restart);
+    pub fn reset(&mut self) -> Result<()> {
+        self.write_reg(Register::Mode1, Mode1::Restart)?;
         sleep(Duration::from_millis(10));
+        Ok(())
     }
 
-    pub fn set_pwm_freq(&mut self, frequency: f64) {
+    pub fn set_pwm_freq(&mut self, frequency: f64) -> Result<()> {
         debug!("Attempting to set pwm frequency to {}", frequency);
 
         // https://github.com/adafruit/Adafruit-PWM-Servo-Driver-Library/issues/11
@@ -99,23 +102,25 @@ impl Pca9685 {
         use self::Mode1::*;
         use self::Register::{Mode1, PreScale};
 
-        let old_mode = self.read_reg(Mode1);
+        let old_mode = self.read_reg(Mode1)?;
         let new_mode = (old_mode & !(Restart as u8)) | (Sleep as u8);
-        self.write_reg(Mode1, new_mode);
-        self.write_reg(PreScale, prescale_u8);
-        self.write_reg(Mode1, old_mode);
-        // self.write_reg(Mode1, old_mode | 0xa0);  //  This sets the MODE1 register to turn on auto increment.
+        self.write_reg(Mode1, new_mode)?;
+        self.write_reg(PreScale, prescale_u8)?;
+        self.write_reg(Mode1, old_mode)?;
+        // self.write_reg(Mode1, old_mode | 0xa0)?;  //  This sets the MODE1 register to turn on auto increment.
+        Ok(())
     }
 
-    pub fn set_duty_cycle(&mut self, channel: u8, on_fraction: u16) {
+    pub fn set_duty_cycle(&mut self, channel: u8, on_fraction: u16) -> Result<()> {
         assert!(channel < NUM_LEDS);
-        assert!(on_fraction < 4096);
+        assert!(on_fraction <= DUTY_CYCLE_MAX);
 
-        // if on_fraction if min or max, use the special values of 0, 4096
+        // if on_fraction if min or max, use the special values of 0, DUTY_CYCLE_MAX + 1
+        let special = DUTY_CYCLE_MAX + 1;
         let (on, off) = if on_fraction == 0 {
-            (0, 4096)
-        } else if on_fraction == 4095 {
-            (4096, 0)
+            (0, special)
+        } else if on_fraction == DUTY_CYCLE_MAX {
+            (special, 0)
         } else {
             (0, on_fraction)
         };
@@ -125,14 +130,23 @@ impl Pca9685 {
         let off_l = off as u8;
         let off_h = (off >> 8) as u8;
 
-        self.i2c
-            .write(&[
-                Register::LedBase as u8 + (REGISTERS_PER_LED * channel),
-                on_l,
-                on_h,
-                off_l,
-                off_h,
-            ])
-            .unwrap();
+        self.i2c.write(&[
+            Register::LedBase as u8 + (REGISTERS_PER_LED * channel),
+            on_l,
+            on_h,
+            off_l,
+            off_h,
+        ])
+    }
+}
+
+impl Drop for Pca9685 {
+    fn drop(&mut self) {
+        for chan in 0..NUM_LEDS {
+            let res = self.set_duty_cycle(chan, 0);
+            if res.is_err() {
+                error!("Failed to shutdown pwm channel {}: {:#?}", chan, res);
+            }
+        }
     }
 }

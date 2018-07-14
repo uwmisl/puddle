@@ -6,8 +6,11 @@ use std::ffi::CStr;
 use std::fmt;
 use std::os::raw::{c_char, c_int, c_uint};
 use std::ptr;
+use std::thread;
+use std::time::{Duration, Instant};
 
 use grid::{Grid, Location, Peripheral, Snapshot};
+use util::{pid::PidController, Timer};
 
 use self::max31865::{MAX31865_DEFAULT_CONFIG, Max31865};
 use self::mcp4725::{MCP4725_DEFAULT_ADDRESS, Mcp4725};
@@ -225,9 +228,87 @@ impl RaspberryPi {
         self.gpio_write(Data, 0).unwrap();
     }
 
-    pub fn heat(&mut self, heater: Peripheral) {
-        // TODO should probably break this into a separate type
-        assert_matches!(heater, Peripheral::Heater{..});
+    pub fn heat(
+        &mut self,
+        heater: Peripheral,
+        target_temperature: f64,
+        duration: Duration,
+    ) -> Result<()> {
+        // FIXME: for now, this simply blocks
+
+        if let Peripheral::Heater { pwm_channel, .. } = heater {
+            let mut pid = PidController::default();
+            pid.p_gain = 1.0;
+            pid.i_gain = 1.0;
+            pid.d_gain = 1.0;
+
+            pid.i_min = 0.0;
+            pid.i_max = pca9685::DUTY_CYCLE_MAX as f64;
+
+            pid.out_min = 0.0;
+            pid.out_max = pca9685::DUTY_CYCLE_MAX as f64;
+
+            pid.target = target_temperature;
+
+            let epsilon = 2.0; // degrees C
+            let extra_delay = Duration::from_millis(20);
+
+            let mut timer = Timer::new();
+            let mut in_range_start: Option<Instant> = None;
+
+            for iteration in 0.. {
+                // stop if we've been in the desired temperature range for long enough
+                if in_range_start
+                    .map(|t| t.elapsed() > duration)
+                    .unwrap_or(false)
+                {
+                    break;
+                }
+
+                let measured = self.max31865.read_temperature()? as f64;
+                let dt = timer.lap();
+
+                debug!(
+                    "Heating to {}*C... iteration: {}, measured: {}*C",
+                    target_temperature, iteration, measured
+                );
+
+                if measured - target_temperature > epsilon {
+                    self.pca9685.set_duty_cycle(pwm_channel, 0)?;
+                    panic!(
+                        "We overshot the target temperature. Wanted {}, got {}",
+                        target_temperature, measured
+                    );
+                }
+
+                if target_temperature - measured > epsilon {
+                    in_range_start = Some(Instant::now())
+                }
+
+                let duty_cycle = pid.update(measured, &dt);
+                assert!(0.0 <= duty_cycle);
+                assert!(duty_cycle <= pca9685::DUTY_CYCLE_MAX as f64);
+                self.pca9685.set_duty_cycle(pwm_channel, duty_cycle as u16)?;
+
+                thread::sleep(extra_delay);
+            }
+
+            self.pca9685.set_duty_cycle(pwm_channel, 0)?;
+        } else {
+            panic!("Not a temperature sensor!: {:#?}")
+        };
+
+        Ok(())
+    }
+
+    pub fn get_temperature(&mut self, temp_sensor: Peripheral) -> Result<f32> {
+        if let Peripheral::Heater { spi_channel, .. } = temp_sensor {
+            // right now we can only work on the one channel
+            assert_eq!(spi_channel, 0);
+            self.max31865.read_temperature()
+        } else {
+            panic!("Not a temperature sensor!: {:#?}")
+        }
     }
 
     pub fn output_pins(&mut self, grid: &Grid, snapshot: &Snapshot) {

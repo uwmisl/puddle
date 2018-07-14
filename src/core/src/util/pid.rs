@@ -6,16 +6,14 @@ pub struct PidController {
     pub i_gain: f64,
     pub d_gain: f64,
 
-    // Integral range limits
     pub i_min: f64,
     pub i_max: f64,
 
-    // Output range limits
     pub out_min: f64,
     pub out_max: f64,
 
-    // The PIDs internal state. All other attributes are configuration values
-    target: f64,
+    pub target: f64,
+
     total_error: f64,
     prev_error: f64,
 }
