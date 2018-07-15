@@ -83,7 +83,7 @@ impl Snapshot {
     }
 
     /// Returns an invalid droplet, if any.
-    fn get_collision(&self) -> Option<(DropletId, DropletId)> {
+    fn get_collision(&self) -> Option<(Droplet, Droplet)> {
         for (id1, droplet1) in &self.droplets {
             for (id2, droplet2) in &self.droplets {
                 if id1 == id2 {
@@ -93,7 +93,7 @@ impl Snapshot {
                     continue;
                 }
                 if droplet1.collision_distance(droplet2) <= 0 {
-                    return Some((*id1, *id2));
+                    return Some((droplet1.clone(), droplet2.clone()));
                 }
             }
         }
@@ -546,16 +546,16 @@ impl<'a> GridSubView<'a> {
 }
 
 #[cfg(test)]
-mod tests {
+pub mod tests {
     use super::*;
     use grid::parse::tests::parse_strings;
 
-    fn id2c(id: &DropletId) -> char {
+    pub fn id2c(id: &DropletId) -> char {
         assert!(id.id < 255);
         (id.id as u8) as char
     }
 
-    fn c2id(c: char) -> DropletId {
+    pub fn c2id(c: char) -> DropletId {
         for u in 0x00u8..0xff {
             let c2 = u as char;
             if c == c2 {
@@ -568,10 +568,10 @@ mod tests {
         panic!("Can't make {} a u8", c);
     }
 
-    fn parse_snapshot(strs: &[&str]) -> Snapshot {
+    pub fn parse_gridview(strs: &[&str]) -> GridView {
         // same chars are guaranteed to have the same ids
 
-        let (_, blobs) = parse_strings(&strs);
+        let (grid, blobs) = parse_strings(&strs);
         let mut snapshot = Snapshot::default();
 
         for (ch, blob) in blobs.iter() {
@@ -579,8 +579,16 @@ mod tests {
             snapshot.droplets.insert(id, blob.to_droplet(id));
         }
 
-        snapshot
+        let mut gv = GridView::new(grid);
+        gv.planned[0] = snapshot;
+        gv
     }
+
+    pub fn parse_snapshot(strs: &[&str]) -> Snapshot {
+        let mut gv = parse_gridview(strs);
+        gv.planned.remove(0).unwrap()
+    }
+
 
     fn check_all_matched(
         snapshot_strs: &[&str],

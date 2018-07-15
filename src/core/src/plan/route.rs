@@ -26,6 +26,7 @@ fn build_path(mut came_from: Map<Node, Node>, end_node: Node) -> Path {
 
 #[derive(PartialEq, Eq, PartialOrd, Ord, Hash, Clone, Copy, Debug)]
 struct Node {
+    collision_group: usize,
     location: Location,
     time: Time,
 }
@@ -38,69 +39,92 @@ const STAY_COST: Cost = 1;
 #[derive(Default)]
 struct AvoidanceSet {
     max_time: Time,
-    present: Set<Node>,
-    finals: Map<Location, Time>,
+    present: Map<(Location, Time), Node>,
+    finals: Map<Location, Node>,
+}
+
+#[derive(PartialEq)]
+enum Collision {
+    SameGroup,
+    DifferentGroup,
 }
 
 impl AvoidanceSet {
     fn should_avoid(&self, node: &Node) -> bool {
-        self.collides(&node) || self.collides_with_final(&node)
+        self.collides(&node).is_some() || self.collides_with_final(&node)
     }
 
-    fn collides(&self, node: &Node) -> bool {
+    fn collides(&self, node: &Node) -> Option<Collision> {
         // if not present, no collision
-        self.present.get(&node).is_some()
+        use self::Collision::*;
+        self.present.get(&(node.location, node.time)).map(|n| {
+            if n.collision_group == node.collision_group {
+                SameGroup
+            } else {
+                DifferentGroup
+            }
+        })
     }
 
     fn collides_with_final(&self, node: &Node) -> bool {
         self.finals
             .get(&node.location)
-            .map_or(false, |&final_t| node.time >= final_t)
+            .filter(|n| n.collision_group != node.collision_group)
+            .map_or(false, |&fin| node.time >= fin.time)
     }
 
     fn would_finally_collide(&self, node: &Node) -> bool {
         (node.time..self.max_time)
-            .map(|t| Node {
-                time: t,
-                location: node.location,
-            })
-            .any(|future_node| self.collides(&future_node))
+            .map(|t| Node { time: t, ..*node })
+            .any(|future_node| self.collides(&future_node) == Some(Collision::DifferentGroup))
     }
 
     // clippy will complain about &Vec (because of &Path)
     #[cfg_attr(feature = "cargo-clippy", allow(ptr_arg))]
-    fn avoid_path(&mut self, path: &Path, grid: &Grid, droplet_dimensions: &Location) {
+    fn avoid_path(&mut self, path: &Path, grid: &Grid, droplet: &Droplet) {
         let node_path = path.clone().into_iter().enumerate().map(|(i, loc)| Node {
             time: i as Time,
+            collision_group: droplet.collision_group,
             location: loc,
         });
         for node in node_path {
-            self.avoid_node(grid, node, droplet_dimensions);
+            self.avoid_node(grid, node, droplet);
         }
 
         // Add last element to finals
         let last = path.len() - 1;
-        for loc in grid.neighbors_dimensions(&path[last], droplet_dimensions) {
+        for loc in grid.neighbors_dimensions(&path[last], &droplet.dimensions) {
             let earliest_time = self.finals
                 .get(&loc)
-                .map_or(last as Time, |&prev| prev.min(last as Time));
-            self.finals.insert(loc, earliest_time);
+                .map_or(last as Time, |&prev| prev.time.min(last as Time));
+            self.finals.insert(
+                loc,
+                Node {
+                    time: earliest_time,
+                    collision_group: droplet.collision_group,
+                    location: loc,
+                },
+            );
         }
 
         self.max_time = self.max_time.max(last as Time)
     }
 
-    fn avoid_node(&mut self, grid: &Grid, node: Node, dimensions: &Location) {
-        for loc in grid.neighbors_dimensions(&node.location, dimensions) {
+    fn avoid_node(&mut self, grid: &Grid, node: Node, droplet: &Droplet) {
+        for loc in grid.neighbors_dimensions(&node.location, &droplet.dimensions) {
             for t in -1..2 {
                 let time = (node.time as i32) + t;
                 if time < 0 {
                     continue;
                 }
-                self.present.insert(Node {
-                    location: loc,
-                    time: time as Time,
-                });
+                self.present.insert(
+                    (loc, time as Time),
+                    Node {
+                        location: loc,
+                        collision_group: droplet.collision_group,
+                        time: time as Time,
+                    },
+                );
             }
         }
     }
@@ -118,6 +142,7 @@ impl Node {
                     MOVE_COST,
                     Node {
                         location,
+                        collision_group: self.collision_group,
                         time: self.time + 1,
                     },
                 )
@@ -128,6 +153,7 @@ impl Node {
             STAY_COST,
             Node {
                 location: self.location,
+                collision_group: self.collision_group,
                 time: self.time + 1,
             },
         ));
@@ -196,7 +222,7 @@ fn route_many(
         max_t = max_t.max(path.len() as Time);
 
         // once we know this path works, add to our avoidance set
-        av_set.avoid_path(&path, grid, &droplet.dimensions);
+        av_set.avoid_path(&path, grid, &droplet);
         paths.insert(id, path);
     }
 
@@ -224,6 +250,7 @@ where
 
     let start_node = Node {
         location: droplet.location,
+        collision_group: droplet.collision_group,
         time: 0,
     };
     todo.push(0, start_node);
@@ -310,8 +337,70 @@ where
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
+
+    use super::*;
+    use grid::gridview::tests::{c2id, parse_gridview};
 
     // TODO make some tests
+
+    fn path(locs: &[(i32, i32)]) -> Path {
+        locs.iter().map(|&(y, x)| Location { y, x }).collect()
+    }
+
+    #[test]
+    fn test_routing() {
+        let mut gv = parse_gridview(&["a...b", "  .  ", "  .  "]);
+
+        let dest = Location { y: 2, x: 2 };
+        gv.snapshot_mut()
+            .droplets
+            .get_mut(&c2id('a'))
+            .unwrap()
+            .destination = Some(dest);
+        gv.snapshot_mut()
+            .droplets
+            .get_mut(&c2id('b'))
+            .unwrap()
+            .destination = Some(dest);
+
+        // this should fail because the droplets aren't allow to collide
+        assert!(gv.route().is_none());
+
+        gv.snapshot_mut()
+            .droplets
+            .get_mut(&c2id('a'))
+            .unwrap()
+            .collision_group = 42;
+        gv.snapshot_mut()
+            .droplets
+            .get_mut(&c2id('b'))
+            .unwrap()
+            .collision_group = 42;
+
+        // this should work, as the droplets are allowed to collide now
+        // but, we check to make sure that they collide at the end of the path
+        let paths = gv.route().unwrap();
+
+        assert_eq!(
+            paths[&c2id('a')],
+            path(&[(0, 0), (0, 1), (0, 2), (1, 2), (2, 2),])
+        );
+
+        assert_eq!(
+            paths[&c2id('b')],
+            path(&[
+                (0, 4),
+                (0, 4),
+                (0, 4),
+                (0, 4),
+                (0, 4),
+                (0, 3),
+                (0, 2),
+                (1, 2),
+                (2, 2)
+            ])
+        );
+    }
 
 }
