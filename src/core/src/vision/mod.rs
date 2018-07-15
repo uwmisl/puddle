@@ -203,6 +203,20 @@ pub struct PolygonBlob {
     polygon: ConvexPolygon<f32>,
 }
 
+impl PolygonBlob {
+    fn area(&self) -> f32 {
+        // from https://stackoverflow.com/a/451482/
+        // e0 is points 0..n, e1 is points 1..n,0
+        // zipping them gives you all the edges of the polygon
+        let e0 = self.polygon.points().iter();
+        let mut e1 = self.polygon.points().iter().cycle();
+        e1.next();
+
+        let area: f32 = e0.zip(e1).map(|(p0, p1)| p0[0] * p1[1] - p0[1] * p1[0]).sum();
+        area.abs() / 2.0
+    }
+}
+
 const BASE_DISTANCE: i32 = 1000;
 
 impl Blob for PolygonBlob {
@@ -243,8 +257,7 @@ impl Blob for PolygonBlob {
             y: dim_point[0].round() as i32,
             x: dim_point[1].round() as i32,
         };
-        // FIXME this is fake!
-        let volume = 1.0;
+        let volume = self.area().into();
 
         Droplet::new(id, volume, location, dimensions)
     }
@@ -375,16 +388,21 @@ mod tests {
         }
     }
 
+    fn blob_from_pts(pts: &[(f32, f32)]) -> PolygonBlob {
+        let points: Vec<Point> = pts.iter().map(|(y,x)| Point::new(*y,*x)).collect();
+        let polygon = ConvexPolygon::try_from_points(&points).unwrap();
+        PolygonBlob { polygon }
+    }
+
     fn droplet_from_corners(mins: (f32, f32), maxs: (f32, f32)) -> Droplet {
         let (y0, x0) = mins;
         let (y1, x1) = maxs;
-        let polygon = ConvexPolygon::try_new(vec![
-            Point::new(y0, x0),
-            Point::new(y1, x0),
-            Point::new(y1, x1),
-            Point::new(y0, x1),
-        ]).unwrap();
-        let blob = PolygonBlob { polygon };
+        let blob = blob_from_pts(&vec![
+            (y0, x0),
+            (y1, x0),
+            (y1, x1),
+            (y0, x1),
+        ]);
         blob.to_droplet(DropletId {
             id: 0,
             process_id: 0,
@@ -402,5 +420,25 @@ mod tests {
         println!("{:#?}", d);
         assert_eq!(d.location, Location { y: 5, x: 4 });
         assert_eq!(d.dimensions, Location { y: 1, x: 1 });
+    }
+
+    #[test]
+    fn test_polygon_area() {
+        let square_blob = blob_from_pts(&vec![
+            (0.0, 1.0),
+            (0.0, 0.0),
+            (1.0, 0.0),
+            (1.0, 1.0),
+        ]);
+        assert_eq!(square_blob.area(), 1.0);
+
+        let penta_blob = blob_from_pts(&vec![
+            (0.0, 0.0),
+            (0.0, 2.0),
+            (2.0, 4.0),
+            (4.0, 3.0),
+            (3.0, 1.0),
+        ]);
+        assert_eq!(penta_blob.area(), 9.5);
     }
 }
