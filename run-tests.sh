@@ -43,8 +43,10 @@ popd
 # test the python bindings
 pushd src/python/
 
+# create the virtualenv if it doesn't exist
+pipenv --venv || pipenv --python 3
 # install the virtual environment
-pipenv install --dev --python python3
+pipenv install --dev
 
 # check for style
 pipenv run flake8
