@@ -29,11 +29,11 @@ pub trait Command: fmt::Debug + Send {
 }
 
 //
-//  Input
+//  Create
 //
 
 #[derive(Debug)]
-pub struct Input {
+pub struct Create {
     inputs: Vec<DropletId>,
     outputs: Vec<DropletId>,
     location: Location,
@@ -49,14 +49,14 @@ pub struct DynamicCommandInfo {
 }
 
 // TODO: dimensions probably shouldn't be optional?
-impl Input {
+impl Create {
     pub fn new(
         loc: Option<Location>,
         vol: f64,
         dim: Option<Location>,
         out_id: DropletId,
-    ) -> PuddleResult<Input> {
-        Ok(Input {
+    ) -> PuddleResult<Create> {
+        Ok(Create {
             inputs: vec![],
             outputs: vec![out_id],
             location: loc.unwrap_or(Location { y: 0, x: 0 }),
@@ -67,7 +67,7 @@ impl Input {
     }
 }
 
-impl Command for Input {
+impl Command for Create {
     fn input_droplets(&self) -> Vec<DropletId> {
         self.inputs.clone()
     }

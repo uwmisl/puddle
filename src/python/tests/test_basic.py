@@ -12,8 +12,8 @@ def session():
 
 
 def test_easy(session):
-    a = session.input((1,1), 1.0, (1,1))
-    b = session.input(None, 1.0, (1,1))
+    a = session.create((1,1), 1.0, (1,1))
+    b = session.create(None, 1.0, (1,1))
     c = a.mix(b)
 
     droplets = session.droplets()
@@ -24,8 +24,8 @@ def test_easy(session):
 
 def test_consumed(session):
 
-    a = session.input(None, 1.0, (1,1))
-    b = session.input(None, 1.0, (1,1))
+    a = session.create(None, 1.0, (1,1))
+    b = session.create(None, 1.0, (1,1))
     c = a.mix(b)
     assert c
 
@@ -35,8 +35,8 @@ def test_consumed(session):
 
 def test_volume(session):
 
-    a = session.input(None, 1.0, (1,1))
-    b = session.input(None, 2.0, (1,1))
+    a = session.create(None, 1.0, (1,1))
+    b = session.create(None, 2.0, (1,1))
 
     ab = session.mix(a, b)
 

@@ -129,7 +129,7 @@ with mk_session(arch_path) as session:
     eps = 0.1
 
     def d_low_factory():
-        return session.input(
+        return session.create(
             location = None,
             volume = 1,
             dimensions = None,
@@ -138,7 +138,7 @@ with mk_session(arch_path) as session:
         )
 
     def d_high_factory():
-        return session.input(
+        return session.create(
             location = None,
             volume = 1,
             dimensions = None,

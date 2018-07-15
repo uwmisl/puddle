@@ -55,15 +55,15 @@ fn float_epsilon_equal(float1: f64, float2: f64) -> bool {
 }
 
 #[test]
-fn input_some_droplets() {
+fn create_some_droplets() {
     let man = manager_from_rect(1, 4);
     let p = man.get_new_process("test");
 
     let loc = Location { y: 0, x: 0 };
-    let id = p.input(Some(loc), 1.0, None).unwrap();
+    let id = p.create(Some(loc), 1.0, None).unwrap();
 
-    let should_work = p.input(None, 1.0, None);
-    let should_not_work = p.input(None, 1.0, None);
+    let should_work = p.create(None, 1.0, None);
+    let should_not_work = p.create(None, 1.0, None);
 
     assert!(should_work.is_ok());
     assert!(should_not_work.is_err());
@@ -84,7 +84,7 @@ fn move_droplet() {
 
     let loc1 = Location { y: 0, x: 0 };
     let loc2 = Location { y: 0, x: 3 };
-    let id1 = p.input(Some(loc1), 1.0, None).unwrap();
+    let id1 = p.create(Some(loc1), 1.0, None).unwrap();
     let id2 = p.move_droplet(id1, loc2).unwrap();
 
     let droplets = info_dict(&p);
@@ -99,9 +99,9 @@ fn mix3() {
     let man = manager_from_rect(20, 20);
     let p = man.get_new_process("test");
 
-    let id1 = p.input(None, 1.0, None).unwrap();
-    let id2 = p.input(None, 1.0, None).unwrap();
-    let id3 = p.input(None, 1.0, None).unwrap();
+    let id1 = p.create(None, 1.0, None).unwrap();
+    let id2 = p.create(None, 1.0, None).unwrap();
+    let id3 = p.create(None, 1.0, None).unwrap();
 
     let id12 = p.mix(id1, id2).unwrap();
     let id123 = p.mix(id12, id3).unwrap();
@@ -118,8 +118,8 @@ fn mix_split() {
     let man = manager_from_rect(9, 9);
     let p = man.get_new_process("test");
 
-    let id1 = p.input(None, 1.0, None).unwrap();
-    let id2 = p.input(None, 1.0, None).unwrap();
+    let id1 = p.create(None, 1.0, None).unwrap();
+    let id2 = p.create(None, 1.0, None).unwrap();
 
     let id12 = p.mix(id1, id2).unwrap();
 
@@ -142,7 +142,7 @@ fn mix_split() {
 //     let man = manager_from_rect_with_error(10, 10, 0.1);
 //     let p = man.get_new_process("test");
 
-//     let id0 = p.input(None, 1.0, None).unwrap();
+//     let id0 = p.create(None, 1.0, None).unwrap();
 //     let (id1, id2) = p.split(id0).unwrap();
 
 //     let droplets = info_dict(&p);
@@ -162,7 +162,7 @@ fn process_isolation() {
     crossbeam::scope(|scope| {
         for p in ps {
             scope.spawn(move || {
-                let _drop_id = p.input(None, 1.0, None).unwrap();
+                let _drop_id = p.create(None, 1.0, None).unwrap();
                 p.flush().unwrap();
             });
         }
@@ -170,12 +170,12 @@ fn process_isolation() {
 }
 
 #[test]
-fn input_does_not_fit() {
+fn create_does_not_fit() {
     let man = manager_from_rect(2, 2);
     let p = man.get_new_process("test");
 
-    let _id1 = p.input(None, 1.0, None).unwrap();
-    let id2 = p.input(None, 1.0, None);
+    let _id1 = p.create(None, 1.0, None).unwrap();
+    let id2 = p.create(None, 1.0, None);
 
     assert_matches!(
         id2,
@@ -187,8 +187,8 @@ fn check_mix_dimensions(dim1: Location, dim2: Location, dim_result: Location) {
     let man = manager_from_rect(20, 20);
     let p = man.get_new_process("test");
 
-    let id1 = p.input(None, 1.0, Some(dim1)).unwrap();
-    let id2 = p.input(None, 1.0, Some(dim2)).unwrap();
+    let id1 = p.create(None, 1.0, Some(dim1)).unwrap();
+    let id2 = p.create(None, 1.0, Some(dim2)).unwrap();
 
     let id12 = p.mix(id1, id2).unwrap();
 
@@ -216,7 +216,7 @@ fn check_split_dimensions(dim: Location, dim1: Location, dim2: Location) {
     let man = manager_from_rect(9, 9);
     let p = man.get_new_process("test");
 
-    let id = p.input(None, 1.0, Some(dim)).unwrap();
+    let id = p.create(None, 1.0, Some(dim)).unwrap();
 
     let (id1, id2) = p.split(id).unwrap();
 
@@ -243,7 +243,7 @@ fn split_dimensions_size() {
 
 #[test]
 #[should_panic(expected = "collision")]
-fn input_dimensions_failure_overlap() {
+fn create_dimensions_failure_overlap() {
     let man = manager_from_rect(9, 9);
     let p = man.get_new_process("test");
 
@@ -253,18 +253,18 @@ fn input_dimensions_failure_overlap() {
     let loc1 = Location { y: 0, x: 1 };
     let loc2 = Location { y: 1, x: 3 };
 
-    let _id1 = p.input(Some(loc1), 1.0, Some(dim1)).unwrap();
-    let _id2 = p.input(Some(loc2), 1.0, Some(dim2)).unwrap();
+    let _id1 = p.create(Some(loc1), 1.0, Some(dim1)).unwrap();
+    let _id2 = p.create(Some(loc2), 1.0, Some(dim2)).unwrap();
 }
 
 #[test]
-fn input_dimension() {
+fn create_dimension() {
     let man = manager_from_rect(9, 9);
     let p = man.get_new_process("test");
 
     let dim1 = Location { y: 3, x: 2 };
 
-    let id1 = p.input(None, 1.0, Some(dim1)).unwrap();
+    let id1 = p.create(None, 1.0, Some(dim1)).unwrap();
 
     let droplets = info_dict(&p);
 
@@ -280,8 +280,8 @@ fn mix_larger_droplets() {
     let dim1 = Location { y: 4, x: 6 };
     let dim2 = Location { y: 8, x: 4 };
 
-    let id1 = p.input(None, 1.0, Some(dim1)).unwrap();
-    let id2 = p.input(None, 1.0, Some(dim2)).unwrap();
+    let id1 = p.create(None, 1.0, Some(dim1)).unwrap();
+    let id2 = p.create(None, 1.0, Some(dim2)).unwrap();
 
     let _id12 = p.mix(id1, id2).unwrap();
 }
@@ -292,7 +292,7 @@ fn split_single_nonzero_dimensions() {
     let p = man.get_new_process("test");
 
     let dim = Location { y: 1, x: 1 };
-    let id0 = p.input(None, 1.0, Some(dim)).unwrap();
+    let id0 = p.create(None, 1.0, Some(dim)).unwrap();
 
     let (id1, id2) = p.split(id0).unwrap();
 
@@ -325,7 +325,7 @@ fn heat_droplet() {
     let p = man.get_new_process("test");
 
     let dim = Location { y: 1, x: 1 };
-    let id0 = p.input(None, 1.0, Some(dim)).unwrap();
+    let id0 = p.create(None, 1.0, Some(dim)).unwrap();
     let temp = 60.0;
     let id1 = p.heat(id0, temp).unwrap();
 
