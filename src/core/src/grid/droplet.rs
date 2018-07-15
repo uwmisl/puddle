@@ -21,9 +21,12 @@ pub struct Droplet {
     pub location: Location,
     pub dimensions: Location,
     pub volume: f64,
+
+    // all this stuff is used for routing
     // TODO should droplets really know about their destinations?
     pub destination: Option<Location>,
     pub collision_group: usize,
+    pub pinned: bool,
 }
 
 // derive PartialEq because Droplets don't, and it's useful to compare them.
@@ -49,6 +52,7 @@ impl Droplet {
             destination: None,
             volume: volume,
             collision_group: NEXT_COLLISION_GROUP.fetch_add(1, Relaxed),
+            pinned: false,
         }
     }
 

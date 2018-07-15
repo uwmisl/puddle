@@ -160,6 +160,17 @@ impl Node {
 
         vec
     }
+
+    fn stay(&self) -> Vec<(Cost, Node)> {
+        vec![(
+            STAY_COST,
+            Node {
+                location: self.location,
+                collision_group: self.collision_group,
+                time: self.time + 1,
+            },
+        )]
+    }
 }
 
 impl GridView {
@@ -194,8 +205,14 @@ fn route_many(
         // route a single droplet
         let result = {
             let max_time = num_cells as Time + max_t;
+
             let next_fn = |node: &Node| {
-                node.expand(grid)
+                let nodes = if droplet.pinned {
+                    node.stay()
+                } else {
+                    node.expand(grid)
+                };
+                nodes
                     .iter()
                     .filter(|(_cost, n)| {
                         let l1 = node.location;
@@ -205,6 +222,7 @@ fn route_many(
                     .cloned()
                     .collect::<Vec<_>>()
             };
+
             let done_fn = |node: &Node| {
                 node.location == match droplet.destination {
                     Some(x) => x,
@@ -348,35 +366,28 @@ mod tests {
         locs.iter().map(|&(y, x)| Location { y, x }).collect()
     }
 
+    fn get_droplet(gv: &mut GridView, ch: char) -> &mut Droplet {
+        gv.snapshot_mut().droplets.get_mut(&c2id(ch)).unwrap()
+    }
+
     #[test]
-    fn test_routing() {
-        let mut gv = parse_gridview(&["a...b", "  .  ", "  .  "]);
+    fn test_collide_at_end() {
+        #[cfg_attr(rustfmt, rustfmt_skip)]
+        let mut gv = parse_gridview(&[
+            "a...b",
+            "  .  ",
+            "  .  "
+        ]);
 
         let dest = Location { y: 2, x: 2 };
-        gv.snapshot_mut()
-            .droplets
-            .get_mut(&c2id('a'))
-            .unwrap()
-            .destination = Some(dest);
-        gv.snapshot_mut()
-            .droplets
-            .get_mut(&c2id('b'))
-            .unwrap()
-            .destination = Some(dest);
+        get_droplet(&mut gv, 'a').destination = Some(dest);
+        get_droplet(&mut gv, 'b').destination = Some(dest);
 
         // this should fail because the droplets aren't allow to collide
         assert!(gv.route().is_none());
 
-        gv.snapshot_mut()
-            .droplets
-            .get_mut(&c2id('a'))
-            .unwrap()
-            .collision_group = 42;
-        gv.snapshot_mut()
-            .droplets
-            .get_mut(&c2id('b'))
-            .unwrap()
-            .collision_group = 42;
+        get_droplet(&mut gv, 'a').collision_group = 42;
+        get_droplet(&mut gv, 'b').collision_group = 42;
 
         // this should work, as the droplets are allowed to collide now
         // but, we check to make sure that they collide at the end of the path
@@ -403,4 +414,29 @@ mod tests {
         );
     }
 
+    #[test]
+    fn test_pinned() {
+        #[cfg_attr(rustfmt, rustfmt_skip)]
+        let mut gv = parse_gridview(&[
+            "....b",
+            "  a  ",
+            "  .  "
+        ]);
+
+        // right now nothing is pinned, so it should work fine
+        get_droplet(&mut gv, 'a').destination = None;
+        get_droplet(&mut gv, 'b').destination = Some(Location { y: 0, x: 0 });
+
+        // 'a' moved out of the way
+        let paths = gv.route().unwrap();
+        assert_eq!(
+            paths[&c2id('a')],
+            path(&[(1, 2), (2, 2), (2, 2), (2, 2), (2, 2), (1, 2)])
+        );
+
+        // once you pin 'a', 'b' no longer has a path
+        get_droplet(&mut gv, 'a').pinned = true;
+
+        assert!(gv.route().is_none());
+    }
 }
