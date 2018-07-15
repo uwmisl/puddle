@@ -17,12 +17,16 @@ pub trait Command: fmt::Debug + Send {
     fn bypass(&self, _gridview: &GridView) -> bool {
         false
     }
-    fn dynamic_info(&self, &GridView) -> DynamicCommandInfo;
+    // FIXME this shouldn't be mut, but we need to set the collision groups in mix
+    fn dynamic_info(&self, &mut GridView) -> DynamicCommandInfo;
+
+    // FIXME this is definitely a hack for combining droplets
+    // run before the final routing tick that
+    // this better not tick!!!
+    fn pre_run(&self, &mut GridSubView) {}
+
     fn run(&self, &mut GridSubView);
     fn is_blocking(&self) -> bool {
-        false
-    }
-    fn trust_placement(&self) -> bool {
         false
     }
     fn finalize(&mut self, &Snapshot) {}
@@ -46,6 +50,7 @@ pub struct Create {
 pub struct DynamicCommandInfo {
     pub shape: Grid,
     pub input_locations: Vec<Location>,
+    pub trusted: bool,
 }
 
 // TODO: dimensions probably shouldn't be optional?
@@ -76,12 +81,13 @@ impl Command for Create {
         self.outputs.clone()
     }
 
-    fn dynamic_info(&self, _gridview: &GridView) -> DynamicCommandInfo {
+    fn dynamic_info(&self, _gridview: &mut GridView) -> DynamicCommandInfo {
         let grid = Grid::rectangle(self.dimensions.y as usize, self.dimensions.x as usize);
 
         DynamicCommandInfo {
             shape: grid,
             input_locations: vec![],
+            trusted: self.trusted,
         }
     }
 
@@ -93,10 +99,6 @@ impl Command for Create {
             self.dimensions,
         ));
         gridview.tick();
-    }
-
-    fn trust_placement(&self) -> bool {
-        self.trusted
     }
 }
 
@@ -117,10 +119,11 @@ impl Flush {
 }
 
 impl Command for Flush {
-    fn dynamic_info(&self, _gridview: &GridView) -> DynamicCommandInfo {
+    fn dynamic_info(&self, _gridview: &mut GridView) -> DynamicCommandInfo {
         DynamicCommandInfo {
             shape: Grid::rectangle(0, 0),
             input_locations: vec![],
+            trusted: false,
         }
     }
 
@@ -164,12 +167,13 @@ impl Command for Move {
         self.outputs.clone()
     }
 
-    fn dynamic_info(&self, gridview: &GridView) -> DynamicCommandInfo {
+    fn dynamic_info(&self, gridview: &mut GridView) -> DynamicCommandInfo {
         let old_id = self.inputs[0];
         let dim = gridview.snapshot().droplets[&old_id].dimensions;
         DynamicCommandInfo {
             shape: Grid::rectangle(dim.y as usize, dim.x as usize),
             input_locations: vec![self.destination[0]],
+            trusted: true,
         }
     }
 
@@ -181,10 +185,6 @@ impl Command for Move {
         d.id = new_id;
         gridview.insert(d);
         gridview.tick()
-    }
-
-    fn trust_placement(&self) -> bool {
-        true
     }
 }
 
@@ -229,38 +229,39 @@ impl Command for Mix {
         }
     }
 
-    fn dynamic_info(&self, gridview: &GridView) -> DynamicCommandInfo {
-        let droplets = &gridview.snapshot().droplets;
+    fn dynamic_info(&self, gridview: &mut GridView) -> DynamicCommandInfo {
+        let droplets = &mut gridview.snapshot_mut().droplets;
 
-        // define the grid shape now based on the droplets in the *predicted* gridview
-        let (grid, input_locations) = {
-            let d0 = droplets.get(&self.inputs[0]).unwrap();
-            let d1 = droplets.get(&self.inputs[1]).unwrap();
-            let y_dim = (d0.dimensions.y.max(d1.dimensions.y) as usize) + MIX_PADDING;
-            let x_dim = (d0.dimensions.x as usize) + (d1.dimensions.x as usize) + MIX_PADDING;
+        let id0 = &self.inputs[0];
+        let id1 = &self.inputs[1];
 
-            let start_d1 = d0.dimensions.x + 1;
+        // set the collision groups to be the same
+        // must scope the mutable borrow
+        {
+            let cg1 = droplets[id1].collision_group;
+            let d0 = droplets.get_mut(id0).unwrap();
+            d0.collision_group = cg1;
+        }
 
-            (
-                Grid::rectangle(y_dim, x_dim),
-                vec![Location { y: 0, x: 0 }, Location { y: 0, x: start_d1 }],
-            )
-        };
+        let d0 = &droplets[id0];
+        let d1 = &droplets[id1];
+
+        let y_dim = (d0.dimensions.y.max(d1.dimensions.y) as usize) + MIX_PADDING;
+        let x_dim = (d0.dimensions.x as usize) + (d1.dimensions.x as usize) + MIX_PADDING;
+
+        let start_d1 = d0.dimensions.x;
 
         DynamicCommandInfo {
-            shape: grid,
-            input_locations: input_locations,
+            shape: Grid::rectangle(y_dim, x_dim),
+            input_locations: vec![Location { y: 0, x: 0 }, Location { y: 0, x: start_d1 }],
+            trusted: false,
         }
     }
 
-    fn run(&self, gridview: &mut GridSubView) {
+    fn pre_run(&self, gridview: &mut GridSubView) {
         let in0 = self.inputs[0];
         let in1 = self.inputs[1];
         let out = self.outputs[0];
-
-        // this first set of actions moves d1 into d0 and performs the combine
-        // we cannot tick in between; it would cause a collision
-        gridview.move_west(in1);
 
         let d0 = gridview.remove(&in0);
         let d1 = gridview.remove(&in1);
@@ -274,8 +275,11 @@ impl Command for Mix {
         assert_eq!(d0.location.y, d1.location.y);
         assert_eq!(d0.location.x + d0.dimensions.x, d1.location.x);
         gridview.insert(Droplet::new(out, vol, d0.location, dim));
+    }
 
-        gridview.tick();
+    fn run(&self, gridview: &mut GridSubView) {
+        let out = self.outputs[0];
+
         gridview.move_south(out);
         gridview.tick();
         gridview.move_east(out);
@@ -330,7 +334,7 @@ impl Command for Split {
         }
     }
 
-    fn dynamic_info(&self, gridview: &GridView) -> DynamicCommandInfo {
+    fn dynamic_info(&self, gridview: &mut GridView) -> DynamicCommandInfo {
         let droplets = &gridview.snapshot().droplets;
         let d0 = droplets.get(&self.inputs[0]).unwrap();
         // we only split in the x right now, so we don't need y padding
@@ -343,6 +347,7 @@ impl Command for Split {
         DynamicCommandInfo {
             shape: grid,
             input_locations: input_locations,
+            trusted: false,
         }
     }
 
@@ -409,7 +414,7 @@ impl Command for Heat {
         self.outputs.clone()
     }
 
-    fn dynamic_info(&self, gridview: &GridView) -> DynamicCommandInfo {
+    fn dynamic_info(&self, gridview: &mut GridView) -> DynamicCommandInfo {
         let droplets = &gridview.snapshot().droplets;
         let d = droplets.get(&self.inputs[0]).unwrap();
         // we only split in the x right now, so we don't need y padding
@@ -434,6 +439,7 @@ impl Command for Heat {
         DynamicCommandInfo {
             shape: grid,
             input_locations: input_locations,
+            trusted: false,
         }
     }
 

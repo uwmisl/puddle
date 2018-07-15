@@ -347,7 +347,7 @@ impl GridView {
         self.planned.back().unwrap().droplet_info(pid_option)
     }
 
-    pub fn take_paths(&mut self, paths: &Map<DropletId, Path>) {
+    pub fn take_paths(&mut self, paths: &Map<DropletId, Path>, final_tick: bool) {
         let max_len = paths.values().map(|path| path.len()).max().unwrap_or(0);
 
         // make sure that all droplets start where they are at this time step
@@ -366,7 +366,10 @@ impl GridView {
                     });
                 }
             }
-            self.tick();
+
+            if i < max_len - 1 || final_tick {
+                self.tick();
+            }
         }
     }
 
@@ -588,7 +591,6 @@ pub mod tests {
         let mut gv = parse_gridview(strs);
         gv.planned.remove(0).unwrap()
     }
-
 
     fn check_all_matched(
         snapshot_strs: &[&str],

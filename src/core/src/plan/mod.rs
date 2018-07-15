@@ -4,7 +4,7 @@ mod route;
 
 pub use self::route::Path;
 
-use command::Command;
+use command::{Command, DynamicCommandInfo};
 use grid::{Droplet, GridView, Location};
 use util::collections::Map;
 
@@ -22,7 +22,6 @@ pub type Placement = Map<Location, Location>;
 impl GridView {
     pub fn plan(&mut self, cmd: Box<dyn Command>) -> Result<(), PlanError> {
         info!("Planning {:?}", cmd);
-        debug!("placing (trusted = {}) {:?}", cmd.trust_placement(), cmd);
 
         // make sure there's a snapshot available to plan into
         self.snapshot_ensure();
@@ -32,10 +31,11 @@ impl GridView {
         }
 
         let in_ids = cmd.input_droplets();
-        let (shape, in_locs) = {
-            let command_info = cmd.dynamic_info(&self);
-            (command_info.shape, command_info.input_locations)
-        };
+        let DynamicCommandInfo {
+            shape,
+            input_locations,
+            trusted,
+        } = cmd.dynamic_info(self);
 
         debug!(
             "Command requests a shape of w={w},h={h}",
@@ -51,7 +51,7 @@ impl GridView {
                 .collect::<Vec<_>>()
         );
 
-        let placement = if cmd.trust_placement() {
+        let placement = if trusted {
             // if we are trusting placement, just use an identity map
             self.grid
                 .locations()
@@ -66,9 +66,9 @@ impl GridView {
 
         debug!("placement for {:?}: {:?}", cmd, placement);
 
-        assert_eq!(in_locs.len(), in_ids.len());
+        assert_eq!(input_locations.len(), in_ids.len());
 
-        for (loc, id) in in_locs.iter().zip(&in_ids) {
+        for (loc, id) in input_locations.iter().zip(&in_ids) {
             // this should have been put to none last time
             let droplet = self.snapshot_mut()
                 .droplets
@@ -94,10 +94,22 @@ impl GridView {
         debug!("route for {:?}: {:?}", cmd, paths);
 
         trace!("Taking paths...");
-        self.take_paths(&paths);
+        // FIXME final tick is a hack
+        // we *carefully* pre-run the command before making the final tick
+        let final_tick = false;
+        self.take_paths(&paths, final_tick);
 
-        trace!("Running command {:?}", cmd);
-        cmd.run(&mut self.subview(in_ids.iter().cloned(), placement));
+        {
+            let mut subview = self.subview(in_ids.iter().cloned(), placement.clone());
+
+            trace!("Pre-Running command {:?}", cmd);
+            cmd.pre_run(&mut subview);
+            subview.tick();
+
+            trace!("Running command {:?}", cmd);
+            cmd.run(&mut subview);
+        }
+
         self.register(cmd);
 
         // teardown destinations if the droplets are still there
