@@ -31,7 +31,12 @@ fn main() -> Result<(), Box<Error>> {
             SubCommand::with_name("pwm")
                 .arg(Arg::with_name("channel").takes_value(true).required(true))
                 .arg(Arg::with_name("duty").takes_value(true).required(true))
-                .arg(Arg::with_name("freq").takes_value(true).required(true)),
+                .arg(Arg::with_name("freq").takes_value(true).required(true))
+                .arg(
+                    Arg::with_name("duration")
+                        .takes_value(true)
+                        .default_value("1.0"),
+                ),
         )
         .subcommand(
             SubCommand::with_name("pi-pwm")
@@ -97,8 +102,10 @@ fn main() -> Result<(), Box<Error>> {
             let channel = m.value_of("channel").unwrap().parse()?;
             let duty = m.value_of("duty").unwrap().parse()?;
             let freq = m.value_of("freq").unwrap().parse()?;
+            let seconds = m.value_of("duration").unwrap().parse()?;
             pi.pca9685.set_pwm_freq(freq)?;
             pi.pca9685.set_duty_cycle(channel, duty)?;
+            thread::sleep(seconds_duration(seconds));
             Ok(())
         }
         ("pi-pwm", Some(m)) => {

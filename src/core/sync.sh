@@ -18,3 +18,6 @@ $rsync target/armv7-unknown-linux-gnueabihf/debug/{vision-test,puddle-server,pi-
 # sync the python
 $rsync ../python/puddle.py $pi:puddle/src/python/
 $rsync ../python/examples/*.py $pi:puddle/src/python/examples/
+
+# sync the boards
+$rsync ../../tests/arches/*.json $pi:puddle/tests/arches/

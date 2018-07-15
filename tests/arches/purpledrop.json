@@ -20,18 +20,8 @@
     "peripherals": {
         "14, 0": {
             "type": "Heater",
-            "pwm_channel": 0,
+            "pwm_channel": 9,
             "spi_channel": 0
-        },
-        "14, 5": {
-            "type": "Heater",
-            "pwm_channel": 1,
-            "spi_channel": 1
-        },
-        "14, 10": {
-            "type": "Heater",
-            "pwm_channel": 2,
-            "spi_channel": 2
         },
         "4, 10": {
             "type": "Input"

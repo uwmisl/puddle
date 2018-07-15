@@ -242,6 +242,12 @@ impl RaspberryPi {
             pid.i_gain = 1.0;
             pid.d_gain = 1.0;
 
+            use std::env;
+
+            pid.p_gain = env::var("PID_P").unwrap_or("1.0".into()).parse().unwrap();
+            pid.i_gain = env::var("PID_I").unwrap_or("1.0".into()).parse().unwrap();
+            pid.d_gain = env::var("PID_D").unwrap_or("1.0".into()).parse().unwrap();
+
             pid.i_min = 0.0;
             pid.i_max = pca9685::DUTY_CYCLE_MAX as f64;
 
@@ -265,27 +271,28 @@ impl RaspberryPi {
                     break;
                 }
 
-                let measured = self.max31865.read_temperature()? as f64;
+                let measured = self.max31865.read_one_temperature()? as f64;
                 let dt = timer.lap();
+                let mut duty_cycle = pid.update(measured, &dt);
 
                 debug!(
-                    "Heating to {}*C... iteration: {}, measured: {}*C",
-                    target_temperature, iteration, measured
+                    "Heating to {}*C... iteration: {}, measured: {}*C, duty_cycle: {}",
+                    target_temperature, iteration, measured, duty_cycle
                 );
 
                 if measured - target_temperature > epsilon {
                     self.pca9685.set_duty_cycle(pwm_channel, 0)?;
-                    panic!(
+                    warn!(
                         "We overshot the target temperature. Wanted {}, got {}",
                         target_temperature, measured
                     );
+                    duty_cycle = 0.0;
                 }
 
                 if target_temperature - measured > epsilon {
                     in_range_start = Some(Instant::now())
                 }
 
-                let duty_cycle = pid.update(measured, &dt);
                 assert!(0.0 <= duty_cycle);
                 assert!(duty_cycle <= pca9685::DUTY_CYCLE_MAX as f64);
                 self.pca9685.set_duty_cycle(pwm_channel, duty_cycle as u16)?;
