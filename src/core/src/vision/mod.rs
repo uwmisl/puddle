@@ -356,9 +356,9 @@ mod tests {
             assert_eq!(n_pts, 15);
             for pt in pts {
                 assert!(y0 <= pt.y);
-                assert!(pt.y <= y1);
+                assert!(pt[0] <= y1);
                 assert!(x0 <= pt.x);
-                assert!(pt.x <= x1);
+                assert!(pt[1] <= x1);
             }
         }
         {
@@ -368,9 +368,9 @@ mod tests {
             assert_eq!(n_pts, 28);
             for pt in pts {
                 assert!(y0 <= pt.y);
-                assert!(pt.y <= y1);
+                assert!(pt[0] <= y1);
                 assert!(x0 <= pt.x);
-                assert!(pt.x <= x1);
+                assert!(pt[1] <= x1);
             }
         }
     }
