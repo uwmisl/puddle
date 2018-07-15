@@ -236,74 +236,76 @@ impl RaspberryPi {
     ) -> Result<()> {
         // FIXME: for now, this simply blocks
 
-        if let Peripheral::Heater { pwm_channel, .. } = *heater {
-            let mut pid = PidController::default();
-            pid.p_gain = 1.0;
-            pid.i_gain = 1.0;
-            pid.d_gain = 1.0;
+        let pwm_channel = if let Peripheral::Heater { pwm_channel, .. } = heater {
+            *pwm_channel
+        } else {
+            panic!("Peripheral wasn't a heater!: {:#?}", heater)
+        };
 
-            use std::env;
+        let mut pid = PidController::default();
+        pid.p_gain = 1.0;
+        pid.i_gain = 1.0;
+        pid.d_gain = 1.0;
 
-            pid.p_gain = env::var("PID_P").unwrap_or("1.0".into()).parse().unwrap();
-            pid.i_gain = env::var("PID_I").unwrap_or("1.0".into()).parse().unwrap();
-            pid.d_gain = env::var("PID_D").unwrap_or("1.0".into()).parse().unwrap();
+        use std::env;
 
-            pid.i_min = 0.0;
-            pid.i_max = pca9685::DUTY_CYCLE_MAX as f64;
+        pid.p_gain = env::var("PID_P").unwrap_or("1.0".into()).parse().unwrap();
+        pid.i_gain = env::var("PID_I").unwrap_or("1.0".into()).parse().unwrap();
+        pid.d_gain = env::var("PID_D").unwrap_or("1.0".into()).parse().unwrap();
 
-            pid.out_min = 0.0;
-            pid.out_max = pca9685::DUTY_CYCLE_MAX as f64;
+        pid.i_min = 0.0;
+        pid.i_max = pca9685::DUTY_CYCLE_MAX as f64;
 
-            pid.target = target_temperature;
+        pid.out_min = 0.0;
+        pid.out_max = pca9685::DUTY_CYCLE_MAX as f64;
 
-            let epsilon = 2.0; // degrees C
-            let extra_delay = Duration::from_millis(20);
+        pid.target = target_temperature;
 
-            let mut timer = Timer::new();
-            let mut in_range_start: Option<Instant> = None;
+        let epsilon = 2.0; // degrees C
+        let extra_delay = Duration::from_millis(20);
 
-            for iteration in 0.. {
-                // stop if we've been in the desired temperature range for long enough
-                if in_range_start
-                    .map(|t| t.elapsed() > duration)
-                    .unwrap_or(false)
-                {
-                    break;
-                }
+        let mut timer = Timer::new();
+        let mut in_range_start: Option<Instant> = None;
 
-                let measured = self.max31865.read_one_temperature()? as f64;
-                let dt = timer.lap();
-                let mut duty_cycle = pid.update(measured, &dt);
-
-                debug!(
-                    "Heating to {}*C... iteration: {}, measured: {}*C, duty_cycle: {}",
-                    target_temperature, iteration, measured, duty_cycle
-                );
-
-                if measured - target_temperature > epsilon {
-                    self.pca9685.set_duty_cycle(pwm_channel, 0)?;
-                    warn!(
-                        "We overshot the target temperature. Wanted {}, got {}",
-                        target_temperature, measured
-                    );
-                    duty_cycle = 0.0;
-                }
-
-                if target_temperature - measured > epsilon {
-                    in_range_start = Some(Instant::now())
-                }
-
-                assert!(0.0 <= duty_cycle);
-                assert!(duty_cycle <= pca9685::DUTY_CYCLE_MAX as f64);
-                self.pca9685.set_duty_cycle(pwm_channel, duty_cycle as u16)?;
-
-                thread::sleep(extra_delay);
+        for iteration in 0.. {
+            // stop if we've been in the desired temperature range for long enough
+            if in_range_start
+                .map(|t| t.elapsed() > duration)
+                .unwrap_or(false)
+            {
+                break;
             }
 
-            self.pca9685.set_duty_cycle(pwm_channel, 0)?;
-        } else {
-            panic!("Not a temperature sensor!: {:#?}")
-        };
+            let measured = self.max31865.read_one_temperature()? as f64;
+            let dt = timer.lap();
+            let mut duty_cycle = pid.update(measured, &dt);
+
+            debug!(
+                "Heating to {}*C... iteration: {}, measured: {}*C, duty_cycle: {}",
+                target_temperature, iteration, measured, duty_cycle
+            );
+
+            if measured - target_temperature > epsilon {
+                self.pca9685.set_duty_cycle(pwm_channel, 0)?;
+                warn!(
+                    "We overshot the target temperature. Wanted {}, got {}",
+                    target_temperature, measured
+                );
+                duty_cycle = 0.0;
+            }
+
+            if target_temperature - measured > epsilon {
+                in_range_start = Some(Instant::now())
+            }
+
+            assert!(0.0 <= duty_cycle);
+            assert!(duty_cycle <= pca9685::DUTY_CYCLE_MAX as f64);
+            self.pca9685.set_duty_cycle(pwm_channel, duty_cycle as u16)?;
+
+            thread::sleep(extra_delay);
+        }
+
+        self.pca9685.set_duty_cycle(pwm_channel, 0)?;
 
         Ok(())
     }
