@@ -212,7 +212,9 @@ impl PolygonBlob {
         let mut e1 = self.polygon.points().iter().cycle();
         e1.next();
 
-        let area: f32 = e0.zip(e1).map(|(p0, p1)| p0[0] * p1[1] - p0[1] * p1[0]).sum();
+        let area: f32 = e0.zip(e1)
+            .map(|(p0, p1)| p0[0] * p1[1] - p0[1] * p1[0])
+            .sum();
         area.abs() / 2.0
     }
 }
@@ -389,7 +391,7 @@ mod tests {
     }
 
     fn blob_from_pts(pts: &[(f32, f32)]) -> PolygonBlob {
-        let points: Vec<Point> = pts.iter().map(|(y,x)| Point::new(*y,*x)).collect();
+        let points: Vec<Point> = pts.iter().map(|(y, x)| Point::new(*y, *x)).collect();
         let polygon = ConvexPolygon::try_from_points(&points).unwrap();
         PolygonBlob { polygon }
     }
@@ -397,12 +399,7 @@ mod tests {
     fn droplet_from_corners(mins: (f32, f32), maxs: (f32, f32)) -> Droplet {
         let (y0, x0) = mins;
         let (y1, x1) = maxs;
-        let blob = blob_from_pts(&vec![
-            (y0, x0),
-            (y1, x0),
-            (y1, x1),
-            (y0, x1),
-        ]);
+        let blob = blob_from_pts(&vec![(y0, x0), (y1, x0), (y1, x1), (y0, x1)]);
         blob.to_droplet(DropletId {
             id: 0,
             process_id: 0,
@@ -424,12 +421,7 @@ mod tests {
 
     #[test]
     fn test_polygon_area() {
-        let square_blob = blob_from_pts(&vec![
-            (0.0, 1.0),
-            (0.0, 0.0),
-            (1.0, 0.0),
-            (1.0, 1.0),
-        ]);
+        let square_blob = blob_from_pts(&vec![(0.0, 1.0), (0.0, 0.0), (1.0, 0.0), (1.0, 1.0)]);
         assert_eq!(square_blob.area(), 1.0);
 
         let penta_blob = blob_from_pts(&vec![
