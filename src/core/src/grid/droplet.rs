@@ -56,47 +56,30 @@ impl Droplet {
         }
     }
 
-    fn corners(&self) -> [Location; 4] {
-        [
-            self.location,
-            // subtract one, because the unit square is account for by
-            // min_distance_to_box
-            &self.location + &Location {
-                y: self.dimensions.y - 1,
-                x: 0,
-            },
-            &self.location + &Location {
-                y: 0,
-                x: self.dimensions.x - 1,
-            },
-            &self.location + &Location {
-                y: self.dimensions.y - 1,
-                x: self.dimensions.x - 1,
-            },
-        ]
+    fn top_edge(&self) -> i32 {
+        self.location.y
+    }
+    fn bottom_edge(&self) -> i32 {
+        self.location.y + self.dimensions.y
+    }
+    fn left_edge(&self) -> i32 {
+        self.location.x
+    }
+    fn right_edge(&self) -> i32 {
+        self.location.x + self.dimensions.x
     }
 
     pub fn collision_distance(&self, other: &Droplet) -> i32 {
-        let my_corners = self.corners();
-        let their_corners = other.corners();
+        let y_dist = signed_min(
+            self.bottom_edge() - other.top_edge(),
+            self.top_edge() - other.bottom_edge(),
+        );
+        let x_dist = signed_min(
+            self.right_edge() - other.left_edge(),
+            self.left_edge() - other.right_edge(),
+        );
 
-        let d1 = my_corners
-            .iter()
-            .map(|mine| mine.min_distance_to_box(their_corners[0], their_corners[3]))
-            .min()
-            .unwrap();
-
-        if d1 < 0 {
-            return d1;
-        }
-
-        let d2 = their_corners
-            .iter()
-            .map(|theirs| theirs.min_distance_to_box(my_corners[0], my_corners[3]))
-            .min()
-            .unwrap();
-
-        d1.min(d2)
+        return y_dist.max(x_dist);
     }
 
     pub fn info(&self) -> DropletInfo {
@@ -113,6 +96,36 @@ impl Droplet {
             location: self.location,
             dimensions: self.dimensions,
             volume: self.volume,
+        }
+    }
+}
+
+fn signed_min(a: i32, b: i32) -> i32 {
+    let res = if (a < 0) == (b < 0) {
+        i32::min(a.abs(), b.abs())
+    } else {
+        -i32::min(a.abs(), b.abs())
+    };
+    trace!("signed min({}, {}) = {}", a, b, res);
+    res
+}
+
+impl Default for Droplet {
+    fn default() -> Self {
+        // for locations, just use something bad that will crash if not replaced
+        let bad_loc = Location { y: -1, x: -1 };
+        let bad_id = DropletId {
+            id: 0xc0ffee,
+            process_id: 0xc0ffee,
+        };
+        Droplet {
+            id: bad_id,
+            location: bad_loc,
+            dimensions: bad_loc,
+            pinned: false,
+            volume: 1.0,
+            destination: None,
+            collision_group: NEXT_COLLISION_GROUP.fetch_add(1, Relaxed),
         }
     }
 }
@@ -185,6 +198,8 @@ impl Blob for SimpleBlob {
 pub mod tests {
     use super::{Droplet, DropletId, Location};
 
+    use env_logger;
+
     #[test]
     #[should_panic]
     fn test_invalid_dimensions() {
@@ -197,5 +212,30 @@ pub mod tests {
             Location { y: 0, x: 0 },
             Location { y: 0, x: 0 },
         );
+    }
+
+    fn droplet_with_shape(loc: (i32, i32), dim: (i32, i32)) -> Droplet {
+        Droplet {
+            location: Location { y: loc.0, x: loc.1 },
+            dimensions: Location { y: dim.0, x: dim.1 },
+            ..Droplet::default()
+        }
+    }
+
+    #[test]
+    fn test_collision_distance() {
+        let _ = env_logger::try_init();
+
+        let a = droplet_with_shape((0, 2), (1, 1));
+        let b = droplet_with_shape((2, 0), (1, 1));
+        assert_eq!(a.collision_distance(&b), 1);
+
+        let a = droplet_with_shape((0, 0), (3, 1));
+        let b = droplet_with_shape((4, 0), (1, 1));
+        assert_eq!(a.collision_distance(&b), 1);
+
+        let a = droplet_with_shape((2, 7), (3, 1));
+        let b = droplet_with_shape((0, 8), (3, 1));
+        assert_eq!(a.collision_distance(&b), 0);
     }
 }

@@ -1,4 +1,4 @@
-mod droplet;
+pub mod droplet;
 pub mod grid;
 pub mod gridview;
 mod location;

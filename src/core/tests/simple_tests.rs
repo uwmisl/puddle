@@ -202,13 +202,13 @@ fn check_mix_dimensions(dim1: Location, dim2: Location, dim_result: Location) {
 fn mix_dimensions_size() {
     check_mix_dimensions(
         Location { y: 1, x: 1 },
-        Location { y: 1, x: 2 },
-        Location { y: 1, x: 3 },
+        Location { y: 2, x: 1 },
+        Location { y: 3, x: 1 },
     );
     check_mix_dimensions(
-        Location { y: 2, x: 1 },
         Location { y: 1, x: 2 },
-        Location { y: 2, x: 3 },
+        Location { y: 2, x: 1 },
+        Location { y: 3, x: 2 },
     );
 }
 
@@ -334,4 +334,28 @@ fn heat_droplet() {
 
     assert_eq!(droplets.len(), 1);
     assert_eq!(droplets[&id1].location, header_loc);
+}
+
+#[test]
+fn combine_into() {
+    let man = manager_from_rect(10, 10);
+    let p = man.get_new_process("test");
+
+    let loc_a = Location { y: 2, x: 0 };
+    let a = p.create(Some(loc_a), 1.0, None).unwrap();
+    let loc_b = Location { y: 2, x: 9 };
+    let b = p.create(Some(loc_b), 1.0, None).unwrap();
+
+    let loc_c = Location { y: 9, x: 0 };
+    let c = p.create(Some(loc_c), 1.0, None).unwrap();
+    let loc_d = Location { y: 9, x: 9 };
+    let d = p.create(Some(loc_d), 1.0, None).unwrap();
+
+    let ab = p.combine_into(a, b).unwrap();
+    let cd = p.combine_into(d, c).unwrap();
+
+    let droplets = info_dict(&p);
+    let y1 = &Location { y: 1, x: 0 };
+    assert_eq!(droplets[&ab].location, &loc_a - y1);
+    assert_eq!(droplets[&cd].location, &loc_d - y1);
 }

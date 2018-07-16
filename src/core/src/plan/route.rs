@@ -28,6 +28,14 @@ fn build_path(mut came_from: Map<Node, Node>, end_node: Node) -> Path {
 struct Node {
     collision_group: usize,
     location: Location,
+    dimensions: Location,
+    time: Time,
+}
+
+#[derive(Debug)]
+struct SuperNode {
+    collision_groups: Set<usize>,
+    location: Location,
     time: Time,
 }
 
@@ -39,8 +47,8 @@ const STAY_COST: Cost = 1;
 #[derive(Default)]
 struct AvoidanceSet {
     max_time: Time,
-    present: Map<(Location, Time), Node>,
-    finals: Map<Location, Node>,
+    present: Map<(Location, Time), SuperNode>,
+    finals: Map<Location, SuperNode>,
 }
 
 #[derive(PartialEq)]
@@ -57,20 +65,45 @@ impl AvoidanceSet {
     fn collides(&self, node: &Node) -> Option<Collision> {
         // if not present, no collision
         use self::Collision::*;
-        self.present.get(&(node.location, node.time)).map(|n| {
-            if n.collision_group == node.collision_group {
-                SameGroup
-            } else {
-                DifferentGroup
+        let mut collision = None;
+
+        for y in 0..node.dimensions.y {
+            for x in 0..node.dimensions.x {
+                let loc = &node.location + &Location { y, x };
+                if let Some(sn) = self.present.get(&(loc, node.time)) {
+                    if sn.collision_groups.contains(&node.collision_group)
+                        && sn.collision_groups.len() == 1
+                    {
+                        collision = Some(SameGroup);
+                    } else {
+                        return Some(DifferentGroup);
+                    }
+                };
             }
-        })
+        }
+
+        collision
     }
 
     fn collides_with_final(&self, node: &Node) -> bool {
-        self.finals
-            .get(&node.location)
-            .filter(|n| n.collision_group != node.collision_group)
-            .map_or(false, |&fin| node.time >= fin.time)
+        for y in 0..node.dimensions.y {
+            for x in 0..node.dimensions.x {
+                let loc = &node.location + &Location { y, x };
+                let collides = self.finals
+                    .get(&loc)
+                    .filter(|sn| {
+                        sn.collision_groups
+                            .iter()
+                            .any(|&cg| cg != node.collision_group)
+                    })
+                    .map_or(false, |fin| node.time >= fin.time);
+                if collides {
+                    return true;
+                }
+            }
+        }
+
+        false
     }
 
     fn would_finally_collide(&self, node: &Node) -> bool {
@@ -86,45 +119,56 @@ impl AvoidanceSet {
             time: i as Time,
             collision_group: droplet.collision_group,
             location: loc,
+            dimensions: droplet.dimensions,
         });
         for node in node_path {
-            self.avoid_node(grid, node, droplet);
+            self.avoid_node(grid, node);
         }
 
         // Add last element to finals
         let last = path.len() - 1;
         for loc in grid.neighbors_dimensions(&path[last], &droplet.dimensions) {
-            let earliest_time = self.finals
-                .get(&loc)
-                .map_or(last as Time, |&prev| prev.time.min(last as Time));
-            self.finals.insert(
-                loc,
-                Node {
-                    time: earliest_time,
-                    collision_group: droplet.collision_group,
-                    location: loc,
-                },
-            );
+            self.finals
+                .entry(loc)
+                .and_modify(|sn| {
+                    sn.collision_groups.insert(droplet.collision_group);
+                    sn.time = sn.time.min(last as Time)
+                })
+                .or_insert_with(|| {
+                    let mut cgs = Set::new();
+                    cgs.insert(droplet.collision_group);
+                    SuperNode {
+                        collision_groups: cgs,
+                        location: loc,
+                        time: last as Time,
+                    }
+                });
         }
 
         self.max_time = self.max_time.max(last as Time)
     }
 
-    fn avoid_node(&mut self, grid: &Grid, node: Node, droplet: &Droplet) {
-        for loc in grid.neighbors_dimensions(&node.location, &droplet.dimensions) {
+    fn avoid_node(&mut self, grid: &Grid, node: Node) {
+        for loc in grid.neighbors_dimensions(&node.location, &node.dimensions) {
             for t in -1..2 {
                 let time = (node.time as i32) + t;
                 if time < 0 {
                     continue;
                 }
-                self.present.insert(
-                    (loc, time as Time),
-                    Node {
-                        location: loc,
-                        collision_group: droplet.collision_group,
-                        time: time as Time,
-                    },
-                );
+                self.present
+                    .entry((loc, time as Time))
+                    .and_modify(|sn| {
+                        sn.collision_groups.insert(node.collision_group);
+                    })
+                    .or_insert_with(|| {
+                        let mut cgs = Set::new();
+                        cgs.insert(node.collision_group);
+                        SuperNode {
+                            collision_groups: cgs,
+                            location: loc,
+                            time: time as Time,
+                        }
+                    });
             }
         }
     }
@@ -144,6 +188,7 @@ impl Node {
                         location,
                         collision_group: self.collision_group,
                         time: self.time + 1,
+                        dimensions: self.dimensions,
                     },
                 )
             })
@@ -155,6 +200,7 @@ impl Node {
                 location: self.location,
                 collision_group: self.collision_group,
                 time: self.time + 1,
+                dimensions: self.dimensions,
             },
         ));
 
@@ -168,6 +214,7 @@ impl Node {
                 location: self.location,
                 collision_group: self.collision_group,
                 time: self.time + 1,
+                dimensions: self.dimensions,
             },
         )]
     }
@@ -201,8 +248,19 @@ fn route_many(
     let mut paths = Map::new();
     let mut max_t = 0;
 
+    debug!(
+        "Routing droplets in this order: {:?}",
+        droplets.iter().map(|(id, _)| id.id).collect::<Vec<_>>()
+    );
+
     for &(&id, droplet) in droplets.iter() {
         // route a single droplet
+
+        trace!(
+            "Avoidance set before droplet {:#?}: {:#?}",
+            droplet,
+            av_set.finals
+        );
         let result = {
             let max_time = num_cells as Time + max_t;
 
@@ -269,6 +327,7 @@ where
     let start_node = Node {
         location: droplet.location,
         collision_group: droplet.collision_group,
+        dimensions: droplet.dimensions,
         time: 0,
     };
     todo.push(0, start_node);

@@ -105,6 +105,13 @@ impl Process {
         Ok(output)
     }
 
+    pub fn combine_into(&self, d1: DropletId, d2: DropletId) -> PuddleResult<DropletId> {
+        let output = self.new_droplet_id();
+        let mix_cmd = command::Mix::combine_into(d1, d2, output)?;
+        self.plan(Box::new(mix_cmd))?;
+        Ok(output)
+    }
+
     pub fn split(&self, d: DropletId) -> PuddleResult<(DropletId, DropletId)> {
         let out1 = self.new_droplet_id();
         let out2 = self.new_droplet_id();

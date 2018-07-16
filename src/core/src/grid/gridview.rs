@@ -83,7 +83,7 @@ impl Snapshot {
     }
 
     /// Returns an invalid droplet, if any.
-    fn get_collision(&self) -> Option<(Droplet, Droplet)> {
+    fn get_collision(&self) -> Option<(i32, Droplet, Droplet)> {
         for (id1, droplet1) in &self.droplets {
             for (id2, droplet2) in &self.droplets {
                 if id1 == id2 {
@@ -92,8 +92,9 @@ impl Snapshot {
                 if droplet1.collision_group == droplet2.collision_group {
                     continue;
                 }
-                if droplet1.collision_distance(droplet2) <= 0 {
-                    return Some((droplet1.clone(), droplet2.clone()));
+                let distance = droplet1.collision_distance(droplet2);
+                if distance <= 0 {
+                    return Some((distance, droplet1.clone(), droplet2.clone()));
                 }
             }
         }

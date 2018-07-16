@@ -64,7 +64,7 @@ impl GridView {
                 .ok_or(PlanError::PlaceError)?
         };
 
-        debug!("placement for {:?}: {:?}", cmd, placement);
+        debug!("placement for {:#?}: {:#?}", cmd, placement);
 
         assert_eq!(input_locations.len(), in_ids.len());
 
@@ -91,7 +91,7 @@ impl GridView {
                 })
             }
         };
-        debug!("route for {:?}: {:?}", cmd, paths);
+        debug!("route for {:#?}: {:#?}", cmd, paths);
 
         trace!("Taking paths...");
         // FIXME final tick is a hack

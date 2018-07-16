@@ -69,6 +69,14 @@ build_rpc_trait! {
             DropletId
         ) -> PuddleResult<DropletId>;
 
+        #[rpc(name = "combine_into")]
+        fn combine_into(
+            &self,
+            ProcessId,
+            DropletId,
+            DropletId
+        ) -> PuddleResult<DropletId>;
+
         #[rpc(name = "split")]
         fn split(
             &self,
@@ -144,6 +152,16 @@ impl Rpc for Arc<Manager> {
     fn mix(&self, pid: ProcessId, d1: DropletId, d2: DropletId) -> PuddleResult<DropletId> {
         let p = self.get_process(pid)?;
         p.mix(d1, d2)
+    }
+
+    fn combine_into(
+        &self,
+        pid: ProcessId,
+        d1: DropletId,
+        d2: DropletId,
+    ) -> PuddleResult<DropletId> {
+        let p = self.get_process(pid)?;
+        p.combine_into(d1, d2)
     }
 
     fn split(&self, pid: ProcessId, d: DropletId) -> PuddleResult<(DropletId, DropletId)> {

@@ -3,7 +3,10 @@ use std::fmt;
 use std::sync::mpsc::Sender;
 use std::time::Duration;
 
-use grid::{Droplet, DropletId, DropletInfo, Grid, Location, Peripheral, Snapshot};
+use grid::{
+    droplet::{Blob, SimpleBlob}, Droplet, DropletId, DropletInfo, Grid, Location, Peripheral,
+    Snapshot,
+};
 
 use process::{ProcessId, PuddleResult};
 
@@ -196,6 +199,8 @@ impl Command for Move {
 pub struct Mix {
     inputs: Vec<DropletId>,
     outputs: Vec<DropletId>,
+    pin_d0: bool,
+    n_agitation_loops: u32,
 }
 
 impl Mix {
@@ -203,7 +208,38 @@ impl Mix {
         Ok(Mix {
             inputs: vec![id1, id2],
             outputs: vec![out_id],
+            pin_d0: false,
+            n_agitation_loops: 1,
         })
+    }
+
+    // combines the second into the first, pinning the first
+    pub fn combine_into(id1: DropletId, id2: DropletId, out_id: DropletId) -> PuddleResult<Mix> {
+        Ok(Mix {
+            inputs: vec![id1, id2],
+            outputs: vec![out_id],
+            pin_d0: true,
+            n_agitation_loops: 0,
+        })
+    }
+
+    fn combined(&self, d0: &Droplet, d1: &Droplet) -> SimpleBlob {
+        // FIXME this is a hack
+        // right now we only support vertical stacking
+        if self.pin_d0 {
+            assert!(d0.location.y > d1.dimensions.y);
+        }
+        SimpleBlob {
+            location: &d0.location - &Location {
+                y: d1.dimensions.y,
+                x: 0,
+            },
+            dimensions: Location {
+                y: d0.dimensions.y + d1.dimensions.y,
+                x: d0.dimensions.x.max(d1.dimensions.x),
+            },
+            volume: d0.volume + d1.volume,
+        }
     }
 }
 
@@ -241,20 +277,41 @@ impl Command for Mix {
             let cg1 = droplets[id1].collision_group;
             let d0 = droplets.get_mut(id0).unwrap();
             d0.collision_group = cg1;
+
+            if self.pin_d0 {
+                d0.pinned = true;
+            }
         }
 
         let d0 = &droplets[id0];
         let d1 = &droplets[id1];
 
-        let y_dim = (d0.dimensions.y.max(d1.dimensions.y) as usize) + MIX_PADDING;
-        let x_dim = (d0.dimensions.x as usize) + (d1.dimensions.x as usize) + MIX_PADDING;
+        let combined = self.combined(d0, d1);
 
-        let start_d1 = d0.dimensions.x;
-
-        DynamicCommandInfo {
-            shape: Grid::rectangle(y_dim, x_dim),
-            input_locations: vec![Location { y: 0, x: 0 }, Location { y: 0, x: start_d1 }],
-            trusted: false,
+        if self.pin_d0 {
+            DynamicCommandInfo {
+                shape: Grid::rectangle(
+                    combined.dimensions.y as usize,
+                    combined.dimensions.x as usize,
+                ),
+                input_locations: vec![d0.location, combined.location],
+                trusted: true,
+            }
+        } else {
+            DynamicCommandInfo {
+                shape: Grid::rectangle(
+                    combined.dimensions.y as usize + MIX_PADDING,
+                    combined.dimensions.x as usize + MIX_PADDING,
+                ),
+                input_locations: vec![
+                    Location {
+                        y: d1.dimensions.y,
+                        x: 0,
+                    },
+                    Location { y: 0, x: 0 },
+                ],
+                trusted: false,
+            }
         }
     }
 
@@ -265,29 +322,29 @@ impl Command for Mix {
 
         let d0 = gridview.remove(&in0);
         let d1 = gridview.remove(&in1);
-        let vol = d0.volume + d1.volume;
         // TODO right now this only mixes horizontally
         // it should somehow communicate with the Mix command to control the mixed droplets dimensions
-        let dim = Location {
-            y: d0.dimensions.y.max(d1.dimensions.y),
-            x: d0.dimensions.x + d1.dimensions.x,
-        };
-        assert_eq!(d0.location.y, d1.location.y);
-        assert_eq!(d0.location.x + d0.dimensions.x, d1.location.x);
-        gridview.insert(Droplet::new(out, vol, d0.location, dim));
+        let combined = self.combined(&d0, &d1);
+
+        // assert_eq!(d0.location.y, d1.location.y);
+        // assert_eq!(d0.location.x + d0.dimensions.x, d1.location.x);
+        gridview.insert(combined.to_droplet(out));
     }
 
     fn run(&self, gridview: &mut GridSubView) {
         let out = self.outputs[0];
 
-        gridview.move_south(out);
-        gridview.tick();
-        gridview.move_east(out);
-        gridview.tick();
-        gridview.move_north(out);
-        gridview.tick();
-        gridview.move_west(out);
-        gridview.tick();
+        for i in 0..self.n_agitation_loops {
+            debug!("Agitating droplet {:?}, iteration {}", out, i);
+            gridview.move_south(out);
+            gridview.tick();
+            gridview.move_east(out);
+            gridview.tick();
+            gridview.move_north(out);
+            gridview.tick();
+            gridview.move_west(out);
+            gridview.tick();
+        }
     }
 }
 

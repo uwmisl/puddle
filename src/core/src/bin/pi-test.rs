@@ -151,9 +151,7 @@ fn mk_snapshot(location: Location, dimensions: Location) -> (DropletId, Snapshot
         id: id,
         location,
         dimensions,
-        volume: 1.0,
-        destination: None,
-        collision_group: 0,
+        ..Droplet::default()
     };
     info!("Using {:#?}", droplet);
     droplets.insert(id, droplet);
