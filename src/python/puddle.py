@@ -127,6 +127,21 @@ class Session:
         else:
             raise SessionError(resp_json['error'])
 
+    def prelude(self, starting_dict = None):
+        if starting_dict is None:
+            starting_dict = {}
+        else:
+            starting_dict = dict(starting_dict)
+
+        starting_dict['move'] = self.move
+        starting_dict['mix'] = self.mix
+        starting_dict['split'] = self.split
+        starting_dict['create'] = self.create
+        starting_dict['droplets'] = self.droplets
+        starting_dict['_flush'] = self._flush
+
+        return starting_dict
+
     def droplets(self):
         dlist = self._rpc("droplet_info", self.pid)
         return {d['id']['id']: d for d in dlist}
@@ -134,7 +149,7 @@ class Session:
     def _flush(self):
         self._rpc("flush", self.pid)
 
-    def create(self, location, volume, dimensions, **kwargs):
+    def create(self, location, volume=1.0, dimensions=(1,1), **kwargs):
         droplet_class = kwargs.pop('droplet_class', Droplet)
         result_id = self._rpc("create", self.pid, to_location(location) if location else None, volume, to_location(dimensions) if dimensions else None)
         return droplet_class(self, result_id, **kwargs, i_know_what_im_doing=True)

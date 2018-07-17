@@ -2,7 +2,12 @@ from pathlib import Path
 import pytest
 
 
-example_paths = Path('examples').glob('*.py')
+# we have to exclude the interactive examples from testing
+example_paths = [
+    path for path in
+    Path('examples').glob('*.py')
+    if path.name != 'repl.py'
+]
 
 
 @pytest.mark.parametrize('example', example_paths)
