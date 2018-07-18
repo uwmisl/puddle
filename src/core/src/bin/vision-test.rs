@@ -9,7 +9,7 @@ use std::error::Error;
 use std::path::Path;
 use std::sync::Arc;
 
-use puddle_core::vision;
+use puddle_core::{vision, grid::Blob, DropletId};
 
 fn main() -> Result<(), Box<Error>> {
     // enable logging
@@ -43,7 +43,23 @@ fn main() -> Result<(), Box<Error>> {
 
             let mut detector = vision::Detector::from_filename(input, output);
             let should_draw = false;
-            detector.detect(should_draw);
+
+            let (_, blobs) = detector.detect(should_draw);
+
+            let strings: Vec<_> = blobs.iter().map(|blob| {
+                let id = DropletId {id: 0, process_id: 0};
+                let d = blob.to_droplet(id);
+                format!(
+                    "{{ 'location': {{ 'y': {}, 'x': {} }}, 'dimension': {{ 'y': {}, 'x': {} }} }}",
+                    d.location.y,
+                    d.location.x,
+                    d.dimensions.y,
+                    d.dimensions.x
+                )
+            }).collect();
+
+            println!("[{}]", strings.join(",\n"));
+
         }
         _ => {
             println!("Please pick a subcommmand.");
