@@ -5,7 +5,7 @@ use std::process::Command;
 use std::slice;
 use std::sync::{Arc, Mutex};
 
-use grid::{Blob, Droplet, DropletId, Location};
+use grid::{SimpleBlob, Blob, Droplet, DropletId, Location};
 
 mod transform;
 use self::transform::GridTransformer;
@@ -245,7 +245,7 @@ impl Blob for PolygonBlob {
         BASE_DISTANCE - n_pts_in_shape as i32
     }
 
-    fn to_droplet(&self, id: DropletId) -> Droplet {
+    fn to_simple_blob(&self) -> SimpleBlob {
         let ident = Isometry2::identity();
         let bbox: AABB<f32> = self.polygon.bounding_volume(&ident);
         let loc_point = bbox.mins();
@@ -261,7 +261,7 @@ impl Blob for PolygonBlob {
         };
         let volume = self.area().into();
 
-        Droplet::new(id, volume, location, dimensions)
+        SimpleBlob {location, dimensions, volume}
     }
 }
 

@@ -9,7 +9,7 @@ use std::error::Error;
 use std::path::Path;
 use std::sync::Arc;
 
-use puddle_core::{vision, grid::Blob, DropletId};
+use puddle_core::{vision, grid::Blob};
 
 fn main() -> Result<(), Box<Error>> {
     // enable logging
@@ -47,14 +47,13 @@ fn main() -> Result<(), Box<Error>> {
             let (_, blobs) = detector.detect(should_draw);
 
             let strings: Vec<_> = blobs.iter().map(|blob| {
-                let id = DropletId {id: 0, process_id: 0};
-                let d = blob.to_droplet(id);
+                let sb = blob.to_simple_blob();
                 format!(
                     "{{ 'location': {{ 'y': {}, 'x': {} }}, 'dimension': {{ 'y': {}, 'x': {} }} }}",
-                    d.location.y,
-                    d.location.x,
-                    d.dimensions.y,
-                    d.dimensions.x
+                    sb.location.y,
+                    sb.location.x,
+                    sb.dimensions.y,
+                    sb.dimensions.x
                 )
             }).collect();
 

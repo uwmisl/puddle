@@ -139,7 +139,11 @@ pub struct SimpleBlob {
 
 pub trait Blob: Clone {
     fn get_similarity(&self, droplet: &Droplet) -> i32;
-    fn to_droplet(&self, id: DropletId) -> Droplet;
+    fn to_simple_blob(&self) -> SimpleBlob;
+    fn to_droplet(&self, id: DropletId) -> Droplet {
+        let simple_blob = self.to_simple_blob();
+        Droplet::new(id, simple_blob.volume, simple_blob.location, simple_blob.dimensions)
+    }
 }
 
 impl SimpleBlob {
@@ -180,6 +184,10 @@ impl SimpleBlob {
             None
         }
     }
+
+    fn to_droplet(&self, id: DropletId) -> Droplet {
+        Droplet::new(id, self.volume, self.location, self.dimensions)
+    }
 }
 
 impl Blob for SimpleBlob {
@@ -189,8 +197,8 @@ impl Blob for SimpleBlob {
             + ((self.volume - droplet.volume) as i32).abs()
     }
 
-    fn to_droplet(&self, id: DropletId) -> Droplet {
-        Droplet::new(id, self.volume, self.location, self.dimensions)
+    fn to_simple_blob(&self) -> SimpleBlob {
+        self.clone()
     }
 }
 
