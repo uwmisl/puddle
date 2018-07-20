@@ -52,7 +52,7 @@ fn main() -> Result<(), Box<Error>> {
             let strings: Vec<_> = blobs.iter().map(|blob| {
                 let sb = blob.to_simple_blob();
                 format!(
-                    "{{ 'location': {{ 'y': {}, 'x': {} }}, 'dimension': {{ 'y': {}, 'x': {} }} }}",
+                    r#"{{ "location": {{ "y": {}, "x": {} }}, "dimension": {{ "y": {}, "x": {} }} }}"#,
                     sb.location.y,
                     sb.location.x,
                     sb.dimensions.y,
