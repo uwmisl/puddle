@@ -24,10 +24,14 @@
             "spi_channel": 0
         },
         "4, 10": {
-            "type": "Input"
+            "type": "Input",
+            "pwm_channel": 8,
+            "name": "something"
         },
         "8, 10": {
-            "type": "Input"
+            "type": "Output",
+            "pwm_channel": 7,
+            "name": "something else"
         }
     }
 }

@@ -9,22 +9,23 @@ use util::collections::{Map, Set};
 
 use grid::parse::{Mark, ParsedElectrode, ParsedGrid};
 
-#[derive(Debug, PartialEq, Eq, Hash, Serialize, Deserialize, Clone, Copy)]
+#[derive(Debug, PartialEq, Eq, Hash, Serialize, Deserialize, Clone)]
 pub struct Electrode {
     pub pin: u32,
     pub peripheral: Option<Peripheral>,
 }
 
-#[derive(Debug, PartialEq, Eq, Hash, Serialize, Deserialize, Clone, Copy)]
+#[derive(Debug, PartialEq, Eq, Hash, Serialize, Deserialize, Clone)]
 #[serde(tag = "type")]
 pub enum Peripheral {
     Heater { pwm_channel: u8, spi_channel: u8 },
-    Input { pwm_channel: u8 }
+    Input { pwm_channel: u8, name: String },
+    Output { pwm_channel: u8, name: String },
 }
 
 impl Electrode {
     fn is_compatible(&self, other: &Self) -> bool {
-        let (mine, theirs) = match (self.peripheral, other.peripheral) {
+        let (mine, theirs) = match (&self.peripheral, &other.peripheral) {
             (None, None) => return true,
             (Some(p1), Some(p2)) => (p1, p2),
             _ => return false,
@@ -32,7 +33,12 @@ impl Electrode {
 
         use self::Peripheral::*;
         match (mine, theirs) {
-            (Input { .. }, Input { .. }) => true,
+            (Input { name: n1, .. }, Input { name: n2, .. }) => {
+                n1 == n2
+            },
+            (Output { name: n1, .. }, Output { name: n2, .. }) => {
+                n1 == n2
+            },
             (Heater { .. }, Heater { .. }) => true,
             _ => false,
         }
@@ -78,12 +84,12 @@ impl Grid {
                     .map(|(j, e_opt)| match e_opt {
                         None => ParsedElectrode::Marked(Mark::Empty),
                         Some(e) => {
-                            if let Some(peripheral) = e.peripheral {
+                            if let Some(ref peripheral) = e.peripheral {
                                 let loc = Location {
                                     y: i as i32,
                                     x: j as i32,
                                 };
-                                peripherals.insert(loc.to_string(), peripheral);
+                                peripherals.insert(loc.to_string(), peripheral.clone());
                             }
                             ParsedElectrode::Index(e.pin)
                         }
@@ -119,7 +125,7 @@ impl Grid {
         self.vec
             .iter()
             .flat_map(|row| row.iter())
-            .map(|e| e.map_or(0, |e| e.pin))
+            .map(|e| e.as_ref().map_or(0, |e| e.pin))
             .max()
             .unwrap_or(0)
     }
@@ -132,13 +138,13 @@ impl Grid {
     pub fn locations<'a>(&'a self) -> impl Iterator<Item = (Location, Electrode)> + 'a {
         self.vec.iter().enumerate().flat_map(|(i, row)| {
             row.iter().enumerate().filter_map(move |(j, cell_opt)| {
-                cell_opt.map(|cell: Electrode| {
+                cell_opt.as_ref().map(|cell: &Electrode| {
                     (
                         Location {
                             y: i as i32,
                             x: j as i32,
                         },
-                        cell,
+                        cell.clone(),
                     )
                 })
             })
@@ -339,15 +345,15 @@ pub mod tests {
 
     #[test]
     fn test_connected() {
-        let cell = Some(Electrode {
+        let el = || Some(Electrode {
             pin: 0,
             peripheral: None,
         });
         let grid1 = Grid {
-            vec: vec![vec![None, cell], vec![cell, None]],
+            vec: vec![vec![None, el()], vec![el(), None]],
         };
         let grid2 = Grid {
-            vec: vec![vec![cell, cell], vec![None, None]],
+            vec: vec![vec![el(), el()], vec![None, None]],
         };
 
         assert!(!grid1.is_connected());

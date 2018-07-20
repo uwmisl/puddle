@@ -217,6 +217,7 @@ fn heat(m: &ArgMatches, pi: &mut RaspberryPi) -> Result<(), Box<Error>> {
     let seconds = m.value_of("seconds").unwrap().parse()?;
 
     let heater = grid.get_cell(&heater_loc)
+        .cloned()
         .unwrap()
         .peripheral
         .expect("Given location wasn't a heater!");

@@ -68,7 +68,7 @@ impl ParsedGrid {
             let loc = location.parse().unwrap();
             let electrode = grid.get_cell_mut(&loc).unwrap();
             assert_eq!(electrode.peripheral, None);
-            electrode.peripheral = Some(*periph);
+            electrode.peripheral = Some(periph.clone());
         }
 
         grid

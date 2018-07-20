@@ -508,10 +508,10 @@ impl Command for Heat {
             let duration = Duration::from_secs(1);
             let heater = gridview
                 .get_electrode(&loc)
+                .cloned()
                 .unwrap()
                 .peripheral
-                .unwrap()
-                .clone();
+                .unwrap();
             assert_matches!(heater, Peripheral::Heater{..});
             gridview.with_pi(|pi| pi.heat(&heater, temperature, duration));
         }
