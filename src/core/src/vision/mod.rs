@@ -204,7 +204,21 @@ pub struct PolygonBlob {
 }
 
 impl PolygonBlob {
-    fn area(&self) -> f32 {
+    pub fn touches_location(&self, location: Location) -> bool {
+        self.touches_rectangle(location, Location {y: 1, x: 1})
+    }
+
+    pub fn touches_rectangle(&self, location: Location, dimensions: Location) -> bool {
+        let delta = 0.2;
+        let ident = Isometry2::identity();
+        let (n_pts, pts) = points_in_area(location, dimensions, delta);
+        let n_pts_in_shape = pts.filter(|pt| self.polygon.contains_point(&ident, pt))
+            .count();
+
+        n_pts_in_shape > 0
+    }
+
+    pub fn area(&self) -> f32 {
         // from https://stackoverflow.com/a/451482/
         // e0 is points 0..n, e1 is points 1..n,0
         // zipping them gives you all the edges of the polygon

@@ -19,7 +19,7 @@ pub struct Electrode {
 #[serde(tag = "type")]
 pub enum Peripheral {
     Heater { pwm_channel: u8, spi_channel: u8 },
-    Input,
+    Input { pwm_channel: u8 }
 }
 
 impl Electrode {
@@ -32,7 +32,7 @@ impl Electrode {
 
         use self::Peripheral::*;
         match (mine, theirs) {
-            (Input, Input) => true,
+            (Input { .. }, Input { .. }) => true,
             (Heater { .. }, Heater { .. }) => true,
             _ => false,
         }

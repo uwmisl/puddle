@@ -184,10 +184,6 @@ impl SimpleBlob {
             None
         }
     }
-
-    fn to_droplet(&self, id: DropletId) -> Droplet {
-        Droplet::new(id, self.volume, self.location, self.dimensions)
-    }
 }
 
 impl Blob for SimpleBlob {

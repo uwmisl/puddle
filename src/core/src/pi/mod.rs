@@ -9,8 +9,11 @@ use std::ptr;
 use std::thread;
 use std::time::{Duration, Instant};
 
-use grid::{Grid, Location, Peripheral, Snapshot};
+use grid::{Grid, Location, Peripheral, Snapshot, Blob};
 use util::{pid::PidController, Timer};
+
+#[cfg(feature = "vision")]
+use vision::Detector;
 
 use self::max31865::{MAX31865_DEFAULT_CONFIG, Max31865};
 use self::mcp4725::{MCP4725_DEFAULT_ADDRESS, Mcp4725};
@@ -359,6 +362,41 @@ impl RaspberryPi {
         // commit the latch
         self.gpio_write(LatchEnable, 1).unwrap();
         self.gpio_write(LatchEnable, 0).unwrap();
+    }
+
+    #[cfg(feature = "vision")]
+    pub fn input(&mut self, input_location: Location, input_port: &Peripheral, volume: f64, mut detector: Option<&mut Detector>) {
+        let pwm_channel = if let Peripheral::Input { pwm_channel, .. } = input_port {
+            *pwm_channel
+        } else {
+            panic!("Peripheral wasn't an input port!: {:#?}", input_port)
+        };
+
+        let pump_duration = Duration::from_millis(1000);
+        let pump_duty_cycle = pca9685::DUTY_CYCLE_MAX / 2;
+
+        let should_draw = false;
+        let max_iterations = 10;
+
+        for iteration in 0..max_iterations {
+            if let Some(ref mut det) = detector {
+                let (_, blobs) = det.detect(should_draw);
+                let over_volume =
+                    blobs.iter().find(|b| b.touches_location(input_location))
+                    .map_or(false, |b| {
+                        let sb = b.to_simple_blob();
+                        debug!("Inputting, at {} volume...", sb.volume);
+                        sb.volume > volume
+                    });
+                if over_volume {
+                    break;
+                }
+            }
+
+            self.pca9685.set_duty_cycle(pwm_channel, pump_duty_cycle);
+            thread::sleep(pump_duration);
+            self.pca9685.set_duty_cycle(pwm_channel, 0);
+        }
     }
 }
 
