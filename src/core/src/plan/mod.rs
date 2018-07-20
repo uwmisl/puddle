@@ -124,3 +124,58 @@ impl GridView {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use env_logger;
+    use tests::project_path;
+    use std::fs::File;
+
+    use super::*;
+
+    use grid::{Grid, DropletId};
+    use command;
+
+    fn mk_gv(path: &str) -> GridView {
+        let _ = env_logger::try_init();
+        let f = File::open(project_path(path)).unwrap();
+        GridView::new(Grid::from_reader(f).unwrap())
+    }
+
+
+    #[test]
+    fn plan_input() {
+        let mut gv = mk_gv("tests/arches/purpledrop.json");
+        let cmd = {
+            let substance = "something".into();
+            let volume = 1.0;
+            let dimensions = Location {y: 3, x: 3};
+            let out_id = DropletId {id: 0, process_id: 0};
+            command::Input::new(substance, volume, dimensions, out_id).unwrap()
+        };
+        gv.plan(Box::new(cmd)).unwrap();
+    }
+
+    #[test]
+    fn plan_output() {
+
+        let mut gv = mk_gv("tests/arches/purpledrop.json");
+
+        let id = DropletId { id: 0, process_id: 0 };
+        let droplet = {
+            let volume = 1.0;
+            let location = Location {y: 7, x: 0};
+            let dimensions = Location {y: 4, x: 3};
+            Droplet::new(id, volume, location, dimensions)
+        };
+        gv.snapshot_mut().droplets.insert(id, droplet);
+
+        let cmd = {
+            let substance = "something else".into();
+            command::Output::new(substance, id).unwrap()
+        };
+
+        gv.plan(Box::new(cmd)).unwrap();
+    }
+
+}

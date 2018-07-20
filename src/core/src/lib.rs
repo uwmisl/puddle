@@ -71,6 +71,6 @@ mod tests {
     }
 
     pub fn project_path(s: &str) -> String {
-        project_root() + s
+        project_root() + "/" + s
     }
 }

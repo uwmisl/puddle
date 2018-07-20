@@ -525,3 +525,140 @@ impl Command for Heat {
         gridview.tick()
     }
 }
+
+#[derive(Debug)]
+pub struct Input {
+    substance: String,
+    volume: f64,
+    dimensions: Location,
+    outputs: Vec<DropletId>,
+}
+
+impl Input {
+    pub fn new(substance: String, volume: f64, dimensions: Location, out_id: DropletId) -> PuddleResult<Input> {
+        Ok(Input {
+            substance,
+            volume,
+            dimensions,
+            outputs: vec![out_id],
+        })
+    }
+}
+
+impl Command for Input {
+    fn input_droplets(&self) -> Vec<DropletId> {
+        vec![]
+    }
+
+    fn output_droplets(&self) -> Vec<DropletId> {
+        self.outputs.clone()
+    }
+
+    fn dynamic_info(&self, _gridview: &mut GridView) -> DynamicCommandInfo {
+
+        let mut grid = Grid::rectangle(self.dimensions.y as usize, self.dimensions.x as usize);
+
+        // fake peripheral used to match up with the real one
+        // FIXME: this is a total hack to assume that input is always on the right-hand side
+        let loc = Location { y: self.dimensions.y / 2, x: self.dimensions.x - 1 };
+        grid.get_cell_mut(&loc).unwrap().peripheral = Some(Peripheral::Input {
+            pwm_channel: 0,
+            name: self.substance.clone(),
+        });
+
+        debug!("Input location will be at {}", loc);
+
+        DynamicCommandInfo {
+            shape: grid,
+            input_locations: vec![],
+            trusted: false,
+        }
+    }
+
+    fn run(&self, gridview: &mut GridSubView) {
+        let loc = Location { y: 0, x: 0 };
+        #[cfg(feature = "pi")]
+        {
+            let input = gridview
+                .get_electrode(&loc)
+                .cloned()
+                .unwrap()
+                .peripheral
+                .unwrap();
+            assert_matches!(input, Peripheral::Input{..});
+            gridview.with_pi(|pi| pi.input(&input, self.volume));
+        }
+        let new_id = self.outputs[0];
+
+        let d = Droplet::new(new_id, self.volume, loc, self.dimensions);
+        gridview.insert(d);
+        gridview.tick()
+    }
+}
+
+#[derive(Debug)]
+pub struct Output {
+    name: String,
+    inputs: Vec<DropletId>,
+}
+
+impl Output {
+    pub fn new(name: String, id: DropletId) -> PuddleResult<Output> {
+        Ok(Output {
+            name,
+            inputs: vec![id],
+        })
+    }
+}
+
+impl Command for Output {
+    fn input_droplets(&self) -> Vec<DropletId> {
+        self.inputs.clone()
+    }
+
+    fn output_droplets(&self) -> Vec<DropletId> {
+        vec![]
+    }
+
+    fn dynamic_info(&self, gridview: &mut GridView) -> DynamicCommandInfo {
+        let droplets = &gridview.snapshot().droplets;
+        let d = droplets.get(&self.inputs[0]).unwrap();
+
+        let mut grid = Grid::rectangle(d.dimensions.y as usize, d.dimensions.x as usize);
+
+        // fake peripheral used to match up with the real one
+        // FIXME: this is a total hack to assume that output is always on the right-hand side
+        let loc = Location { y: d.dimensions.y / 2, x: d.dimensions.x - 1 };
+        grid.get_cell_mut(&loc).unwrap().peripheral = Some(Peripheral::Output {
+            pwm_channel: 0,
+            name: self.name.clone(),
+        });
+
+        debug!("Output location will be at {}", loc);
+
+        DynamicCommandInfo {
+            shape: grid,
+            input_locations: vec![Location { y: 0, x: 0 }],
+            trusted: false,
+        }
+    }
+
+    fn run(&self, gridview: &mut GridSubView) {
+        let id = self.inputs[0];
+        #[cfg(feature = "pi")]
+        {
+            let loc = Location { y: 0, x: 0 };
+            let volume = gridview.get(&id).volume;
+            let output = gridview
+                .get_electrode(&loc)
+                .cloned()
+                .unwrap()
+                .peripheral
+                .unwrap();
+            assert_matches!(output, Peripheral::Output{..});
+            gridview.with_pi(|pi| pi.output(&output, volume));
+        }
+        gridview.remove(&id);
+        gridview.tick()
+    }
+}

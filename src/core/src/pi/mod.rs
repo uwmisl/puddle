@@ -10,7 +10,7 @@ use std::thread;
 use std::time::{Duration, Instant};
 
 use grid::{Grid, Location, Peripheral, Snapshot, Blob};
-use util::{pid::PidController, Timer};
+use util::{pid::PidController, Timer, seconds_duration};
 
 #[cfg(feature = "vision")]
 use vision::Detector;
@@ -364,39 +364,50 @@ impl RaspberryPi {
         self.gpio_write(LatchEnable, 0).unwrap();
     }
 
-    #[cfg(feature = "vision")]
-    pub fn input(&mut self, input_location: Location, input_port: &Peripheral, volume: f64, mut detector: Option<&mut Detector>) {
+    pub fn input(&mut self, input_port: &Peripheral, volume: f64) -> Result<()> {
         let pwm_channel = if let Peripheral::Input { pwm_channel, .. } = input_port {
             *pwm_channel
         } else {
             panic!("Peripheral wasn't an input port!: {:#?}", input_port)
         };
 
-        let pump_duration = Duration::from_millis(1000);
         let pump_duty_cycle = pca9685::DUTY_CYCLE_MAX / 2;
 
-        let should_draw = false;
-        let max_iterations = 10;
+        let pump_duration = {
+            // n.b. max flow rate is .45 ml/min +/- 15% at 20 C, or 7.5 ul/s
+            let ul_per_second = 4.0;
+            let ul_per_volume = 4.0;
+            let seconds = volume * ul_per_volume / ul_per_second;
+            seconds_duration(seconds)
+        };
 
-        for iteration in 0..max_iterations {
-            if let Some(ref mut det) = detector {
-                let (_, blobs) = det.detect(should_draw);
-                let over_volume =
-                    blobs.iter().find(|b| b.touches_location(input_location))
-                    .map_or(false, |b| {
-                        let sb = b.to_simple_blob();
-                        debug!("Inputting, at {} volume...", sb.volume);
-                        sb.volume > volume
-                    });
-                if over_volume {
-                    break;
-                }
-            }
+        self.pca9685.set_duty_cycle(pwm_channel, pump_duty_cycle)?;
+        thread::sleep(pump_duration);
+        self.pca9685.set_duty_cycle(pwm_channel, 0)?;
+        Ok(())
+    }
 
-            self.pca9685.set_duty_cycle(pwm_channel, pump_duty_cycle);
-            thread::sleep(pump_duration);
-            self.pca9685.set_duty_cycle(pwm_channel, 0);
-        }
+    pub fn output(&mut self, output_port: &Peripheral, volume: f64) -> Result<()> {
+        let pwm_channel = if let Peripheral::Output { pwm_channel, .. } = output_port {
+            *pwm_channel
+        } else {
+            panic!("Peripheral wasn't an output port!: {:#?}", output_port)
+        };
+
+        let pump_duty_cycle = pca9685::DUTY_CYCLE_MAX / 2;
+
+        let pump_duration = {
+            // n.b. max flow rate is .45 ml/min +/- 15% at 20 C, or 7.5 ul/s
+            let ul_per_second = 4.0;
+            let ul_per_volume = 4.0;
+            let seconds = volume * ul_per_volume / ul_per_second;
+            seconds_duration(seconds)
+        };
+
+        self.pca9685.set_duty_cycle(pwm_channel, pump_duty_cycle)?;
+        thread::sleep(pump_duration);
+        self.pca9685.set_duty_cycle(pwm_channel, 0)?;
+        Ok(())
     }
 }
 
