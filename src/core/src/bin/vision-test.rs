@@ -5,6 +5,8 @@ extern crate puddle_core;
 extern crate log;
 
 use clap::{App, Arg, SubCommand};
+use std::fs::File;
+use std::io::Write;
 use std::error::Error;
 use std::path::Path;
 use std::sync::Arc;
@@ -23,7 +25,8 @@ fn main() -> Result<(), Box<Error>> {
         .subcommand(
             SubCommand::with_name("file")
                 .arg(Arg::with_name("input").takes_value(true).required(true))
-                .arg(Arg::with_name("output").takes_value(true).required(true)),
+                .arg(Arg::with_name("output").takes_value(true).required(true))
+                .arg(Arg::with_name("json").long("json"))
         )
         .get_matches();
 
@@ -57,7 +60,15 @@ fn main() -> Result<(), Box<Error>> {
                 )
             }).collect();
 
-            println!("[{}]", strings.join(",\n"));
+            let message = format!("[{}]", strings.join(",\n"));
+
+            if m.is_present("json") {
+                let json = output.with_extension("json");
+                let mut file = File::create(json)?;
+                file.write_all(message.as_bytes())?;
+            } else {
+                println!("{}", message);
+            }
 
         }
         _ => {

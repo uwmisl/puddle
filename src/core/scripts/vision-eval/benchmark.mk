@@ -46,7 +46,7 @@ ${labeled_path}/%.png: ${xcf_path}/%.xcf
 guessed: $(basenames:%=${out}/guessed/%.png)
 ${out}/guessed/%.png: ${original_path}/%.jpg ${vision_cpp}
 	@mkdir -p ${out}/guessed
-	cargo run --quiet --manifest-path ${cargo_path}/Cargo.toml --features vision --bin vision-test -- file $< $@
+	cargo run --quiet --manifest-path ${cargo_path}/Cargo.toml --features vision --bin vision-test -- file --json $< $@
 
 diff: ${diff_files}
 ${out}/diff/%.json: ${out}/guessed/%.png ${labeled_path}/%.png img_diff.py
