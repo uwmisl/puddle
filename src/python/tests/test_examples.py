@@ -1,12 +1,11 @@
 from pathlib import Path
 import pytest
 
-
 # we have to exclude the interactive examples from testing
 example_paths = [
     path for path in
     Path('examples').glob('*.py')
-    if path.name != 'repl.py'
+    if 'no test' not in open(path).readline()
 ]
 
 

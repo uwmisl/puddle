@@ -1,3 +1,4 @@
+# no test
 import code
 import readline
 import atexit
