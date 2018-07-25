@@ -82,6 +82,11 @@ fn main() -> Result<(), Box<Error>> {
                 .arg(Arg::with_name("temp").takes_value(true).required(true))
                 .arg(Arg::with_name("seconds").takes_value(true).required(true)),
         )
+        .subcommand(
+            SubCommand::with_name("pins")
+                .arg(Arg::with_name("grid").takes_value(true).required(true))
+                .arg(Arg::with_name("millis").takes_value(true).required(true))
+        )
         .get_matches();
 
     let mut pi = RaspberryPi::new()?;
@@ -124,6 +129,7 @@ fn main() -> Result<(), Box<Error>> {
             Ok(())
         }
         ("heat", Some(m)) => heat(&m, &mut pi),
+        ("pins", Some(m)) => test_pins(&m, &mut pi),
         _ => {
             println!("Please pick a subcommmand.");
             Ok(())
@@ -224,6 +230,35 @@ fn heat(m: &ArgMatches, pi: &mut RaspberryPi) -> Result<(), Box<Error>> {
     let duration = seconds_duration(seconds);
 
     pi.heat(&heater, temp, duration)?;
+
+    Ok(())
+}
+
+fn get_pin(pin: u32, grid: &Grid) -> Option<Location> {
+    for (loc, electrode) in grid.locations() {
+        if electrode.pin == pin {
+            return Some(loc)
+        }
+    }
+    None
+}
+
+fn test_pins(m: &ArgMatches, pi: &mut RaspberryPi) -> Result<(), Box<Error>> {
+    let grid = mk_grid(&m)?;
+    let millis = m.value_of("millis").unwrap().parse()?;
+    let duration = Duration::from_millis(millis);
+    let pin_limit = grid.max_pin() + 1;
+
+    for i in 0..pin_limit {
+        if let Some(loc) = get_pin(i, &grid) {
+            println!("pin {} at {}", i, loc);
+            let (_, snapshot) = mk_snapshot(loc, Location {y: 1, x: 1});
+            pi.output_pins(&grid, &snapshot);
+        } else {
+            println!("pin {} has no location", i);
+        }
+        thread::sleep(duration);
+    }
 
     Ok(())
 }
