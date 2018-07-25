@@ -52,6 +52,10 @@ impl Executor {
             blobs
         };
 
+        let err_rate = env::var("PUDDLE_SIMULATE_ERROR")
+            .map(|s| s.parse::<f64>().unwrap())
+            .unwrap_or(0.0);
+
         loop {
             if self.blocking {
                 // wait on the visualizer
@@ -100,7 +104,7 @@ impl Executor {
                         }
                     }
 
-                    let should_perturb = rng.gen_bool(0.0);
+                    let should_perturb = rng.gen_bool(err_rate);
                     if should_perturb {
                         let blobs = gv.perturb(&mut rng, &snapshot)
                             .map(|perturbed_snapshot| perturbed_snapshot.to_blobs());
