@@ -428,11 +428,13 @@ impl GridView {
     pub fn add_error_edges(&mut self, planned: &Snapshot, actual: &Snapshot) {
         let previous = self.completed.last().unwrap();
         let edges = previous.get_error_edges(planned, actual);
+        let n_edges = edges.len();
         for (loc1, loc2) in edges {
             // for now, insert edges both ways
             self.bad_edges.insert((loc1, loc2));
             self.bad_edges.insert((loc2, loc1));
         }
+        warn!("Added error {} edges, now there are {}", n_edges, self.bad_edges.len() / 2);
     }
 }
 
