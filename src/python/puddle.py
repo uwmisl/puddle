@@ -28,9 +28,15 @@ class Droplet:
         self.valid = False
         return {'id': self._id, 'process_id': self._process}
 
+    def _renew(self, new_id):
+        assert not self.valid
+        assert self.session.pid == new_id['process_id']
+        self.valid = True
+        self._id = new_id['id']
+
     def move(self, loc):
         result_id = self.session._rpc("move", self.session.pid, self._use(), to_location(loc))
-        return self._new(result_id)
+        self._renew(result_id)
 
     def mix(self, other):
         assert isinstance(other, type(self))
@@ -133,7 +139,6 @@ class Session:
         else:
             starting_dict = dict(starting_dict)
 
-        starting_dict['move'] = self.move
         starting_dict['mix'] = self.mix
         starting_dict['split'] = self.split
         starting_dict['create'] = self.create
@@ -148,6 +153,9 @@ class Session:
 
     def _flush(self):
         self._rpc("flush", self.pid)
+
+    def close(self):
+        self._rpc("close_process", self.pid)
 
     def create(self, location, volume=1.0, dimensions=(1,1), **kwargs):
         droplet_class = kwargs.pop('droplet_class', Droplet)
