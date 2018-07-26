@@ -35,10 +35,10 @@ impl GridTransformer {
 impl Default for GridTransformer {
     fn default() -> Self {
         let image_pts = &[
-            Point::new(91.0, 89.0),
-            Point::new(48.0, 269.0),
-            Point::new(152.0, 271.0),
-            Point::new(199.0, 86.0),
+            Point::new(138.0, 281.0),
+            Point::new(151.0, 118.0),
+            Point::new(62.0, 135.0),
+            Point::new(51.0, 293.0),
         ];
         let coord_pts = &[
             Point::new(1.0, 7.0),
