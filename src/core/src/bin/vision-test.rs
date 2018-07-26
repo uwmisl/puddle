@@ -5,13 +5,13 @@ extern crate puddle_core;
 extern crate log;
 
 use clap::{App, Arg, SubCommand};
+use std::error::Error;
 use std::fs::File;
 use std::io::Write;
-use std::error::Error;
 use std::path::Path;
 use std::sync::Arc;
 
-use puddle_core::{vision, grid::Blob};
+use puddle_core::{grid::Blob, vision};
 
 fn main() -> Result<(), Box<Error>> {
     // enable logging
@@ -26,7 +26,7 @@ fn main() -> Result<(), Box<Error>> {
             SubCommand::with_name("file")
                 .arg(Arg::with_name("input").takes_value(true).required(true))
                 .arg(Arg::with_name("output").takes_value(true).required(true))
-                .arg(Arg::with_name("json").long("json"))
+                .arg(Arg::with_name("json").long("json")),
         )
         .get_matches();
 
@@ -49,16 +49,19 @@ fn main() -> Result<(), Box<Error>> {
 
             let (_, blobs) = detector.detect(should_draw);
 
-            let strings: Vec<_> = blobs.iter().map(|blob| {
-                let sb = blob.to_simple_blob();
-                format!(
+            let strings: Vec<_> = blobs
+                .iter()
+                .map(|blob| {
+                    let sb = blob.to_simple_blob();
+                    format!(
                     r#"{{ "location": {{ "y": {}, "x": {} }}, "dimension": {{ "y": {}, "x": {} }} }}"#,
                     sb.location.y,
                     sb.location.x,
                     sb.dimensions.y,
                     sb.dimensions.x
                 )
-            }).collect();
+                })
+                .collect();
 
             let message = format!("[{}]", strings.join(",\n"));
 
@@ -69,7 +72,6 @@ fn main() -> Result<(), Box<Error>> {
             } else {
                 println!("{}", message);
             }
-
         }
         _ => {
             println!("Please pick a subcommmand.");

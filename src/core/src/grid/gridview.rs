@@ -434,7 +434,11 @@ impl GridView {
             self.bad_edges.insert((loc1, loc2));
             self.bad_edges.insert((loc2, loc1));
         }
-        warn!("Added error {} edges, now there are {}", n_edges, self.bad_edges.len() / 2);
+        warn!(
+            "Added error {} edges, now there are {}",
+            n_edges,
+            self.bad_edges.len() / 2
+        );
     }
 }
 

@@ -9,8 +9,8 @@ use std::ptr;
 use std::thread;
 use std::time::{Duration, Instant};
 
-use grid::{Grid, Location, Peripheral, Snapshot, Blob};
-use util::{pid::PidController, Timer, seconds_duration};
+use grid::{Blob, Grid, Location, Peripheral, Snapshot};
+use util::{pid::PidController, seconds_duration, Timer};
 
 #[cfg(feature = "vision")]
 use vision::Detector;

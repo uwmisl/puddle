@@ -172,12 +172,7 @@ impl Rpc for Arc<Manager> {
         p.input(name, vol, dim)
     }
 
-    fn output(
-        &self,
-        pid: ProcessId,
-        name: String,
-        d: DropletId,
-    ) -> PuddleResult<()> {
+    fn output(&self, pid: ProcessId, name: String, d: DropletId) -> PuddleResult<()> {
         let p = self.get_process(pid)?;
         p.output(name, d)
     }

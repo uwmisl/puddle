@@ -85,7 +85,7 @@ fn main() -> Result<(), Box<Error>> {
         .subcommand(
             SubCommand::with_name("pins")
                 .arg(Arg::with_name("grid").takes_value(true).required(true))
-                .arg(Arg::with_name("millis").takes_value(true).required(true))
+                .arg(Arg::with_name("millis").takes_value(true).required(true)),
         )
         .get_matches();
 
@@ -237,7 +237,7 @@ fn heat(m: &ArgMatches, pi: &mut RaspberryPi) -> Result<(), Box<Error>> {
 fn get_pin(pin: u32, grid: &Grid) -> Option<Location> {
     for (loc, electrode) in grid.locations() {
         if electrode.pin == pin {
-            return Some(loc)
+            return Some(loc);
         }
     }
     None
@@ -252,7 +252,7 @@ fn test_pins(m: &ArgMatches, pi: &mut RaspberryPi) -> Result<(), Box<Error>> {
     for i in 0..pin_limit {
         if let Some(loc) = get_pin(i, &grid) {
             println!("pin {} at {}", i, loc);
-            let (_, snapshot) = mk_snapshot(loc, Location {y: 1, x: 1});
+            let (_, snapshot) = mk_snapshot(loc, Location { y: 1, x: 1 });
             pi.output_pins(&grid, &snapshot);
         } else {
             println!("pin {} has no location", i);

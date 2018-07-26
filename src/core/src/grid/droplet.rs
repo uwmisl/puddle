@@ -142,7 +142,12 @@ pub trait Blob: Clone {
     fn to_simple_blob(&self) -> SimpleBlob;
     fn to_droplet(&self, id: DropletId) -> Droplet {
         let simple_blob = self.to_simple_blob();
-        Droplet::new(id, simple_blob.volume, simple_blob.location, simple_blob.dimensions)
+        Droplet::new(
+            id,
+            simple_blob.volume,
+            simple_blob.location,
+            simple_blob.dimensions,
+        )
     }
 }
 

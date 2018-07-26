@@ -33,12 +33,8 @@ impl Electrode {
 
         use self::Peripheral::*;
         match (mine, theirs) {
-            (Input { name: n1, .. }, Input { name: n2, .. }) => {
-                n1 == n2
-            },
-            (Output { name: n1, .. }, Output { name: n2, .. }) => {
-                n1 == n2
-            },
+            (Input { name: n1, .. }, Input { name: n2, .. }) => n1 == n2,
+            (Output { name: n1, .. }, Output { name: n2, .. }) => n1 == n2,
             (Heater { .. }, Heater { .. }) => true,
             _ => false,
         }
@@ -345,10 +341,12 @@ pub mod tests {
 
     #[test]
     fn test_connected() {
-        let el = || Some(Electrode {
-            pin: 0,
-            peripheral: None,
-        });
+        let el = || {
+            Some(Electrode {
+                pin: 0,
+                peripheral: None,
+            })
+        };
         let grid1 = Grid {
             vec: vec![vec![None, el()], vec![el(), None]],
         };

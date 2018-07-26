@@ -5,7 +5,7 @@ use std::process::Command;
 use std::slice;
 use std::sync::{Arc, Mutex};
 
-use grid::{SimpleBlob, Blob, Droplet, DropletId, Location};
+use grid::{Blob, Droplet, DropletId, Location, SimpleBlob};
 
 mod transform;
 use self::transform::GridTransformer;
@@ -205,7 +205,7 @@ pub struct PolygonBlob {
 
 impl PolygonBlob {
     pub fn touches_location(&self, location: Location) -> bool {
-        self.touches_rectangle(location, Location {y: 1, x: 1})
+        self.touches_rectangle(location, Location { y: 1, x: 1 })
     }
 
     pub fn touches_rectangle(&self, location: Location, dimensions: Location) -> bool {
@@ -275,7 +275,11 @@ impl Blob for PolygonBlob {
         };
         let volume = self.area().into();
 
-        SimpleBlob {location, dimensions, volume}
+        SimpleBlob {
+            location,
+            dimensions,
+            volume,
+        }
     }
 }
 

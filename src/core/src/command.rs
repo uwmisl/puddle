@@ -535,7 +535,12 @@ pub struct Input {
 }
 
 impl Input {
-    pub fn new(substance: String, volume: f64, dimensions: Location, out_id: DropletId) -> PuddleResult<Input> {
+    pub fn new(
+        substance: String,
+        volume: f64,
+        dimensions: Location,
+        out_id: DropletId,
+    ) -> PuddleResult<Input> {
         Ok(Input {
             substance,
             volume,
@@ -555,12 +560,14 @@ impl Command for Input {
     }
 
     fn dynamic_info(&self, _gridview: &mut GridView) -> DynamicCommandInfo {
-
         let mut grid = Grid::rectangle(self.dimensions.y as usize, self.dimensions.x as usize);
 
         // fake peripheral used to match up with the real one
         // FIXME: this is a total hack to assume that input is always on the right-hand side
-        let loc = Location { y: self.dimensions.y / 2, x: self.dimensions.x - 1 };
+        let loc = Location {
+            y: self.dimensions.y / 2,
+            x: self.dimensions.x - 1,
+        };
         grid.get_cell_mut(&loc).unwrap().peripheral = Some(Peripheral::Input {
             pwm_channel: 0,
             name: self.substance.clone(),
@@ -628,7 +635,10 @@ impl Command for Output {
 
         // fake peripheral used to match up with the real one
         // FIXME: this is a total hack to assume that output is always on the right-hand side
-        let loc = Location { y: d.dimensions.y / 2, x: d.dimensions.x - 1 };
+        let loc = Location {
+            y: d.dimensions.y / 2,
+            x: d.dimensions.x - 1,
+        };
         grid.get_cell_mut(&loc).unwrap().peripheral = Some(Peripheral::Output {
             pwm_channel: 0,
             name: self.name.clone(),
