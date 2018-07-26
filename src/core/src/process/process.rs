@@ -91,6 +91,24 @@ impl Process {
         Ok(output)
     }
 
+    pub fn input(
+        &self,
+        name: impl Into<String>,
+        vol: f64,
+        dim: Location,
+    ) -> PuddleResult<DropletId> {
+        let output = self.new_droplet_id();
+        let input_cmd = command::Input::new(name.into(), vol, dim, output)?;
+        self.plan(Box::new(input_cmd))?;
+        Ok(output)
+    }
+
+    pub fn output(&self, name: impl Into<String>, d: DropletId) -> PuddleResult<()> {
+        let output_cmd = command::Output::new(name.into(), d)?;
+        self.plan(Box::new(output_cmd))?;
+        Ok(())
+    }
+
     pub fn move_droplet(&self, d1: DropletId, loc: Location) -> PuddleResult<DropletId> {
         let output = self.new_droplet_id();
         let move_cmd = command::Move::new(d1, loc, output)?;
