@@ -26,12 +26,12 @@
         "2, 7": {
             "type": "Input",
             "pwm_channel": 8,
-            "name": "something"
+            "name": "input"
         },
         "6, 7": {
             "type": "Output",
             "pwm_channel": 7,
-            "name": "something else"
+            "name": "output"
         }
     }
 }
