@@ -279,7 +279,12 @@ impl RaspberryPi {
                 break;
             }
 
+            // FIXME HACK the mcp thing is bad here
+            self.mcp4725.write(0).unwrap();
+            thread::sleep(Duration::from_millis(30));
             let measured = self.max31865.read_one_temperature()? as f64;
+            self.mcp4725.write(1600).unwrap();
+
             let dt = timer.lap();
             let mut duty_cycle = pid.update(measured, &dt);
 
