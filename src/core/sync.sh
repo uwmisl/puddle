@@ -7,7 +7,8 @@ pi=bananapi
 rsync='rsync --compress --times --progress'
 
 # compile
-cross build --target armv7-unknown-linux-gnueabihf --features vision,pi
+# cross build --target armv7-unknown-linux-gnueabihf --features pi,vision
+cross build --target armv7-unknown-linux-gnueabihf --features pi
 
 # kill any running servers
 ssh $pi -- killall -q puddle-server || true

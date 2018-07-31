@@ -1,6 +1,7 @@
 // https://datasheets.maximintegrated.com/en/ds/MAX31865.pdf
 
 use super::{Result, SpiHandle};
+use std::env;
 
 // From Table 1
 #[allow(dead_code)]
@@ -72,14 +73,22 @@ impl Max31865 {
         // make sure the thresholds are 15-bit
         assert!(low_threshold < (1 << 15));
         assert!(high_threshold < (1 << 15));
+
+        let reference_resistance = env::var("PI_REF_RESIST")
+            .map(|r| r.parse().expect("couldn't parse"))
+            .unwrap_or(4000.0);
+        let resistance_at_zero = env::var("PI_RESIST_ZERO")
+            .map(|r| r.parse().expect("couldn't parse"))
+            .unwrap_or(1000.0);
+
         let mut max = Max31865 {
             spi,
             config,
             low_threshold,
             high_threshold,
             n_samples: 10,
-            reference_resistance: 4000.0,
-            resistance_at_zero: 1000.0,
+            reference_resistance,
+            resistance_at_zero,
         };
         max.initalize()?;
         Ok(max)

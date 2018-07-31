@@ -2,6 +2,7 @@ import requests
 import json
 import time
 import os
+import sys
 
 from contextlib import contextmanager
 
@@ -43,10 +44,17 @@ class Droplet:
         result_id = self.session._rpc("mix", self.session.pid, self._use(), other._use())
         return self._new(result_id)
 
+    def combine_into(self, other):
+        assert isinstance(other, type(self))
+        result_id = self.session._rpc("mix", self.session.pid, self._use(), other._use())
+        return self._new(result_id)
+
     def split(self):
         id1, id2 = self.session._rpc("split", self.session.pid, self._use())
         return (self._new(id1), self._new(id2))
 
+    def output(self, substance):
+        self.session._rpc("output", self.session.pid, substance, self._use())
 
 def to_location(loc):
     return {'y': loc[0], 'x': loc[1]}
@@ -162,12 +170,19 @@ class Session:
         result_id = self._rpc("create", self.pid, to_location(location) if location else None, volume, to_location(dimensions) if dimensions else None)
         return droplet_class(self, result_id, **kwargs, i_know_what_im_doing=True)
 
+    def input(self, substance, volume, dimensions, **kwargs):
+        result_id = self._rpc("input", self.pid, substance, volume, dimensions)
+        return Droplet(self, result_id, **kwargs, i_know_what_im_doing=True)
+
     # just call the droplet methods
     def move (self, droplet, *args, **kwargs): return droplet.move (*args, **kwargs)
 
     def mix  (self, droplet, *args, **kwargs): return droplet.mix  (*args, **kwargs)
+    def combine_into  (self, droplet, *args, **kwargs): return droplet.combine_into  (*args, **kwargs)
 
     def split(self, droplet, *args, **kwargs): return droplet.split(*args, **kwargs)
+
+    def output (self, substance, droplet, *args, **kwargs): return droplet.output (substance, *args, **kwargs)
 
 
 def call(cmd):
@@ -186,6 +201,7 @@ def mk_session(
         arch_file,
         host = 'localhost',
         port = '3000',
+        profile = '--release',
 ):
 
     # make sure there aren't any puddle servers running now
@@ -194,25 +210,28 @@ def mk_session(
     except CalledProcessError:
         pass
 
-    default_command = 'cargo run --manifest-path {cargo_toml} --bin puddle-server -- '
+    default_command = 'cargo run --manifest-path {cargo_toml} --bin puddle-server {profile} -- '
     command = os.environ.get('PUDDLE_SERVER', default_command)
 
     # build the server command and run it
     flags = ' --static {static_dir} --host {host} --port {port} {arch_file}'
     cmd = (command + flags).format(
         cargo_toml = project_path('/src/core/Cargo.toml'),
+        profile = profile,
         arch_file = arch_file,
         static_dir = project_path('/src/web'),
         host = host,
         port = port,
     )
+    print(cmd)
 
     log_file = open('puddle.log', 'a')
-    popen = Popen(args=shlex.split(cmd), stdout=log_file)
+    popen = Popen(args=shlex.split(cmd), stdout=log_file, stderr=sys.stderr)
 
     session = Session('http://{}:{}'.format(host, port), 'test')
     yield session
 
-    session._flush()
+    # session._flush()
+    session.close()
     popen.terminate()
     popen.wait()

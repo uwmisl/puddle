@@ -53,6 +53,7 @@ impl Snapshot {
         new_snapshot
     }
 
+    #[cfg(not(feature = "pi"))]
     fn finalize(&mut self) {
         // we need to drain this so we can mutate the command without mutating
         // self, as we need to pass self into cmd.finalize
@@ -61,6 +62,26 @@ impl Snapshot {
         for cmd in &mut x {
             debug!("Finalizing command: {:#?}", cmd);
             cmd.finalize(self)
+        }
+        self.commands_to_finalize = x;
+    }
+
+    #[cfg(feature = "pi")]
+    fn finalize(&mut self, pi: Option<&mut RaspberryPi>) {
+        // we need to drain this so we can mutate the command without mutating
+        // self, as we need to pass self into cmd.finalize
+        // this feels pretty ugly....
+        let mut x: Vec<_> = self.commands_to_finalize.drain(..).collect();
+        if let Some(pi) = pi {
+            for cmd in &mut x {
+                debug!("Finalizing command: {:#?}", cmd);
+                cmd.finalize(self, Some(pi))
+            }
+        } else {
+            for cmd in &mut x {
+                debug!("Finalizing command: {:#?}", cmd);
+                cmd.finalize(self, None)
+            }
         }
         self.commands_to_finalize = x;
     }
@@ -297,7 +318,12 @@ impl GridView {
     }
 
     pub fn commit_pending(&mut self, mut snapshot: Snapshot) {
+
+        #[cfg(not(feature = "pi"))]
         snapshot.finalize();
+        #[cfg(feature = "pi")]
+        snapshot.finalize(self.pi.as_mut());
+
         self.completed.push(snapshot);
     }
 

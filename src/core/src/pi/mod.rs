@@ -344,7 +344,9 @@ impl RaspberryPi {
                         y: d.location.y + i,
                         x: d.location.x + j,
                     };
-                    let electrode = grid.get_cell(&loc).unwrap();
+                    let electrode = grid.get_cell(&loc).unwrap_or_else(|| {
+                        panic!("Couldn't find electrode for {}", loc)
+                    });
                     pins[electrode.pin as usize] = 1;
                     trace!(
                         "Setting pin {} at ({}, {})",
@@ -380,8 +382,8 @@ impl RaspberryPi {
 
         let pump_duration = {
             // n.b. max flow rate is .45 ml/min +/- 15% at 20 C, or 7.5 ul/s
-            let ul_per_second = 4.0;
-            let ul_per_volume = 4.0;
+            let ul_per_second = 7.0;
+            let ul_per_volume = 1.0;
             let seconds = volume * ul_per_volume / ul_per_second;
             seconds_duration(seconds)
         };

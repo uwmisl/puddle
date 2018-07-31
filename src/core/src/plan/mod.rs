@@ -20,7 +20,7 @@ pub enum PlanError {
 pub type Placement = Map<Location, Location>;
 
 impl GridView {
-    pub fn plan(&mut self, cmd: Box<dyn Command>) -> Result<(), PlanError> {
+    pub fn plan(&mut self, mut cmd: Box<dyn Command>) -> Result<(), PlanError> {
         info!("Planning {:?}", cmd);
 
         // make sure there's a snapshot available to plan into

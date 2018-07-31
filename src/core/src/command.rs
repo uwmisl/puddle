@@ -3,6 +3,9 @@ use std::fmt;
 use std::sync::mpsc::Sender;
 use std::time::Duration;
 
+#[cfg(feature = "pi")]
+use pi::RaspberryPi;
+
 use grid::{
     droplet::{Blob, SimpleBlob}, Droplet, DropletId, DropletInfo, Grid, Location, Peripheral,
     Snapshot,
@@ -28,11 +31,14 @@ pub trait Command: fmt::Debug + Send {
     // this better not tick!!!
     fn pre_run(&self, &mut GridSubView) {}
 
-    fn run(&self, &mut GridSubView);
+    fn run(&mut self, &mut GridSubView);
     fn is_blocking(&self) -> bool {
         false
     }
+    #[cfg(not(feature = "pi"))]
     fn finalize(&mut self, &Snapshot) {}
+    #[cfg(feature = "pi")]
+    fn finalize(&mut self, &Snapshot, Option<&mut RaspberryPi>) {}
 }
 
 //
@@ -94,7 +100,7 @@ impl Command for Create {
         }
     }
 
-    fn run(&self, gridview: &mut GridSubView) {
+    fn run(&mut self, gridview: &mut GridSubView) {
         gridview.insert(Droplet::new(
             self.outputs[0],
             self.volume,
@@ -130,11 +136,17 @@ impl Command for Flush {
         }
     }
 
-    fn run(&self, gridview: &mut GridSubView) {
+    fn run(&mut self, gridview: &mut GridSubView) {
         gridview.tick();
     }
 
+    #[cfg(not(feature = "pi"))]
     fn finalize(&mut self, gv: &Snapshot) {
+        let info = gv.droplet_info(Some(self.pid));
+        self.tx.send(info).unwrap();
+    }
+    #[cfg(feature = "pi")]
+    fn finalize(&mut self, gv: &Snapshot, _: Option<&mut RaspberryPi>) {
         let info = gv.droplet_info(Some(self.pid));
         self.tx.send(info).unwrap();
     }
@@ -180,7 +192,7 @@ impl Command for Move {
         }
     }
 
-    fn run(&self, gridview: &mut GridSubView) {
+    fn run(&mut self, gridview: &mut GridSubView) {
         let old_id = self.inputs[0];
         let new_id = self.outputs[0];
         let mut d = gridview.remove(&old_id);
@@ -235,7 +247,8 @@ impl Mix {
                 x: 0,
             },
             dimensions: Location {
-                y: d0.dimensions.y + d1.dimensions.y,
+                // FIXME HACK
+                y: (d0.dimensions.y + d1.dimensions.y).min(2),
                 x: d0.dimensions.x.max(d1.dimensions.x),
             },
             volume: d0.volume + d1.volume,
@@ -322,7 +335,7 @@ impl Command for Mix {
 
         let d0 = gridview.remove(&in0);
         let d1 = gridview.remove(&in1);
-        // TODO right now this only mixes horizontally
+        // TODO right now this only mixes vertical
         // it should somehow communicate with the Mix command to control the mixed droplets dimensions
         let combined = self.combined(&d0, &d1);
 
@@ -331,7 +344,7 @@ impl Command for Mix {
         gridview.insert(combined.to_droplet(out));
     }
 
-    fn run(&self, gridview: &mut GridSubView) {
+    fn run(&mut self, gridview: &mut GridSubView) {
         let out = self.outputs[0];
 
         for i in 0..self.n_agitation_loops {
@@ -408,7 +421,7 @@ impl Command for Split {
         }
     }
 
-    fn run(&self, gridview: &mut GridSubView) {
+    fn run(&mut self, gridview: &mut GridSubView) {
         let x_dim = {
             // limit the scope of d0 borrow
             let d0 = gridview.get(&self.inputs[0]);
@@ -500,7 +513,7 @@ impl Command for Heat {
         }
     }
 
-    fn run(&self, gridview: &mut GridSubView) {
+    fn run(&mut self, gridview: &mut GridSubView) {
         #[cfg(feature = "pi")]
         {
             let loc = Location { y: 0, x: 0 };
@@ -582,12 +595,16 @@ impl Command for Input {
         }
     }
 
-    fn run(&self, gridview: &mut GridSubView) {
-        let loc = Location { y: 0, x: 0 };
+    fn run(&mut self, gridview: &mut GridSubView) {
+        // FIXME: this is a total hack to assume that input is always on the right-hand side
+        let input_loc = Location {
+            y: self.dimensions.y / 2,
+            x: self.dimensions.x - 1,
+        };
         #[cfg(feature = "pi")]
         {
             let input = gridview
-                .get_electrode(&loc)
+                .get_electrode(&input_loc)
                 .cloned()
                 .unwrap()
                 .peripheral
@@ -597,7 +614,8 @@ impl Command for Input {
         }
         let new_id = self.outputs[0];
 
-        let d = Droplet::new(new_id, self.volume, loc, self.dimensions);
+        let d_loc = Location {y: 0, x: 0 };
+        let d = Droplet::new(new_id, self.volume, d_loc, self.dimensions);
         gridview.insert(d);
         gridview.tick()
     }
@@ -607,6 +625,8 @@ impl Command for Input {
 pub struct Output {
     name: String,
     inputs: Vec<DropletId>,
+    volume: Option<f64>,
+    output: Option<Peripheral>,
 }
 
 impl Output {
@@ -614,6 +634,8 @@ impl Output {
         Ok(Output {
             name,
             inputs: vec![id],
+            volume: None,
+            output: None,
         })
     }
 }
@@ -621,6 +643,7 @@ impl Output {
 impl Command for Output {
     fn input_droplets(&self) -> Vec<DropletId> {
         self.inputs.clone()
+
     }
 
     fn output_droplets(&self) -> Vec<DropletId> {
@@ -634,10 +657,10 @@ impl Command for Output {
         let mut grid = Grid::rectangle(d.dimensions.y as usize, d.dimensions.x as usize);
 
         // fake peripheral used to match up with the real one
-        // FIXME: this is a total hack to assume that output is always on the right-hand side
+        // FIXME: this is a total hack to assume that output is always on the left-hand side
         let loc = Location {
             y: d.dimensions.y / 2,
-            x: d.dimensions.x - 1,
+            x: 0,
         };
         grid.get_cell_mut(&loc).unwrap().peripheral = Some(Peripheral::Output {
             pwm_channel: 0,
@@ -648,16 +671,20 @@ impl Command for Output {
 
         DynamicCommandInfo {
             shape: grid,
-            input_locations: vec![Location { y: 0, x: 0 }],
+            input_locations: vec![loc],
             trusted: false,
         }
     }
 
-    fn run(&self, gridview: &mut GridSubView) {
+    fn run(&mut self, gridview: &mut GridSubView) {
         let id = self.inputs[0];
         #[cfg(feature = "pi")]
         {
-            let loc = Location { y: 0, x: 0 };
+            // FIXME: this is a total hack to assume that output is always on the left-hand side
+            let loc = Location {
+                y: gridview.get(&id).dimensions.y / 2,
+                x: 0,
+            };
             let volume = gridview.get(&id).volume;
             let output = gridview
                 .get_electrode(&loc)
@@ -666,9 +693,18 @@ impl Command for Output {
                 .peripheral
                 .unwrap();
             assert_matches!(output, Peripheral::Output{..});
-            gridview.with_pi(|pi| pi.output(&output, volume));
+            self.output = Some(output);
+            self.volume = Some(volume);
+            // gridview.with_pi(|pi| pi.output(&output, volume));
         }
         gridview.remove(&id);
         gridview.tick()
+    }
+
+    #[cfg(feature = "pi")]
+    fn finalize(&mut self, _: &Snapshot, pi: Option<&mut RaspberryPi>) {
+        let volume = self.volume.take().unwrap();
+        let output = self.output.take().unwrap();
+        pi.map(|pi| pi.output(&output, volume));
     }
 }
