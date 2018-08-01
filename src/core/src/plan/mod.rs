@@ -5,7 +5,7 @@ mod route;
 pub use self::route::Path;
 
 use command::{Command, DynamicCommandInfo};
-use grid::{Droplet, GridView, Location};
+use grid::{Droplet, GridView, Location, Snapshot};
 use util::collections::Map;
 
 #[derive(Debug)]
@@ -59,8 +59,13 @@ impl GridView {
                 .collect::<Map<_, _>>()
         } else {
             // TODO place should be a method of gridview
+            let mut snapshot: Snapshot = self.snapshot().new_with_same_droplets();
+
+            for id in &in_ids {
+                snapshot.droplets.remove(id);
+            }
             self.grid
-                .place(&shape, self.snapshot(), &self.bad_edges)
+                .place(&shape, &snapshot, &self.bad_edges)
                 .ok_or(PlanError::PlaceError)?
         };
 

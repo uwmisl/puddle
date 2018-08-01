@@ -266,12 +266,17 @@ impl Blob for PolygonBlob {
         let dim_point = bbox.maxs() - loc_point;
         // note the xy flip here, in nalgebra::Point, x is the first field, and y is the seconds
         let location = Location {
-            y: loc_point[0].round() as i32,
-            x: loc_point[1].round() as i32,
+            y: bbox.center()[0].floor() as i32,
+            x: bbox.center()[1].floor() as i32,
+            // y: (loc_point[0].round() + 0.2) as i32,
+            // x: (loc_point[1].round() + 0.2) as i32,
         };
         let dimensions = Location {
-            y: dim_point[0].round() as i32,
-            x: dim_point[1].round() as i32,
+            // FIXME HACK this is very bad
+            // y: dim_point[0].round() as i32,
+            // x: dim_point[1].round() as i32,
+            y: 1,
+            x: 1,
         };
         let volume = self.area().into();
 

@@ -27,6 +27,9 @@ class Droplet:
         if not self.valid:
             raise DropletConsumed('{} already used!'.format(self))
         self.valid = False
+        return self._mk_id()
+
+    def _mk_id(self):
         return {'id': self._id, 'process_id': self._process}
 
     def _renew(self, new_id):
@@ -46,7 +49,7 @@ class Droplet:
 
     def combine_into(self, other):
         assert isinstance(other, type(self))
-        result_id = self.session._rpc("mix", self.session.pid, self._use(), other._use())
+        result_id = self.session._rpc("combine_into", self.session.pid, self._use(), other._use())
         return self._new(result_id)
 
     def split(self):
@@ -55,6 +58,10 @@ class Droplet:
 
     def output(self, substance):
         self.session._rpc("output", self.session.pid, substance, self._use())
+
+    def volume(self):
+        droplets = self.session.droplets()
+        return droplets[self._id]['volume']
 
 def to_location(loc):
     return {'y': loc[0], 'x': loc[1]}
@@ -172,6 +179,10 @@ class Session:
 
     def input(self, substance, volume, dimensions, **kwargs):
         result_id = self._rpc("input", self.pid, substance, volume, dimensions)
+        return Droplet(self, result_id, **kwargs, i_know_what_im_doing=True)
+
+    def heat(self, droplet, temp, seconds, **kwargs):
+        result_id = self._rpc("heat", self.pid, droplet._use(), temp, seconds)
         return Droplet(self, result_id, **kwargs, i_know_what_im_doing=True)
 
     # just call the droplet methods

@@ -3,6 +3,8 @@ use std::sync::atomic::Ordering::Relaxed;
 use std::sync::mpsc::channel;
 use std::sync::{Arc, Mutex};
 
+use util::seconds_duration;
+
 use grid::{DropletId, DropletInfo, GridView, Location};
 
 use command;
@@ -138,9 +140,10 @@ impl Process {
         Ok((out1, out2))
     }
 
-    pub fn heat(&self, d: DropletId, temperature: f32) -> PuddleResult<DropletId> {
+    pub fn heat(&self, d: DropletId, temperature: f32, seconds: f64) -> PuddleResult<DropletId> {
         let out = self.new_droplet_id();
-        let heat_cmd = command::Heat::new(d, out, temperature)?;
+        let duration = seconds_duration(seconds);
+        let heat_cmd = command::Heat::new(d, out, temperature, duration)?;
         self.plan(Box::new(heat_cmd))?;
         Ok(out)
     }

@@ -302,7 +302,7 @@ impl RaspberryPi {
                 duty_cycle = 0.0;
             }
 
-            if target_temperature - measured > epsilon {
+            if (target_temperature - measured).abs() < epsilon && in_range_start.is_none() {
                 in_range_start = Some(Instant::now())
             }
 
@@ -326,6 +326,21 @@ impl RaspberryPi {
         } else {
             panic!("Not a temperature sensor!: {:#?}")
         }
+    }
+
+    // FIXME HACK
+    pub fn bad_manual_output_pins(&mut self, pins: &[u8]) {
+        use self::GpioPin::*;
+        // actually write the pins and cycle the clock
+        for pin in pins.iter() {
+            self.gpio_write(Data, *pin).unwrap();
+            self.gpio_write(Clock, 1).unwrap();
+            self.gpio_write(Clock, 0).unwrap();
+        }
+
+        // commit the latch
+        self.gpio_write(LatchEnable, 1).unwrap();
+        self.gpio_write(LatchEnable, 0).unwrap();
     }
 
     pub fn output_pins(&mut self, grid: &Grid, snapshot: &Snapshot) {

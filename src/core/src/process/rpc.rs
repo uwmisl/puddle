@@ -106,7 +106,8 @@ build_rpc_trait! {
             &self,
             ProcessId,
             DropletId,
-            f32
+            f32,
+            f64
         ) -> PuddleResult<DropletId>;
     }
 }
@@ -202,8 +203,8 @@ impl Rpc for Arc<Manager> {
         p.split(d)
     }
 
-    fn heat(&self, pid: ProcessId, d: DropletId, temperature: f32) -> PuddleResult<DropletId> {
+    fn heat(&self, pid: ProcessId, d: DropletId, temperature: f32, seconds: f64) -> PuddleResult<DropletId> {
         let p = self.get_process(pid)?;
-        p.heat(d, temperature)
+        p.heat(d, temperature, seconds)
     }
 }

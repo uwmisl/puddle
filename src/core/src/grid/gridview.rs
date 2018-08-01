@@ -41,7 +41,7 @@ pub enum DropletDiff {
 }
 
 impl Snapshot {
-    fn new_with_same_droplets(&self) -> Snapshot {
+    pub fn new_with_same_droplets(&self) -> Snapshot {
         let mut new_snapshot = Snapshot::default();
         new_snapshot.droplets = self.droplets.clone();
 
@@ -180,13 +180,18 @@ impl Snapshot {
         let new_droplets: Map<_, _> = blob_matching
             .iter()
             .map(|(&id, blob)| {
-                let d = &self.droplets[&id];
+                let d = self.droplets.get_mut(&id).unwrap();
                 let d_new = blob.to_droplet(id);
                 if d.location != d_new.location || d.dimensions != d_new.dimensions {
                     info!("Found error in droplet {:?}", id);
                     debug!("Droplet error\n  Expected: {:#?}\n  Found: {:#?}", d, d_new);
                     was_error = true;
                 }
+                // HACK FIXME this mutation is not great
+                if (d.volume - d_new.volume).abs() > 1.0 {
+                    info!("volume of {} changed: {} -> {}", id.id, d.volume, d_new.volume)
+                }
+                d.volume = d_new.volume;
                 (id, d_new)
             })
             .collect();
@@ -217,7 +222,8 @@ impl Snapshot {
             let other_loc = other_droplet.location;
             if loc != other_loc {
                 // for now, just assert that we are only moving one spot at a time
-                assert_eq!((&loc - &other_loc).norm(), 1);
+                // FIXME HACK
+                // assert_eq!((&loc - &other_loc).norm(), 1);
                 Moved {
                     from: loc,
                     to: other_loc,
@@ -243,7 +249,14 @@ impl Snapshot {
                 let planned_diff = self.diff_droplet(id, planned_outcome);
                 let actual_diff = self.diff_droplet(id, actual_outcome);
                 match (planned_diff, actual_diff) {
-                    (Moved { from, to }, DidNotMove) => Some((from, to)),
+                    (Moved { from, to }, DidNotMove) => {
+                        if (&from - &to).norm() == 1 {
+                            Some((from, to))
+                        } else {
+                            warn!("Droplet {} jumped from {} to {}!", id.id, from, to);
+                            None
+                        }
+                    },
                     _ => None,
                 }
             })

@@ -2,6 +2,7 @@ use grid::gridview::{GridSubView, GridView};
 use std::fmt;
 use std::sync::mpsc::Sender;
 use std::time::Duration;
+use std::thread;
 
 #[cfg(feature = "pi")]
 use pi::RaspberryPi;
@@ -463,14 +464,18 @@ pub struct Heat {
     inputs: Vec<DropletId>,
     outputs: Vec<DropletId>,
     temperature: f32,
+    duration: Duration,
+    heater: Option<Peripheral>
 }
 
 impl Heat {
-    pub fn new(id: DropletId, out_id: DropletId, temperature: f32) -> PuddleResult<Heat> {
+    pub fn new(id: DropletId, out_id: DropletId, temperature: f32, duration: Duration) -> PuddleResult<Heat> {
         Ok(Heat {
             inputs: vec![id],
             outputs: vec![out_id],
             temperature,
+            duration,
+            heater: None,
         })
     }
 }
@@ -492,13 +497,13 @@ impl Command for Heat {
         let y_dim = d.dimensions.y as usize;
 
         // right now we can only heat droplets that are 1x1
-        assert_eq!(y_dim, 1);
+        // assert_eq!(y_dim, 1);
         assert_eq!(x_dim, 1);
         let mut grid = Grid::rectangle(y_dim, x_dim);
 
         // the parameters of heater here don't matter, as it's just used to
         // match up with the "real" heater in the actual grid
-        let loc = Location { y: 0, x: 0 };
+        let loc = Location { y: y_dim as i32 - 1, x: 0 };
         grid.get_cell_mut(&loc).unwrap().peripheral = Some(Peripheral::Heater {
             pwm_channel: 0,
             spi_channel: 0,
@@ -516,9 +521,8 @@ impl Command for Heat {
     fn run(&mut self, gridview: &mut GridSubView) {
         #[cfg(feature = "pi")]
         {
-            let loc = Location { y: 0, x: 0 };
-            let temperature = 50.0;
-            let duration = Duration::from_secs(1);
+            let d = gridview.get(&self.inputs[0]);
+            let loc = Location { y: d.dimensions.y-1, x: 0 };
             let heater = gridview
                 .get_electrode(&loc)
                 .cloned()
@@ -526,7 +530,7 @@ impl Command for Heat {
                 .peripheral
                 .unwrap();
             assert_matches!(heater, Peripheral::Heater{..});
-            gridview.with_pi(|pi| pi.heat(&heater, temperature, duration));
+            self.heater = Some(heater)
         }
         let old_id = self.inputs[0];
         let new_id = self.outputs[0];
@@ -537,6 +541,13 @@ impl Command for Heat {
         gridview.insert(d);
         gridview.tick()
     }
+
+    #[cfg(feature = "pi")]
+    fn finalize(&mut self, _: &Snapshot, pi: Option<&mut RaspberryPi>) {
+        let heater = self.heater.take().unwrap();
+        pi.map(|pi| pi.heat(&heater, self.temperature as f64, self.duration));
+    }
+
 }
 
 #[derive(Debug)]
@@ -545,6 +556,7 @@ pub struct Input {
     volume: f64,
     dimensions: Location,
     outputs: Vec<DropletId>,
+    input: Option<Peripheral>,
 }
 
 impl Input {
@@ -559,6 +571,7 @@ impl Input {
             volume,
             dimensions,
             outputs: vec![out_id],
+            input: None,
         })
     }
 }
@@ -573,13 +586,13 @@ impl Command for Input {
     }
 
     fn dynamic_info(&self, _gridview: &mut GridView) -> DynamicCommandInfo {
-        let mut grid = Grid::rectangle(self.dimensions.y as usize, self.dimensions.x as usize);
+        let mut grid = Grid::rectangle(self.dimensions.y as usize, self.dimensions.x as usize + 1);
 
         // fake peripheral used to match up with the real one
         // FIXME: this is a total hack to assume that input is always on the right-hand side
         let loc = Location {
             y: self.dimensions.y / 2,
-            x: self.dimensions.x - 1,
+            x: self.dimensions.x - 1 + 1,
         };
         grid.get_cell_mut(&loc).unwrap().peripheral = Some(Peripheral::Input {
             pwm_channel: 0,
@@ -599,7 +612,7 @@ impl Command for Input {
         // FIXME: this is a total hack to assume that input is always on the right-hand side
         let input_loc = Location {
             y: self.dimensions.y / 2,
-            x: self.dimensions.x - 1,
+            x: self.dimensions.x - 1 + 1,
         };
         #[cfg(feature = "pi")]
         {
@@ -610,7 +623,7 @@ impl Command for Input {
                 .peripheral
                 .unwrap();
             assert_matches!(input, Peripheral::Input{..});
-            gridview.with_pi(|pi| pi.input(&input, self.volume));
+            self.input = Some(input);
         }
         let new_id = self.outputs[0];
 
@@ -618,6 +631,41 @@ impl Command for Input {
         let d = Droplet::new(new_id, self.volume, d_loc, self.dimensions);
         gridview.insert(d);
         gridview.tick()
+    }
+
+    #[cfg(feature = "pi")]
+    fn finalize(&mut self, _: &Snapshot, pi: Option<&mut RaspberryPi>) {
+        let input = self.input.take().unwrap();
+        pi.map(|pi| {
+
+            let loc26 = 118;
+            let loc27 = 119;
+            let loc36 = 112;
+            let loc37 = 113;
+
+            let set = |pi: &mut RaspberryPi, pins: &[usize]| {
+                let mut all_pins = [0; 128];
+                for p in pins {
+                    all_pins[*p] = 1;
+                }
+                pi.bad_manual_output_pins(&all_pins);
+            };
+
+            set(pi, &[loc26, loc27, loc36, loc37]);
+            pi.input(&input, self.volume).unwrap();
+
+            set(pi, &[loc27]);
+            thread::sleep(Duration::from_millis(1500));
+
+            set(pi, &[loc37]);
+            thread::sleep(Duration::from_millis(1500));
+
+            set(pi, &[loc26, loc27, loc36, loc37]);
+            thread::sleep(Duration::from_millis(1500));
+
+            set(pi, &[loc26]);
+            thread::sleep(Duration::from_millis(1500));
+        });
     }
 }
 

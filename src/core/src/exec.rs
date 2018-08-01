@@ -56,6 +56,28 @@ impl Executor {
             .map(|s| s.parse::<f64>().unwrap())
             .unwrap_or(0.0);
 
+        let should_correct = {
+            let n = env::var("PUDDLE_CORRECT_ERRORS")
+                .map(|s| s.parse::<i32>().unwrap())
+                .unwrap_or(1);
+            match n {
+                0 => false,
+                1 => true,
+                _ => panic!("couldn't parse PUDDLE_CORRECT_ERRORS")
+            }
+        };
+
+        let should_add_edges = {
+            let n = env::var("PUDDLE_BAD_EDGES")
+                .map(|s| s.parse::<i32>().unwrap())
+                .unwrap_or(1);
+            match n {
+                0 => false,
+                1 => true,
+                _ => panic!("couldn't parse PUDDLE_BAD_EDGES")
+            }
+        };
+
         loop {
             if self.blocking {
                 // wait on the visualizer
@@ -94,13 +116,17 @@ impl Executor {
                         #[cfg(feature = "vision")]
                         {
                             let correction = snapshot.correct(&blobs.lock().unwrap());
-                            if let Some(new_snapshot) = correction {
-                                info!("old snapshot: {:#?}", snapshot);
-                                info!("new snapshot: {:#?}", new_snapshot);
-                                gv.add_error_edges(&snapshot, &new_snapshot);
-                                gv.rollback(&new_snapshot);
-                                snapshot = new_snapshot;
-                            };
+                            if should_correct {
+                                if let Some(new_snapshot) = correction {
+                                    info!("old snapshot: {:#?}", snapshot);
+                                    info!("new snapshot: {:#?}", new_snapshot);
+                                    if should_add_edges {
+                                        gv.add_error_edges(&snapshot, &new_snapshot);
+                                    }
+                                    gv.rollback(&new_snapshot);
+                                    snapshot = new_snapshot;
+                                };
+                            }
                         }
                     }
 
@@ -114,7 +140,9 @@ impl Executor {
                             if let Some(new_snapshot) = snapshot.correct(&blobs) {
                                 info!("old snapshot: {:#?}", snapshot);
                                 info!("new snapshot: {:#?}", new_snapshot);
-                                gv.add_error_edges(&snapshot, &new_snapshot);
+                                if should_add_edges {
+                                    gv.add_error_edges(&snapshot, &new_snapshot);
+                                }
                                 gv.rollback(&new_snapshot);
                                 snapshot = new_snapshot;
                             };
