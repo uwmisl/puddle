@@ -87,11 +87,11 @@ impl Snapshot {
     }
 
     pub fn abort(mut self, gridview: &mut GridView) {
-        for cmd in self.commands_to_finalize.drain(..) {
+        for mut cmd in self.commands_to_finalize.drain(..) {
             debug!("Sending command back for replanning: {:#?}", cmd);
-            gridview.plan(cmd).unwrap_or_else(|err| {
-                panic!("Couldn't replan a command, there was an error: {:#?}", err)
-            })
+            if let Err((mut cmd, err)) = gridview.plan(cmd) {
+                cmd.abort(err);
+            }
         }
     }
 
@@ -468,16 +468,17 @@ impl GridView {
         let previous = self.completed.last().unwrap();
         let edges = previous.get_error_edges(planned, actual);
         let n_edges = edges.len();
+        warn!(
+            "Added error {} edges, now there are {}: {:?}",
+            n_edges,
+            self.bad_edges.len() / 2,
+            edges,
+        );
         for (loc1, loc2) in edges {
             // for now, insert edges both ways
             self.bad_edges.insert((loc1, loc2));
             self.bad_edges.insert((loc2, loc1));
         }
-        warn!(
-            "Added error {} edges, now there are {}",
-            n_edges,
-            self.bad_edges.len() / 2
-        );
     }
 }
 

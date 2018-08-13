@@ -60,7 +60,7 @@ impl Process {
 
     fn plan(&self, cmd: Box<dyn Command>) -> PuddleResult<()> {
         let mut gv = self.gridview.lock().unwrap();
-        gv.plan(cmd).map_err(PlanError)
+        gv.plan(cmd).map_err(|(_cmd, err)| PlanError(err))
     }
 }
 
@@ -76,9 +76,7 @@ impl Process {
         let flush_cmd = command::Flush::new(self.id, tx);
 
         self.plan(Box::new(flush_cmd))?;
-        let info = rx.recv().unwrap();
-
-        Ok(info)
+        rx.recv().unwrap().map_err(PlanError)
     }
 
     pub fn create(

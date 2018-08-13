@@ -4,6 +4,8 @@ use std::sync::mpsc::Sender;
 use std::time::Duration;
 use std::thread;
 
+use plan::PlanError;
+
 #[cfg(feature = "pi")]
 use pi::RaspberryPi;
 
@@ -40,6 +42,10 @@ pub trait Command: fmt::Debug + Send {
     fn finalize(&mut self, &Snapshot) {}
     #[cfg(feature = "pi")]
     fn finalize(&mut self, &Snapshot, Option<&mut RaspberryPi>) {}
+
+    fn abort(&mut self, err: PlanError) {
+        error!("Aborting command {:?} with {:#?}", self, err);
+    }
 }
 
 //
@@ -116,14 +122,16 @@ impl Command for Create {
 // Flush
 //
 
+pub type FlushResult = Result<Vec<DropletInfo>, PlanError>;
+
 #[derive(Debug)]
 pub struct Flush {
     pid: ProcessId,
-    tx: Sender<Vec<DropletInfo>>,
+    tx: Sender<FlushResult>,
 }
 
 impl Flush {
-    pub fn new(pid: ProcessId, tx: Sender<Vec<DropletInfo>>) -> Flush {
+    pub fn new(pid: ProcessId, tx: Sender<FlushResult>) -> Flush {
         Flush { pid, tx }
     }
 }
@@ -144,12 +152,17 @@ impl Command for Flush {
     #[cfg(not(feature = "pi"))]
     fn finalize(&mut self, gv: &Snapshot) {
         let info = gv.droplet_info(Some(self.pid));
-        self.tx.send(info).unwrap();
+        self.tx.send(Ok(info)).unwrap();
     }
     #[cfg(feature = "pi")]
     fn finalize(&mut self, gv: &Snapshot, _: Option<&mut RaspberryPi>) {
         let info = gv.droplet_info(Some(self.pid));
-        self.tx.send(info).unwrap();
+        self.tx.send(Ok(info)).unwrap();
+    }
+
+    fn abort(&mut self, err: PlanError) {
+        error!("Aborting command {:?} with {:#?}", self, err);
+        self.tx.send(Err(err)).unwrap();
     }
 }
 

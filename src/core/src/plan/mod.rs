@@ -20,7 +20,7 @@ pub enum PlanError {
 pub type Placement = Map<Location, Location>;
 
 impl GridView {
-    pub fn plan(&mut self, mut cmd: Box<dyn Command>) -> Result<(), PlanError> {
+    pub fn plan(&mut self, mut cmd: Box<dyn Command>) -> Result<(), (Box<dyn Command>, PlanError)> {
         info!("Planning {:?}", cmd);
 
         // make sure there's a snapshot available to plan into
@@ -64,9 +64,11 @@ impl GridView {
             for id in &in_ids {
                 snapshot.droplets.remove(id);
             }
-            self.grid
-                .place(&shape, &snapshot, &self.bad_edges)
-                .ok_or(PlanError::PlaceError)?
+            match self.grid
+                .place(&shape, &snapshot, &self.bad_edges) {
+                    None => return Err((cmd, PlanError::PlaceError)),
+                    Some(placement) => placement
+                }
         };
 
         debug!("placement for {:#?}: {:#?}", cmd, placement);
@@ -79,7 +81,8 @@ impl GridView {
                 .droplets
                 .get_mut(&id)
                 .expect("Command gave back and invalid DropletId");
-            assert!(droplet.destination.is_none());
+            // FIXME shouldn't ignore
+            // assert!(droplet.destination.is_none());
             let mapped_loc = placement
                 .get(loc)
                 .expect("input location wasn't in placement");
@@ -90,10 +93,10 @@ impl GridView {
         let paths = match self.route() {
             Some(p) => p,
             None => {
-                return Err(PlanError::RouteError {
+                return Err((cmd, PlanError::RouteError {
                     placement: placement,
                     droplets: self.snapshot().droplets.values().cloned().collect(),
-                })
+                }))
             }
         };
         debug!("route for {:#?}: {:#?}", cmd, paths);
