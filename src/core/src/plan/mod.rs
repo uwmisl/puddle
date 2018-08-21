@@ -154,7 +154,7 @@ mod tests {
     fn plan_input() {
         let mut gv = mk_gv("tests/arches/purpledrop.json");
         let cmd = {
-            let substance = "something".into();
+            let substance = "input".into();
             let volume = 1.0;
             let dimensions = Location { y: 3, x: 3 };
             let out_id = DropletId {
@@ -177,13 +177,13 @@ mod tests {
         let droplet = {
             let volume = 1.0;
             let location = Location { y: 7, x: 0 };
-            let dimensions = Location { y: 4, x: 3 };
+            let dimensions = Location { y: 1, x: 1 };
             Droplet::new(id, volume, location, dimensions)
         };
         gv.snapshot_mut().droplets.insert(id, droplet);
 
         let cmd = {
-            let substance = "something else".into();
+            let substance = "output".into();
             command::Output::new(substance, id).unwrap()
         };
 

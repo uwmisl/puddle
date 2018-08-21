@@ -327,7 +327,7 @@ fn heat_droplet() {
     let dim = Location { y: 1, x: 1 };
     let id0 = p.create(None, 1.0, Some(dim)).unwrap();
     let temp = 60.0;
-    let id1 = p.heat(id0, temp).unwrap();
+    let id1 = p.heat(id0, temp, 1.0).unwrap();
 
     let droplets = info_dict(&p);
     let header_loc = Location { y: 3, x: 2 };
