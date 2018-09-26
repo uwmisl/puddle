@@ -25,7 +25,7 @@ set -v
 pushd src/core/
 
 # check for formatting
-cargo fmt -- --write-mode diff
+cargo fmt -- --check
 
 # try the regular build and tests
 cargo build
