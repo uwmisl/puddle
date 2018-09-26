@@ -33,7 +33,8 @@ fn handle(ioh: &IoHandler, req: &Request) -> Response {
     info!("req: ({})", &req_string);
 
     // handle the request with jsonrpc, then convert to IronResult
-    let resp_data = &ioh.handle_request_sync(&req_string)
+    let resp_data = &ioh
+        .handle_request_sync(&req_string)
         .expect("handle failed!");
     let resp = Response::from_data("application/json", resp_data.bytes().collect::<Vec<_>>());
     debug!("Resp: {:?}", resp_data);
@@ -129,32 +130,27 @@ fn main() {
                 .help("The architecture file")
                 .takes_value(true)
                 .required(true),
-        )
-        .arg(
+        ).arg(
             Arg::with_name("split-error")
                 .long("split-error-stdev")
                 .takes_value(true),
-        )
-        .arg(
+        ).arg(
             Arg::with_name("static")
                 .long("static")
                 .required(true)
                 .takes_value(true)
                 .validator(check_dir),
-        )
-        .arg(
+        ).arg(
             Arg::with_name("host")
                 .long("host")
                 .default_value("localhost")
                 .takes_value(true),
-        )
-        .arg(
+        ).arg(
             Arg::with_name("port")
                 .long("port")
                 .default_value("3000")
                 .takes_value(true),
-        )
-        .arg(Arg::with_name("sync").long("sync"))
+        ).arg(Arg::with_name("sync").long("sync"))
         .get_matches();
 
     ::std::process::exit(match run(&matches) {

@@ -97,7 +97,8 @@ impl FromStr for Location {
     type Err = ParseIntError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let coords: Vec<&str> = s.trim()
+        let coords: Vec<&str> = s
+            .trim()
             .trim_matches(|p| p == '(' || p == ')')
             .split(",")
             .map(|s| s.trim())
@@ -168,8 +169,7 @@ pub mod tests {
             .map(|(k, v)| {
                 let vv = equivs.find(*v).index();
                 (*k, vv)
-            })
-            .collect()
+            }).collect()
     }
 
     type Pt = (i32, i32);

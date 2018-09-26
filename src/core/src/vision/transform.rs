@@ -1,5 +1,5 @@
 use super::Point;
-use nalgebra::{geometry::Translation2, norm, MatrixN, Projective2, Similarity2, U3, UnitComplex};
+use nalgebra::{geometry::Translation2, norm, MatrixN, Projective2, Similarity2, UnitComplex, U3};
 
 pub struct GridTransformer {
     similarity: Similarity2<f32>,

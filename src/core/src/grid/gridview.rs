@@ -189,12 +189,14 @@ impl Snapshot {
                 }
                 // HACK FIXME this mutation is not great
                 if (d.volume - d_new.volume).abs() > 1.0 {
-                    info!("volume of {} changed: {} -> {}", id.id, d.volume, d_new.volume)
+                    info!(
+                        "volume of {} changed: {} -> {}",
+                        id.id, d.volume, d_new.volume
+                    )
                 }
                 d.volume = d_new.volume;
                 (id, d_new)
-            })
-            .collect();
+            }).collect();
 
         if was_error {
             let mut new_snapshot = Snapshot {
@@ -213,7 +215,8 @@ impl Snapshot {
 
     pub fn diff_droplet(&self, id: &DropletId, other: &Snapshot) -> DropletDiff {
         use self::DropletDiff::*;
-        let droplet = self.droplets
+        let droplet = self
+            .droplets
             .get(id)
             .expect("id should be in self snapshot");
         if let Some(other_droplet) = other.droplets.get(id) {
@@ -256,11 +259,10 @@ impl Snapshot {
                             warn!("Droplet {} jumped from {} to {}!", id.id, from, to);
                             None
                         }
-                    },
+                    }
                     _ => None,
                 }
-            })
-            .collect()
+            }).collect()
     }
 }
 
@@ -331,7 +333,6 @@ impl GridView {
     }
 
     pub fn commit_pending(&mut self, mut snapshot: Snapshot) {
-
         #[cfg(not(feature = "pi"))]
         snapshot.finalize();
         #[cfg(feature = "pi")]
@@ -376,7 +377,8 @@ impl GridView {
 
     fn update(&mut self, id: DropletId, func: impl FnOnce(&mut Droplet)) {
         let now = self.planned.back_mut().unwrap();
-        let droplet = now.droplets
+        let droplet = now
+            .droplets
             .get_mut(&id)
             .unwrap_or_else(|| panic!("Tried to remove a non-existent droplet: {:?}", id));
         func(droplet);
@@ -535,7 +537,8 @@ impl<'a> GridSubView<'a> {
         let snapshot = self.backing_gridview.snapshot_mut();
         let mut droplet = snapshot.droplets.remove(id).unwrap();
         // FIXME this is pretty dumb
-        let (unmapped_loc, _) = self.mapping
+        let (unmapped_loc, _) = self
+            .mapping
             .iter()
             .find(|(_, &v)| v == droplet.location)
             .unwrap();

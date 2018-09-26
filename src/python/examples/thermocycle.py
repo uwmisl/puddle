@@ -29,7 +29,6 @@ with mk_session(arch_path) as session:
         a = session.heat(a, temp=72, seconds=20)
         print('post 72 volume: ', a.volume())
 
-
     # initial_volume = c.volume()
 
     # droplet.move((2, 6))

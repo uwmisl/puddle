@@ -9,6 +9,7 @@ corner4 = [(12 - y, 0 + x) for y,x in offsets]
 
 corners = [corner1, corner2, corner3, corner4]
 
+
 def try_move(d, corner):
     try:
         old_id = d._id
@@ -20,7 +21,9 @@ def try_move(d, corner):
         d.valid = True
         print("python: ERROR")
 
+
 arch_path = puddle.project_path('tests/arches/purpledrop.json')
+
 
 def endurance(session):
     globals().update(session.prelude())

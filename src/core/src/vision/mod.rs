@@ -13,7 +13,9 @@ use self::transform::GridTransformer;
 use nalgebra::{Isometry2, Point2};
 use ncollide2d as nc;
 use ncollide2d::{
-    bounding_volume::{HasBoundingVolume, AABB}, query::PointQuery, shape::ConvexPolygon,
+    bounding_volume::{HasBoundingVolume, AABB},
+    query::PointQuery,
+    shape::ConvexPolygon,
 };
 
 // Points are x,y in nalgebra, but we just ignore those names. We only use
@@ -119,7 +121,8 @@ impl Detector {
             CString::new(src_str).unwrap()
         };
         let c_dst = {
-            let dst_str = dst.to_str()
+            let dst_str = dst
+                .to_str()
                 .expect("Destination filename was invalid string!");
             CString::new(dst_str).unwrap()
         };
@@ -150,8 +153,7 @@ impl Detector {
                     .collect();
                 let polygon = ConvexPolygon::try_from_points(&transformed_points).unwrap();
                 PolygonBlob { polygon }
-            })
-            .collect();
+            }).collect();
 
         trace!(
             "Found {} blobs: {:#?}",
@@ -162,8 +164,7 @@ impl Detector {
                     let ident = Isometry2::identity();
                     let bbox: AABB<f32> = b.polygon.bounding_volume(&ident);
                     bbox
-                })
-                .collect::<Vec<_>>()
+                }).collect::<Vec<_>>()
         );
         debug!("Blobs represent these droplets with fake ids: {:#?}", {
             let id = DropletId {
@@ -175,8 +176,7 @@ impl Detector {
                 .map(|b| {
                     // NOTE: to_droplet will panic if location or dimensions are negative
                     ::std::panic::catch_unwind(|| b.to_droplet(id))
-                })
-                .collect::<Vec<_>>()
+                }).collect::<Vec<_>>()
         });
 
         if should_quit {
@@ -212,7 +212,8 @@ impl PolygonBlob {
         let delta = 0.2;
         let ident = Isometry2::identity();
         let (n_pts, pts) = points_in_area(location, dimensions, delta);
-        let n_pts_in_shape = pts.filter(|pt| self.polygon.contains_point(&ident, pt))
+        let n_pts_in_shape = pts
+            .filter(|pt| self.polygon.contains_point(&ident, pt))
             .count();
 
         n_pts_in_shape > 0
@@ -226,7 +227,8 @@ impl PolygonBlob {
         let mut e1 = self.polygon.points().iter().cycle();
         e1.next();
 
-        let area: f32 = e0.zip(e1)
+        let area: f32 = e0
+            .zip(e1)
             .map(|(p0, p1)| p0[0] * p1[1] - p0[1] * p1[0])
             .sum();
         area.abs() / 2.0
@@ -251,7 +253,8 @@ impl Blob for PolygonBlob {
 
         let delta = 0.2;
         let (n_pts, pts) = points_in_area(droplet.location, droplet.dimensions, delta);
-        let n_pts_in_shape = pts.filter(|pt| self.polygon.contains_point(&ident, pt))
+        let n_pts_in_shape = pts
+            .filter(|pt| self.polygon.contains_point(&ident, pt))
             .count();
 
         assert!((n_pts as i32) < BASE_DISTANCE);
@@ -360,8 +363,7 @@ fn points_in_area(
             let dy = y;
             y += delta;
             dy
-        })
-        .flat_map(move |dy| {
+        }).flat_map(move |dy| {
             (0..x_steps).map(move |_| {
                 let dx = x;
                 x += delta;

@@ -1,8 +1,8 @@
 use grid::gridview::{GridSubView, GridView};
 use std::fmt;
 use std::sync::mpsc::Sender;
-use std::time::Duration;
 use std::thread;
+use std::time::Duration;
 
 use plan::PlanError;
 
@@ -10,8 +10,8 @@ use plan::PlanError;
 use pi::RaspberryPi;
 
 use grid::{
-    droplet::{Blob, SimpleBlob}, Droplet, DropletId, DropletInfo, Grid, Location, Peripheral,
-    Snapshot,
+    droplet::{Blob, SimpleBlob},
+    Droplet, DropletId, DropletInfo, Grid, Location, Peripheral, Snapshot,
 };
 
 use process::{ProcessId, PuddleResult};
@@ -478,11 +478,16 @@ pub struct Heat {
     outputs: Vec<DropletId>,
     temperature: f32,
     duration: Duration,
-    heater: Option<Peripheral>
+    heater: Option<Peripheral>,
 }
 
 impl Heat {
-    pub fn new(id: DropletId, out_id: DropletId, temperature: f32, duration: Duration) -> PuddleResult<Heat> {
+    pub fn new(
+        id: DropletId,
+        out_id: DropletId,
+        temperature: f32,
+        duration: Duration,
+    ) -> PuddleResult<Heat> {
         Ok(Heat {
             inputs: vec![id],
             outputs: vec![out_id],
@@ -516,7 +521,10 @@ impl Command for Heat {
 
         // the parameters of heater here don't matter, as it's just used to
         // match up with the "real" heater in the actual grid
-        let loc = Location { y: y_dim as i32 - 1, x: 0 };
+        let loc = Location {
+            y: y_dim as i32 - 1,
+            x: 0,
+        };
         grid.get_cell_mut(&loc).unwrap().peripheral = Some(Peripheral::Heater {
             pwm_channel: 0,
             spi_channel: 0,
@@ -535,7 +543,10 @@ impl Command for Heat {
         #[cfg(feature = "pi")]
         {
             let d = gridview.get(&self.inputs[0]);
-            let loc = Location { y: d.dimensions.y-1, x: 0 };
+            let loc = Location {
+                y: d.dimensions.y - 1,
+                x: 0,
+            };
             let heater = gridview
                 .get_electrode(&loc)
                 .cloned()
@@ -560,7 +571,6 @@ impl Command for Heat {
         let heater = self.heater.take().unwrap();
         pi.map(|pi| pi.heat(&heater, self.temperature as f64, self.duration));
     }
-
 }
 
 #[derive(Debug)]
@@ -640,7 +650,7 @@ impl Command for Input {
         }
         let new_id = self.outputs[0];
 
-        let d_loc = Location {y: 0, x: 0 };
+        let d_loc = Location { y: 0, x: 0 };
         let d = Droplet::new(new_id, self.volume, d_loc, self.dimensions);
         gridview.insert(d);
         gridview.tick()
@@ -650,7 +660,6 @@ impl Command for Input {
     fn finalize(&mut self, _: &Snapshot, pi: Option<&mut RaspberryPi>) {
         let input = self.input.take().unwrap();
         pi.map(|pi| {
-
             let loc26 = 118;
             let loc27 = 119;
             let loc36 = 112;
@@ -704,7 +713,6 @@ impl Output {
 impl Command for Output {
     fn input_droplets(&self) -> Vec<DropletId> {
         self.inputs.clone()
-
     }
 
     fn output_droplets(&self) -> Vec<DropletId> {

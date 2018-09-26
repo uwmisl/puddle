@@ -16,7 +16,8 @@ pub struct ProcessHandle<'a> {
 
 impl<'a> Drop for ProcessHandle<'a> {
     fn drop(&mut self) {
-        let p = self.process
+        let p = self
+            .process
             .take()
             .expect("ProcessHandle process was None!");
         self.manager.put_process(p);

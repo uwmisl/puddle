@@ -63,7 +63,7 @@ impl Executor {
             match n {
                 0 => false,
                 1 => true,
-                _ => panic!("couldn't parse PUDDLE_CORRECT_ERRORS")
+                _ => panic!("couldn't parse PUDDLE_CORRECT_ERRORS"),
             }
         };
 
@@ -74,7 +74,7 @@ impl Executor {
             match n {
                 0 => false,
                 1 => true,
-                _ => panic!("couldn't parse PUDDLE_BAD_EDGES")
+                _ => panic!("couldn't parse PUDDLE_BAD_EDGES"),
             }
         };
 
@@ -132,7 +132,8 @@ impl Executor {
 
                     let should_perturb = rng.gen_bool(err_rate);
                     if should_perturb {
-                        let blobs = gv.perturb(&mut rng, &snapshot)
+                        let blobs = gv
+                            .perturb(&mut rng, &snapshot)
                             .map(|perturbed_snapshot| perturbed_snapshot.to_blobs());
 
                         if let Some(blobs) = blobs {

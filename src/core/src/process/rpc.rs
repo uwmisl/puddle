@@ -203,7 +203,13 @@ impl Rpc for Arc<Manager> {
         p.split(d)
     }
 
-    fn heat(&self, pid: ProcessId, d: DropletId, temperature: f32, seconds: f64) -> PuddleResult<DropletId> {
+    fn heat(
+        &self,
+        pid: ProcessId,
+        d: DropletId,
+        temperature: f32,
+        seconds: f64,
+    ) -> PuddleResult<DropletId> {
         let p = self.get_process(pid)?;
         p.heat(d, temperature, seconds)
     }

@@ -31,14 +31,14 @@ pub struct ParsedGrid {
 impl ParsedGrid {
     pub fn to_grid(&self) -> Grid {
         // find a pin that higher than anything listed
-        let mut next_auto_pin = self.board
+        let mut next_auto_pin = self
+            .board
             .iter()
             .flat_map(|row| row.iter())
             .filter_map(|ci| match ci {
                 Index(n) => Some(n + 1),
                 _ => None,
-            })
-            .max()
+            }).max()
             .unwrap_or(0);
 
         let mut f = |pe: &ParsedElectrode| match pe {
@@ -58,7 +58,8 @@ impl ParsedGrid {
         };
 
         let mut grid = Grid {
-            vec: self.board
+            vec: self
+                .board
                 .iter()
                 .map(|row| row.iter().map(&mut f).collect())
                 .collect(),
@@ -127,8 +128,7 @@ pub mod tests {
                 let labels = connected_components(locs.iter().cloned());
                 assert!(labels.values().all(|v| *v == 0));
                 (ch, SimpleBlob::from_locations(&locs).expect("not a blob!"))
-            })
-            .collect();
+            }).collect();
 
         let mut next_pin = 0;
         let to_cell = |loc: Location| {

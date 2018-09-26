@@ -64,11 +64,10 @@ impl GridView {
             for id in &in_ids {
                 snapshot.droplets.remove(id);
             }
-            match self.grid
-                .place(&shape, &snapshot, &self.bad_edges) {
-                    None => return Err((cmd, PlanError::PlaceError)),
-                    Some(placement) => placement
-                }
+            match self.grid.place(&shape, &snapshot, &self.bad_edges) {
+                None => return Err((cmd, PlanError::PlaceError)),
+                Some(placement) => placement,
+            }
         };
 
         debug!("placement for {:#?}: {:#?}", cmd, placement);
@@ -77,7 +76,8 @@ impl GridView {
 
         for (loc, id) in input_locations.iter().zip(&in_ids) {
             // this should have been put to none last time
-            let droplet = self.snapshot_mut()
+            let droplet = self
+                .snapshot_mut()
                 .droplets
                 .get_mut(&id)
                 .expect("Command gave back and invalid DropletId");
@@ -93,10 +93,13 @@ impl GridView {
         let paths = match self.route() {
             Some(p) => p,
             None => {
-                return Err((cmd, PlanError::RouteError {
-                    placement: placement,
-                    droplets: self.snapshot().droplets.values().cloned().collect(),
-                }))
+                return Err((
+                    cmd,
+                    PlanError::RouteError {
+                        placement: placement,
+                        droplets: self.snapshot().droplets.values().cloned().collect(),
+                    },
+                ))
             }
         };
         debug!("route for {:#?}: {:#?}", cmd, paths);

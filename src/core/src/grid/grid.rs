@@ -71,7 +71,8 @@ const NEIGHBORS_4: [Location; 4] = [
 impl Grid {
     pub fn to_parsed_grid(&self) -> ParsedGrid {
         let mut peripherals = Map::new();
-        let board = self.vec
+        let board = self
+            .vec
             .iter()
             .enumerate()
             .map(|(i, row)| {
@@ -89,10 +90,8 @@ impl Grid {
                             }
                             ParsedElectrode::Index(e.pin)
                         }
-                    })
-                    .collect()
-            })
-            .collect();
+                    }).collect()
+            }).collect();
         ParsedGrid { board, peripherals }
     }
 
@@ -195,7 +194,8 @@ impl Grid {
         snapshot: &Snapshot,
         bad_edges: &Set<(Location, Location)>,
     ) -> Option<Map<Location, Location>> {
-        let offset_found = self.vec
+        let offset_found = self
+            .vec
             .iter()
             .enumerate()
             .flat_map(move |(i, row)| {
@@ -203,8 +203,7 @@ impl Grid {
                     y: i as i32,
                     x: j as i32,
                 })
-            })
-            .find(|&offset| smaller.is_compatible_within(offset, self, snapshot, bad_edges));
+            }).find(|&offset| smaller.is_compatible_within(offset, self, snapshot, bad_edges));
 
         let result =
             offset_found.map(|offset| smaller.mapping_into_other_from_offset(offset, self));
@@ -235,10 +234,8 @@ impl Grid {
                             y: i as i32,
                             x: j as i32,
                         })
-                    })
-                    .collect()
-            })
-            .collect();
+                    }).collect()
+            }).collect();
 
         Grid { vec }
     }

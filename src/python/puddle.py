@@ -63,6 +63,7 @@ class Droplet:
         droplets = self.session.droplets()
         return droplets[self._id]['volume']
 
+
 def to_location(loc):
     return {'y': loc[0], 'x': loc[1]}
 
@@ -189,6 +190,7 @@ class Session:
     def move (self, droplet, *args, **kwargs): return droplet.move (*args, **kwargs)
 
     def mix  (self, droplet, *args, **kwargs): return droplet.mix  (*args, **kwargs)
+
     def combine_into  (self, droplet, *args, **kwargs): return droplet.combine_into  (*args, **kwargs)
 
     def split(self, droplet, *args, **kwargs): return droplet.split(*args, **kwargs)

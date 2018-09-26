@@ -89,14 +89,14 @@ impl AvoidanceSet {
         for y in 0..node.dimensions.y {
             for x in 0..node.dimensions.x {
                 let loc = &node.location + &Location { y, x };
-                let collides = self.finals
+                let collides = self
+                    .finals
                     .get(&loc)
                     .filter(|sn| {
                         sn.collision_groups
                             .iter()
                             .any(|&cg| cg != node.collision_group)
-                    })
-                    .map_or(false, |fin| node.time >= fin.time);
+                    }).map_or(false, |fin| node.time >= fin.time);
                 if collides {
                     return true;
                 }
@@ -133,8 +133,7 @@ impl AvoidanceSet {
                 .and_modify(|sn| {
                     sn.collision_groups.insert(droplet.collision_group);
                     sn.time = sn.time.min(last as Time)
-                })
-                .or_insert_with(|| {
+                }).or_insert_with(|| {
                     let mut cgs = Set::new();
                     cgs.insert(droplet.collision_group);
                     SuperNode {
@@ -159,8 +158,7 @@ impl AvoidanceSet {
                     .entry((loc, time as Time))
                     .and_modify(|sn| {
                         sn.collision_groups.insert(node.collision_group);
-                    })
-                    .or_insert_with(|| {
+                    }).or_insert_with(|| {
                         let mut cgs = Set::new();
                         cgs.insert(node.collision_group);
                         SuperNode {
@@ -179,7 +177,8 @@ impl Node {
     /// location for this `Node`. This uses `neighbors4`, since droplets only move in the cardinal
     /// directions.
     fn expand(&self, grid: &Grid) -> Vec<(Cost, Node)> {
-        let mut vec: Vec<(Cost, Node)> = grid.neighbors4(&self.location)
+        let mut vec: Vec<(Cost, Node)> = grid
+            .neighbors4(&self.location)
             .iter()
             .map(|&location| {
                 (
@@ -191,8 +190,7 @@ impl Node {
                         dimensions: self.dimensions,
                     },
                 )
-            })
-            .collect();
+            }).collect();
 
         vec.push((
             STAY_COST,
@@ -276,8 +274,7 @@ fn route_many(
                         let l1 = node.location;
                         let l2 = n.location;
                         !av_set.should_avoid(n) && !bad_edges.contains(&(l1, l2))
-                    })
-                    .cloned()
+                    }).cloned()
                     .collect::<Vec<_>>()
             };
 

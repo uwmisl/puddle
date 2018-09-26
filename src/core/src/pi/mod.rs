@@ -15,9 +15,9 @@ use util::{pid::PidController, seconds_duration, Timer};
 #[cfg(feature = "vision")]
 use vision::Detector;
 
-use self::max31865::{MAX31865_DEFAULT_CONFIG, Max31865};
-use self::mcp4725::{MCP4725_DEFAULT_ADDRESS, Mcp4725};
-use self::pca9685::{PCA9685_DEFAULT_ADDRESS, Pca9685};
+use self::max31865::{Max31865, MAX31865_DEFAULT_CONFIG};
+use self::mcp4725::{Mcp4725, MCP4725_DEFAULT_ADDRESS};
+use self::pca9685::{Pca9685, PCA9685_DEFAULT_ADDRESS};
 
 #[allow(non_camel_case_types)]
 type int = c_int;
@@ -308,7 +308,8 @@ impl RaspberryPi {
 
             assert!(0.0 <= duty_cycle);
             assert!(duty_cycle <= pca9685::DUTY_CYCLE_MAX as f64);
-            self.pca9685.set_duty_cycle(pwm_channel, duty_cycle as u16)?;
+            self.pca9685
+                .set_duty_cycle(pwm_channel, duty_cycle as u16)?;
 
             thread::sleep(extra_delay);
         }
@@ -359,9 +360,9 @@ impl RaspberryPi {
                         y: d.location.y + i,
                         x: d.location.x + j,
                     };
-                    let electrode = grid.get_cell(&loc).unwrap_or_else(|| {
-                        panic!("Couldn't find electrode for {}", loc)
-                    });
+                    let electrode = grid
+                        .get_cell(&loc)
+                        .unwrap_or_else(|| panic!("Couldn't find electrode for {}", loc));
                     pins[electrode.pin as usize] = 1;
                     trace!(
                         "Setting pin {} at ({}, {})",
