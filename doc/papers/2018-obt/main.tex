@@ -3,8 +3,6 @@
   a4paper,
   twocolumn,
 ]{article}
-\usepackage[T1]{fontenc}
-\usepackage[utf8]{inputenc}
 
 \usepackage{minted}
 \usepackage{caption}
@@ -12,6 +10,7 @@
 \usepackage[cm]{fullpage}
 
 \usepackage[pdftex]{graphicx} % Required for including pictures
+\graphicspath{{../../assets/}}
 \usepackage[pdftex,linkcolor=black,pdfborder={0 0 0}]{hyperref} % Format links for pdf
 
 \usepackage[protrusion=true,expansion=true]{microtype}
@@ -77,7 +76,7 @@ Embedded in a general purpose language, users can combine these primitives into 
   \begin{minipage}{0.4\linewidth}
     \footnotesize
     \centering
-    \includegraphics[width=0.9\linewidth]{droplet.png}
+    \includegraphics[width=0.9\linewidth]{droplet-tracking}
   \end{minipage}
   \hfill
   \begin{minipage}{0.5\linewidth}
