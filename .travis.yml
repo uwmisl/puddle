@@ -10,6 +10,11 @@ rust:
 #     - rust:
 #         - nightly
 
+addons:
+  apt:
+    packages:
+    - texlive-latex-extra
+
 cache:
   directories:
     # rust caching

@@ -12,6 +12,12 @@ set -e
 #     echo "Allowing Rust warnings..."
 # fi
 
+for dir in $(find doc/papers/ -mindepth 1 -maxdepth 1 -type d)
+do
+    echo "Building $dir..."
+    (cd $dir; make)
+done
+
 # -v print every line before running it
 set -v
 
