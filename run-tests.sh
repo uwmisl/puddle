@@ -12,6 +12,17 @@ set -e
 #     echo "Allowing Rust warnings..."
 # fi
 
+# don't commit large files
+for f in $(git ls-tree -r HEAD --name-only)
+do
+    size="$(stat -c "%s" $f)"
+    if (( $size > 1000 * 1000 ))
+    then
+        echo "$f is too large ($size)"
+        exit 1
+    fi
+done
+
 for dir in $(find doc/papers/ -mindepth 1 -maxdepth 1 -type d)
 do
     echo "Building $dir..."
