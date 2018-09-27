@@ -223,7 +223,8 @@ def mk_session(
     except CalledProcessError:
         pass
 
-    default_command = 'cargo run --manifest-path {cargo_toml} --bin puddle-server {profile} -- '
+    # this won't build the server, so make sure it's there
+    default_command = project_path('/src/core/target/debug/puddle-server')
     command = os.environ.get('PUDDLE_SERVER', default_command)
 
     # build the server command and run it
