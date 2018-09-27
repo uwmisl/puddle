@@ -15,6 +15,7 @@ addons:
     packages:
     - texlive-latex-extra
     - texlive-bibtex-extra
+    - latex-xcolor
     - biber
     - python-pygments
 
