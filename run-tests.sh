@@ -13,8 +13,15 @@ set -e
 # fi
 
 # don't commit large files
-for f in $(git ls-tree -r HEAD --name-only)
+deleted=$(mktemp)
+git ls-files -d > $deleted
+for f in $(git ls-files)
 do
+    if grep -qx $f $deleted
+    then
+        echo "$f was deleted!"
+        continue
+    fi
     size="$(stat -c "%s" $f)"
     if (( $size > 1000 * 1000 ))
     then
