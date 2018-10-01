@@ -21,7 +21,7 @@ cache:
 before_install:
   # force install of python 3.6
   - curl -L https://raw.githubusercontent.com/pyenv/pyenv-installer/master/bin/pyenv-installer | bash
-  - pyenv global 3.6
+  - pyenv install 3.6 && pyenv global 3.6
   # get pipenv
   - pip install --user pipenv
   # get rustfmt so we can check code style
