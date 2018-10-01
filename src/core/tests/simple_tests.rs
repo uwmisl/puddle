@@ -199,7 +199,6 @@ fn check_mix_dimensions(dim1: Location, dim2: Location, dim_result: Location) {
 }
 
 #[test]
-#[ignore]
 fn mix_dimensions_size() {
     check_mix_dimensions(
         Location { y: 1, x: 1 },
@@ -274,7 +273,6 @@ fn create_dimension() {
 }
 
 #[test]
-#[ignore]
 fn mix_larger_droplets() {
     let man = manager_from_rect(100, 100);
     let p = man.get_new_process("test");

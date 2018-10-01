@@ -261,8 +261,7 @@ impl Mix {
                 x: 0,
             },
             dimensions: Location {
-                // FIXME HACK
-                y: (d0.dimensions.y + d1.dimensions.y).min(2),
+                y: (d0.dimensions.y + d1.dimensions.y),
                 x: d0.dimensions.x.max(d1.dimensions.x),
             },
             volume: d0.volume + d1.volume,
