@@ -83,9 +83,12 @@ impl GridView {
                 .expect("Command gave back and invalid DropletId");
             // FIXME shouldn't ignore
             // assert!(droplet.destination.is_none());
-            let mapped_loc = placement
-                .get(loc)
-                .expect("input location wasn't in placement");
+            let mapped_loc = placement.get(loc).unwrap_or_else(|| {
+                panic!(
+                    "Input location {} wasn't in placement.\n  All input locations: {:?}",
+                    loc, input_locations
+                )
+            });
             droplet.destination = Some(*mapped_loc);
         }
 
