@@ -232,6 +232,19 @@ fn mix_dimensions_too_large_to_combine() {
     );
 }
 
+#[test]
+fn mix_dimensions_place_must_overlap() {
+    // test that a placement can overlap with the input droplets without
+    // requiring them to move
+    let man = manager_from_rect(3, 3);
+    let p = man.get_new_process("test");
+
+    let id1 = p.create(None, 1.0, None).unwrap();
+    let id2 = p.create(None, 1.0, None).unwrap();
+
+    let _ = p.mix(id1, id2).unwrap();
+}
+
 fn check_split_dimensions(dim: Location, dim1: Location, dim2: Location) {
     let man = manager_from_rect(9, 9);
     let p = man.get_new_process("test");
