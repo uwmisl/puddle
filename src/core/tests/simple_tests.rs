@@ -275,7 +275,7 @@ fn split_dimensions_size() {
 }
 
 #[test]
-#[should_panic(expected = "collision")]
+#[ignore]
 fn create_dimensions_failure_overlap() {
     let man = manager_from_rect(9, 9);
     let p = man.get_new_process("test");
@@ -287,7 +287,8 @@ fn create_dimensions_failure_overlap() {
     let loc2 = Location { y: 1, x: 3 };
 
     let _id1 = p.create(Some(loc1), 1.0, Some(dim1)).unwrap();
-    let _id2 = p.create(Some(loc2), 1.0, Some(dim2)).unwrap();
+    let id2 = p.create(Some(loc2), 1.0, Some(dim2));
+    assert!(id2.is_err())
 }
 
 #[test]
