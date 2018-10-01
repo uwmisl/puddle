@@ -212,6 +212,26 @@ fn mix_dimensions_size() {
     );
 }
 
+#[test]
+#[ignore]
+fn mix_dimensions_too_large_to_combine() {
+    // recall, this is on 20x20 board
+
+    // too tall to fit vertically
+    check_mix_dimensions(
+        Location { y: 11, x: 3 },
+        Location { y: 11, x: 3 },
+        Location { y: 11, x: 6 },
+    );
+
+    // too wide to fit horizontally
+    check_mix_dimensions(
+        Location { y: 3, x: 11 },
+        Location { y: 3, x: 11 },
+        Location { y: 6, x: 11 },
+    );
+}
+
 fn check_split_dimensions(dim: Location, dim1: Location, dim2: Location) {
     let man = manager_from_rect(9, 9);
     let p = man.get_new_process("test");
