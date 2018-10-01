@@ -81,8 +81,9 @@ impl GridView {
                 .droplets
                 .get_mut(&id)
                 .expect("Command gave back and invalid DropletId");
-            // FIXME shouldn't ignore
-            // assert!(droplet.destination.is_none());
+
+            assert!(droplet.destination.is_none());
+
             let mapped_loc = placement.get(loc).unwrap_or_else(|| {
                 panic!(
                     "Input location {} wasn't in placement.\n  All input locations: {:?}",
