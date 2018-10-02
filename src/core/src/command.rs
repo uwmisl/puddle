@@ -218,34 +218,31 @@ impl Command for Move {
 }
 
 //
-//  Mix
+//  Combine
 //
 
 #[derive(Debug)]
-pub struct Mix {
+pub struct Combine {
     inputs: Vec<DropletId>,
     outputs: Vec<DropletId>,
     pin_d0: bool,
-    n_agitation_loops: u32,
 }
 
-impl Mix {
-    pub fn new(id1: DropletId, id2: DropletId, out_id: DropletId) -> PuddleResult<Mix> {
-        Ok(Mix {
+impl Combine {
+    pub fn new(id1: DropletId, id2: DropletId, out_id: DropletId) -> PuddleResult<Combine> {
+        Ok(Combine {
             inputs: vec![id1, id2],
             outputs: vec![out_id],
             pin_d0: false,
-            n_agitation_loops: 1,
         })
     }
 
     // combines the second into the first, pinning the first
-    pub fn combine_into(id1: DropletId, id2: DropletId, out_id: DropletId) -> PuddleResult<Mix> {
-        Ok(Mix {
+    pub fn combine_into(id1: DropletId, id2: DropletId, out_id: DropletId) -> PuddleResult<Combine> {
+        Ok(Combine {
             inputs: vec![id1, id2],
             outputs: vec![out_id],
             pin_d0: true,
-            n_agitation_loops: 0,
         })
     }
 
@@ -269,9 +266,7 @@ impl Mix {
     }
 }
 
-const MIX_PADDING: usize = 1;
-
-impl Command for Mix {
+impl Command for Combine {
     fn input_droplets(&self) -> Vec<DropletId> {
         self.inputs.clone()
     }
@@ -326,8 +321,8 @@ impl Command for Mix {
         } else {
             DynamicCommandInfo {
                 shape: Grid::rectangle(
-                    combined.dimensions.y as usize + MIX_PADDING,
-                    combined.dimensions.x as usize + MIX_PADDING,
+                    combined.dimensions.y as usize,
+                    combined.dimensions.x as usize,
                 ),
                 input_locations: vec![
                     Location {
@@ -349,7 +344,7 @@ impl Command for Mix {
         let d0 = gridview.remove(&in0);
         let d1 = gridview.remove(&in1);
         // TODO right now this only mixes vertical
-        // it should somehow communicate with the Mix command to control the mixed droplets dimensions
+        // it should somehow communicate with the Combine command to control the mixed droplets dimensions
         let combined = self.combined(&d0, &d1);
 
         // assert_eq!(d0.location.y, d1.location.y);
@@ -357,20 +352,76 @@ impl Command for Mix {
         gridview.insert(combined.to_droplet(out));
     }
 
+    fn run(&mut self, _: &mut GridSubView) {}
+}
+
+//
+//  Agitate
+//
+
+#[derive(Debug)]
+pub struct Agitate {
+    inputs: Vec<DropletId>,
+    outputs: Vec<DropletId>,
+    n_agitation_loops: u32,
+}
+
+impl Agitate {
+    pub fn new(in_id: DropletId, out_id: DropletId) -> PuddleResult<Agitate> {
+        Ok(Agitate {
+            inputs: vec![in_id],
+            outputs: vec![out_id],
+            n_agitation_loops: 1,
+        })
+    }
+}
+
+const AGITATE_PADDING: usize = 1;
+
+impl Command for Agitate {
+    fn input_droplets(&self) -> Vec<DropletId> {
+        self.inputs.clone()
+    }
+
+    fn output_droplets(&self) -> Vec<DropletId> {
+        self.outputs.clone()
+    }
+
+    fn dynamic_info(&self, gridview: &mut GridView) -> DynamicCommandInfo {
+        let droplets = &mut gridview.snapshot_mut().droplets;
+        let droplet = droplets.get_mut(&self.inputs[0]).unwrap();
+
+        DynamicCommandInfo {
+            shape: Grid::rectangle(
+                droplet.dimensions.y as usize + AGITATE_PADDING,
+                droplet.dimensions.x as usize + AGITATE_PADDING,
+            ),
+            input_locations: vec![
+                Location { y: 0, x: 0 },
+            ],
+            trusted: false,
+        }
+    }
+
     fn run(&mut self, gridview: &mut GridSubView) {
-        let out = self.outputs[0];
+        let in_id = self.inputs[0];
+        let out_id = self.outputs[0];
 
         for i in 0..self.n_agitation_loops {
-            debug!("Agitating droplet {:?}, iteration {}", out, i);
-            gridview.move_south(out);
+            debug!("Agitating droplet {:?}, iteration {}", in_id, i);
+            gridview.move_south(in_id);
             gridview.tick();
-            gridview.move_east(out);
+            gridview.move_east(in_id);
             gridview.tick();
-            gridview.move_north(out);
+            gridview.move_north(in_id);
             gridview.tick();
-            gridview.move_west(out);
+            gridview.move_west(in_id);
             gridview.tick();
         }
+
+        let mut droplet = gridview.remove(&in_id);
+        droplet.id = out_id;
+        gridview.insert(droplet)
     }
 }
 

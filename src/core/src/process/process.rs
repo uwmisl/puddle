@@ -117,16 +117,21 @@ impl Process {
     }
 
     pub fn mix(&self, d1: DropletId, d2: DropletId) -> PuddleResult<DropletId> {
-        let output = self.new_droplet_id();
-        let mix_cmd = command::Mix::new(d1, d2, output)?;
-        self.plan(Box::new(mix_cmd))?;
-        Ok(output)
+        let combine_out = self.new_droplet_id();
+        let combine_cmd = command::Combine::new(d1, d2, combine_out)?;
+        self.plan(Box::new(combine_cmd))?;
+
+        let agitate_out = self.new_droplet_id();
+        let agitate_cmd = command::Agitate::new(combine_out, agitate_out)?;
+        self.plan(Box::new(agitate_cmd))?;
+
+        Ok(agitate_out)
     }
 
     pub fn combine_into(&self, d1: DropletId, d2: DropletId) -> PuddleResult<DropletId> {
         let output = self.new_droplet_id();
-        let mix_cmd = command::Mix::combine_into(d1, d2, output)?;
-        self.plan(Box::new(mix_cmd))?;
+        let combine_cmd = command::Combine::combine_into(d1, d2, output)?;
+        self.plan(Box::new(combine_cmd))?;
         Ok(output)
     }
 
