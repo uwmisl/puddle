@@ -35,9 +35,7 @@ pub trait Command: fmt::Debug + Send {
     fn pre_run(&self, &mut GridSubView) {}
 
     fn run(&mut self, &mut GridSubView);
-    fn is_blocking(&self) -> bool {
-        false
-    }
+
     #[cfg(not(feature = "pi"))]
     fn finalize(&mut self, &Snapshot) {}
     #[cfg(feature = "pi")]
