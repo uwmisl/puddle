@@ -4,7 +4,7 @@ mod route;
 
 pub use self::route::Path;
 
-use command::{Command, DynamicCommandInfo};
+use command::{Command, CommandRequest};
 use grid::{Droplet, GridView, Location, Snapshot};
 use util::collections::Map;
 
@@ -31,16 +31,12 @@ impl GridView {
         }
 
         let in_ids = cmd.input_droplets();
-        let DynamicCommandInfo {
-            shape,
-            input_locations,
-            trusted,
-        } = cmd.dynamic_info(self);
+        let req = cmd.request(self);
 
         debug!(
             "Command requests a shape of w={w},h={h}",
-            w = shape.max_width(),
-            h = shape.max_height(),
+            w = req.shape.max_width(),
+            h = req.shape.max_height(),
         );
 
         debug!(
@@ -51,7 +47,7 @@ impl GridView {
                 .collect::<Vec<_>>()
         );
 
-        let placement = if trusted {
+        let placement = if req.trusted {
             // if we are trusting placement, just use an identity map
             self.grid
                 .locations()
@@ -64,7 +60,7 @@ impl GridView {
             for id in &in_ids {
                 snapshot.droplets.remove(id);
             }
-            match self.grid.place(&shape, &snapshot, &self.bad_edges) {
+            match self.grid.place(&req.shape, &snapshot, &self.bad_edges) {
                 None => return Err((cmd, PlanError::PlaceError)),
                 Some(placement) => placement,
             }
@@ -72,9 +68,9 @@ impl GridView {
 
         debug!("placement for {:#?}: {:#?}", cmd, placement);
 
-        assert_eq!(input_locations.len(), in_ids.len());
+        assert_eq!(req.input_locations.len(), in_ids.len());
 
-        for (loc, id) in input_locations.iter().zip(&in_ids) {
+        for (loc, id) in req.input_locations.iter().zip(&in_ids) {
             // this should have been put to none last time
             let droplet = self
                 .snapshot_mut()
@@ -87,7 +83,7 @@ impl GridView {
             let mapped_loc = placement.get(loc).unwrap_or_else(|| {
                 panic!(
                     "Input location {} wasn't in placement.\n  All input locations: {:?}",
-                    loc, input_locations
+                    loc, req.input_locations
                 )
             });
             droplet.destination = Some(*mapped_loc);
