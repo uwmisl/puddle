@@ -24,7 +24,7 @@ pub enum Peripheral {
 }
 
 impl Electrode {
-    fn is_compatible(&self, other: &Self) -> bool {
+    pub fn is_compatible(&self, other: &Self) -> bool {
         let (mine, theirs) = match (&self.peripheral, &other.peripheral) {
             (None, None) => return true,
             (Some(p1), Some(p2)) => (p1, p2),

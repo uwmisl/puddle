@@ -46,6 +46,8 @@ pub trait Command: fmt::Debug + Send {
     }
 }
 
+pub type BoxedCommand = Box<dyn Command>;
+
 //
 //  Create
 //

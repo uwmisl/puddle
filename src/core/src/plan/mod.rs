@@ -3,9 +3,10 @@ mod place;
 mod route;
 
 pub use self::route::Path;
+use self::place::Placement;
 
-use command::{Command, CommandRequest};
-use grid::{Droplet, GridView, Location, Snapshot};
+use command::{Command, BoxedCommand, CommandRequest};
+use grid::{Droplet, DropletId, Grid, GridView, Location, Snapshot};
 use util::collections::Map;
 
 #[derive(Debug)]
@@ -17,7 +18,64 @@ pub enum PlanError {
     PlaceError,
 }
 
-pub type Placement = Map<Location, Location>;
+pub type Schedule = usize;
+pub type Routing = Map<DropletId, Path>;
+
+pub struct CommandPlan {
+    schedule: Schedule,
+    placement: Placement,
+    routing: Routing,
+}
+
+pub type Tick = usize;
+
+pub struct PlannedCommand {
+    cmd: BoxedCommand,
+    start_tick: Tick,
+    placement: Placement,
+}
+
+struct PlannedRoute {
+    id: DropletId,
+    start_tick: Tick,
+    route: Path,
+}
+
+pub struct Plan {
+    grid: Grid,
+    cmds: Vec<PlannedCommand>,
+    routes: Vec<PlannedRoute>,
+}
+
+pub struct PlanSnapshot {
+    cmd_shapes: Vec<Placement>,
+}
+
+impl Plan {
+    fn new(grid: Grid) -> Plan {
+        Plan {
+            grid,
+            cmds: vec![],
+            routes: vec![],
+        }
+    }
+
+    fn plan(&self, cmd: BoxedCommand) -> PlanResult {
+        unimplemented!()
+    }
+
+    fn snapshot_at(&self, tick: Tick) -> PlanSnapshot {
+        let cmd_shapes = self
+            .cmds
+            .iter()
+            .filter(|cmd| tick >= cmd.start_tick)
+            .map(|cmd| cmd.placement.clone())
+            .collect();
+        PlanSnapshot { cmd_shapes }
+    }
+}
+
+type PlanResult = Result<CommandPlan, (Box<dyn Command>, PlanError)>;
 
 impl GridView {
     pub fn plan(&mut self, mut cmd: Box<dyn Command>) -> Result<(), (Box<dyn Command>, PlanError)> {
@@ -47,7 +105,7 @@ impl GridView {
                 .collect::<Vec<_>>()
         );
 
-        let placement = if req.trusted {
+        let placement_mapping = if req.trusted {
             // if we are trusting placement, just use an identity map
             self.grid
                 .locations()
@@ -62,11 +120,11 @@ impl GridView {
             }
             match self.grid.place(&req.shape, &snapshot, &self.bad_edges) {
                 None => return Err((cmd, PlanError::PlaceError)),
-                Some(placement) => placement,
+                Some(placement_mapping) => placement_mapping,
             }
         };
 
-        debug!("placement for {:#?}: {:#?}", cmd, placement);
+        debug!("placement for {:#?}: {:#?}", cmd, placement_mapping);
 
         assert_eq!(req.input_locations.len(), in_ids.len());
 
@@ -80,7 +138,7 @@ impl GridView {
 
             assert!(droplet.destination.is_none());
 
-            let mapped_loc = placement.get(loc).unwrap_or_else(|| {
+            let mapped_loc = placement_mapping.get(loc).unwrap_or_else(|| {
                 panic!(
                     "Input location {} wasn't in placement.\n  All input locations: {:?}",
                     loc, req.input_locations
@@ -96,7 +154,7 @@ impl GridView {
                 return Err((
                     cmd,
                     PlanError::RouteError {
-                        placement: placement,
+                        placement: Placement {mapping: placement_mapping},
                         droplets: self.snapshot().droplets.values().cloned().collect(),
                     },
                 ))
@@ -111,7 +169,7 @@ impl GridView {
         self.take_paths(&paths, final_tick);
 
         {
-            let mut subview = self.subview(in_ids.iter().cloned(), placement.clone());
+            let mut subview = self.subview(in_ids.iter().cloned(), placement_mapping.clone());
 
             trace!("Pre-Running command {:?}", cmd);
             cmd.pre_run(&mut subview);
