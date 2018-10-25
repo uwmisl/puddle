@@ -2,10 +2,10 @@ mod minheap;
 mod place;
 mod route;
 
-pub use self::route::Path;
 use self::place::Placement;
+pub use self::route::Path;
 
-use command::{Command, BoxedCommand, CommandRequest};
+use command::{BoxedCommand, Command, CommandRequest};
 use grid::{Droplet, DropletId, Grid, GridView, Location, Snapshot};
 use util::collections::Map;
 
@@ -154,7 +154,9 @@ impl GridView {
                 return Err((
                     cmd,
                     PlanError::RouteError {
-                        placement: Placement {mapping: placement_mapping},
+                        placement: Placement {
+                            mapping: placement_mapping,
+                        },
                         droplets: self.snapshot().droplets.values().cloned().collect(),
                     },
                 ))

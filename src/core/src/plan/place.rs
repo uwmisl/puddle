@@ -97,7 +97,6 @@ mod tests {
         assert_eq!(identity_mapping, placement.mapping)
     }
 
-
     #[test]
     fn test_place_heater() {
         let mut grid = Grid::rectangle(3, 3);
@@ -113,9 +112,9 @@ mod tests {
             .get_cell_mut(&Location { y: 0, x: 0 })
             .unwrap()
             .peripheral = Some(Peripheral::Heater {
-                pwm_channel: 0,
-                spi_channel: 0,
-            });
+            pwm_channel: 0,
+            spi_channel: 0,
+        });
 
         let plan = Plan::new(grid.clone());
         let start_tick = 0;
@@ -123,8 +122,10 @@ mod tests {
 
         let placement = plan.place(&shape, start_tick, end_tick).unwrap();
 
-        assert_eq!(placement.mapping.get(&Location { y: 0, x: 0 }), Some(&heater_loc));
+        assert_eq!(
+            placement.mapping.get(&Location { y: 0, x: 0 }),
+            Some(&heater_loc)
+        );
     }
-
 
 }
