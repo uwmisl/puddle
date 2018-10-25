@@ -159,11 +159,12 @@ impl Grid {
             let their_loc = &loc + &offset;
             bigger.get_cell(&their_loc).map_or(false, |theirs| {
                 // make sure that it's not the case that an internal edge to this subgrid is a bad edge in the larger grid
-                my_cell.is_compatible(&theirs) && !snapshot.droplets.values().any(|droplet| {
-                    let corner1 = droplet.location;
-                    let corner2 = &droplet.location + &droplet.dimensions;
-                    their_loc.min_distance_to_box(corner1, corner2) <= 0
-                })
+                my_cell.is_compatible(&theirs)
+                    && !snapshot.droplets.values().any(|droplet| {
+                        let corner1 = droplet.location;
+                        let corner2 = &droplet.location + &droplet.dimensions;
+                        their_loc.min_distance_to_box(corner1, corner2) <= 0
+                    })
                     && !(self.get_cell(&loc.south()).is_some()
                         && bad_edges.contains(&(their_loc, their_loc.south())))
                     && !(self.get_cell(&loc.east()).is_some()
