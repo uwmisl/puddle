@@ -2,10 +2,10 @@ use std::collections::HashSet;
 use std::time::Instant;
 
 use grid::{Droplet, DropletId, Grid, GridView, Location};
-use plan::minheap::MinHeap;
 
 use util::collections::Entry::*;
 use util::collections::{Map, Set};
+use util::minheap::MinHeap;
 use util::mk_rng;
 
 use rand::Rng;

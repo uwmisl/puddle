@@ -1,5 +1,6 @@
 pub mod collections;
 pub mod endpoint;
+pub mod minheap;
 pub mod pid;
 
 use std::env;
