@@ -7,6 +7,8 @@ extern crate log;
 use clap::{App, Arg, ArgMatches, SubCommand};
 use std::error::Error;
 use std::fs::File;
+use std::io;
+use std::io::prelude::*;
 use std::thread;
 use std::time::Duration;
 
@@ -77,7 +79,11 @@ fn main() -> Result<(), Box<Error>> {
         ).subcommand(
             SubCommand::with_name("pins")
                 .arg(Arg::with_name("grid").takes_value(true).required(true))
-                .arg(Arg::with_name("millis").takes_value(true).required(true)),
+                .arg(
+                    Arg::with_name("millis")
+                        .takes_value(true)
+                        .default_value("0"),
+                ).help("Just don't specify millis and you'll block on keypress"),
         ).get_matches();
 
     let mut pi = RaspberryPi::new()?;
@@ -238,8 +244,16 @@ fn get_pin(pin: u32, grid: &Grid) -> Option<Location> {
 fn test_pins(m: &ArgMatches, pi: &mut RaspberryPi) -> Result<(), Box<Error>> {
     let grid = mk_grid(&m)?;
     let millis = m.value_of("millis").unwrap().parse()?;
-    let duration = Duration::from_millis(millis);
+    let duration = if millis == 0 {
+        println!("Press enter to step to next pin");
+        None
+    } else {
+        Some(Duration::from_millis(millis))
+    };
     let pin_limit = grid.max_pin() + 1;
+
+    let mut stdin = io::stdin();
+    let mut stdout = io::stdout();
 
     for i in 0..pin_limit {
         if let Some(loc) = get_pin(i, &grid) {
@@ -249,7 +263,15 @@ fn test_pins(m: &ArgMatches, pi: &mut RaspberryPi) -> Result<(), Box<Error>> {
         } else {
             println!("pin {} has no location", i);
         }
-        thread::sleep(duration);
+
+        // either wait or pause
+        if let Some(duration) = duration {
+            thread::sleep(duration);
+        } else {
+            print!("Outputting pin {}", i);
+            stdout.flush().unwrap();
+            let _ = stdin.read(&mut [0u8]).unwrap();
+        }
     }
 
     Ok(())
