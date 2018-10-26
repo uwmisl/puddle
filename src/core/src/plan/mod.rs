@@ -1,5 +1,6 @@
 mod place;
 mod route;
+mod graph;
 
 use self::place::Placement;
 pub use self::route::Path;

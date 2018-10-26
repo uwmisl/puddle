@@ -38,6 +38,8 @@ extern crate ncollide2d;
 #[macro_use]
 extern crate matches;
 
+extern crate petgraph;
+
 // these need to be pub until we have an api
 mod command;
 mod exec;

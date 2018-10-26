@@ -26,6 +26,7 @@ pub trait Command: fmt::Debug + Send {
     fn bypass(&self, _gridview: &GridView) -> bool {
         false
     }
+
     // FIXME this shouldn't be mut, but we need to set the collision groups in mix
     fn request(&self, &mut GridView) -> CommandRequest;
 

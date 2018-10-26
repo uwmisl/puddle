@@ -50,6 +50,7 @@ nalgebra = "0.15"
 ncollide2d = "0.16"
 
 matches = "0.1"
+petgraph = "0.4"
 
 [dev-dependencies]
 glob = "^0.2"
