@@ -1,7 +1,7 @@
 use petgraph::{
     algo::toposort,
     prelude::*,
-    visit::IntoEdgeReferences,
+    visit::{IntoEdgeReferences, IntoNeighbors, Reversed},
     // stable_graph::{EdgeIndex, NodeIndex, StableDiGraph},
 };
 use std::collections::HashMap;
@@ -33,14 +33,14 @@ type Ix = u32;
 
 pub type CmdIndex = NodeIndex<Ix>;
 
-pub struct PlanGraph {
+pub struct Graph {
     graph: StableDiGraph<NodeData, EdgeData, Ix>,
     droplet_idx: HashMap<DropletId, EdgeIndex<Ix>>,
     debug: bool,
 }
 
 #[derive(Debug)]
-pub enum Error {
+pub enum GraphError {
     AlreadyExists(DropletId),
     AlreadyBound(DropletId),
     DoesNotExist(DropletId),
@@ -48,7 +48,7 @@ pub enum Error {
     Bad(String),
 }
 
-type GraphResult<T> = Result<T, Error>;
+type GraphResult<T> = Result<T, GraphError>;
 
 // TODO none of this should be owned
 struct PlacementRequest {
@@ -64,9 +64,9 @@ trait Placer {
     fn place(&self, req: PlacementRequest) -> Result<Placement, PlacementError>;
 }
 
-impl PlanGraph {
-    pub fn new() -> PlanGraph {
-        PlanGraph {
+impl Graph {
+    pub fn new() -> Graph {
+        Graph {
             graph: StableDiGraph::new(),
             droplet_idx: HashMap::new(),
             debug: if cfg!(test) { true } else { false },
@@ -78,10 +78,10 @@ impl PlanGraph {
     }
 
     pub fn check_add_command(&self, cmd: &BoxedCommand) -> GraphResult<()> {
-        // validate that incoming edges (droplets) already exist and aren't bound
+        // make sure there aren't duplicates in the inputs
         let in_droplets = cmd.input_droplets();
         if let Some((i, _)) = find_duplicate(&in_droplets) {
-            return Err(Error::Duplicate(in_droplets[i]));
+            return Err(GraphError::Duplicate(in_droplets[i]));
         }
 
         for id in &in_droplets {
@@ -89,31 +89,32 @@ impl PlanGraph {
             let e_idx = self
                 .droplet_idx
                 .get(&id)
-                .ok_or_else(|| Error::DoesNotExist(*id))?;
+                .ok_or_else(|| GraphError::DoesNotExist(*id))?;
 
             // make sure that the edge exists
             let (_src, tgt) = self
                 .graph
                 .edge_endpoints(*e_idx)
-                .ok_or_else(|| Error::DoesNotExist(*id))?;
+                .ok_or_else(|| GraphError::DoesNotExist(*id))?;
 
             // tgt guaranteed to exist, we just looked it up
             // now check to make sure that edge is "unbound", i.e., that the
             // destination node data is None
             if let Some(_cmd) = &self.graph[tgt].cmd {
-                return Err(Error::AlreadyBound(*id));
+                return Err(GraphError::AlreadyBound(*id));
             }
         }
 
-        // validate that outgoing edges don't exist
+        // make sure there are no duplicates in the output
         let out_droplets = cmd.output_droplets();
         if let Some((i, _)) = find_duplicate(&out_droplets) {
-            return Err(Error::Duplicate(out_droplets[i]));
+            return Err(GraphError::Duplicate(out_droplets[i]));
         }
 
+        // validate that outgoing edges don't exist
         for id in out_droplets {
             if let Some(_e_idx) = self.droplet_idx.get(&id) {
-                return Err(Error::AlreadyExists(id));
+                return Err(GraphError::AlreadyExists(id));
             }
         }
 
@@ -161,10 +162,16 @@ impl PlanGraph {
         Ok(cmd_id)
     }
 
+    pub fn toposort(&self) -> Vec<CmdIndex> {
+        let working_space = None;
+        toposort(&self.graph, working_space)
+            .unwrap_or_else(|n| panic!("There was a cycle that included node {:?}", n))
+    }
+
     pub fn validate(&self) {
         // make sure there are no cycles
         // toposort will err if there was one
-        assert!(toposort(&self.graph, None).is_ok());
+        self.toposort();
 
         for e_ref in self.graph.edge_references() {
             let edge = e_ref.weight();
@@ -198,6 +205,7 @@ impl PlanGraph {
                 panic!("{:?} is isolated!: {:#?}", node_id, node);
             }
 
+            // FIXME allow Output node to have 0 out degree
             // make sure that node has 0 out degree <=> it's an "unused" placeholder
             // also make sure placeholder are always Todo
             if node.cmd.is_none() {
@@ -238,6 +246,29 @@ impl PlanGraph {
         let edge_data = self.graph.edge_weight_mut(edge_id).unwrap();
         edge_data.state = state;
     }
+
+    pub fn critical_paths(&self) -> HashMap<CmdIndex, usize> {
+        let mut distances = HashMap::<CmdIndex, usize>::new();
+
+        // do a reverse toposort so we can count the critical path lengths
+        let working_space = None;
+        let rev = Reversed(&self.graph);
+        let bottom_up = toposort(rev, working_space)
+            .unwrap_or_else(|n| panic!("There was a cycle that included node {:?}", n));
+
+        for n in bottom_up {
+            let n_dist = *distances.entry(n).or_insert(0);
+            for n2 in rev.neighbors(n) {
+                // take the max of the existing distance and the new one
+                distances
+                    .entry(n2)
+                    .and_modify(|d| *d = (*d).max(n_dist + 1))
+                    .or_insert(n_dist + 1);
+            }
+        }
+
+        distances
+    }
 }
 
 #[cfg(test)]
@@ -249,7 +280,7 @@ mod tests {
     use super::*;
 
     // make sure we always check on drop
-    impl Drop for PlanGraph {
+    impl Drop for Graph {
         fn drop(&mut self) {
             // don't risk panicking again if we are already panicking
             if !std::thread::panicking() {
@@ -258,56 +289,42 @@ mod tests {
         }
     }
 
-    use command::{Combine, Input};
-    use grid::Location;
-
-    fn droplet_id(id: usize) -> DropletId {
-        DropletId { id, process_id: 0 }
-    }
+    use command::{tests::Dummy, BoxedCommand};
 
     fn input(id: usize) -> BoxedCommand {
-        let substance = "water".into();
-        let volume = 1.0;
-        let dimensions = Location { y: 1, x: 1 };
-        let out_id = droplet_id(id);
-        let cmd = Input::new(substance, volume, dimensions, out_id).unwrap();
-        Box::new(cmd)
+        Dummy::new(&[], &[id]).boxed()
     }
 
     fn mix(in_id1: usize, in_id2: usize, out_id: usize) -> BoxedCommand {
-        let in_id1 = droplet_id(in_id1);
-        let in_id2 = droplet_id(in_id2);
-        let out_id = droplet_id(out_id);
-        let cmd = Combine::new(in_id1, in_id2, out_id).unwrap();
-        Box::new(cmd)
+        Dummy::new(&[in_id1, in_id2], &[out_id]).boxed()
     }
 
     #[test]
     fn test_add_command_validate() {
         // we can test validation errors all in one go because they shouldn't modify the graph
-        let mut graph = PlanGraph::new();
+        let mut graph = Graph::new();
         graph.add_command(input(0)).unwrap();
         graph.add_command(input(1)).unwrap();
 
         let r = graph.add_command(mix(0, 0, 2));
-        assert_matches!(r, Err(Error::Duplicate(_)));
+        assert_matches!(r, Err(GraphError::Duplicate(_)));
 
         let r = graph.add_command(input(0));
-        assert_matches!(r, Err(Error::AlreadyExists(_)));
+        assert_matches!(r, Err(GraphError::AlreadyExists(_)));
 
         let r = graph.add_command(mix(5, 6, 2));
-        assert_matches!(r, Err(Error::DoesNotExist(_)));
+        assert_matches!(r, Err(GraphError::DoesNotExist(_)));
 
         // now go ahead and do the ok mix
         let r = graph.add_command(mix(0, 1, 2));
         assert_matches!(r, Ok(_));
 
         let r = graph.add_command(mix(0, 1, 2));
-        assert_matches!(r, Err(Error::AlreadyBound(_)));
+        assert_matches!(r, Err(GraphError::AlreadyBound(_)));
     }
 
-    fn simple_graph() -> (PlanGraph, CmdIndex, CmdIndex, CmdIndex) {
-        let mut graph = PlanGraph::new();
+    fn simple_graph() -> (Graph, CmdIndex, CmdIndex, CmdIndex) {
+        let mut graph = Graph::new();
         let in0 = graph.add_command(input(0)).unwrap();
         let in1 = graph.add_command(input(1)).unwrap();
         let mix = graph.add_command(mix(0, 1, 2)).unwrap();
@@ -327,7 +344,37 @@ mod tests {
     fn test_validate_okay_transitions() {
         let (mut graph, in0, _, _) = simple_graph();
         graph.set_node_state(in0, State::Done);
-        graph.set_edge_state(droplet_id(0), State::Active);
+        graph.set_edge_state(0.into(), State::Active);
         graph.validate();
+    }
+
+    #[test]
+    fn test_critical_path() {
+        //
+        //             /------------> short ------------\
+        // input -> split                               mix -->
+        //             \--> pass1 --> pass2 --> pass3 --/
+        //
+
+        let pass = |x, y| Dummy::new(&[x], &[y]).boxed();
+        let split = |x, y1, y2| Dummy::new(&[x], &[y1, y2]).boxed();
+
+        let mut graph = Graph::new();
+        let input = graph.add_command(input(0)).unwrap();
+        let split = graph.add_command(split(0, 1, 2)).unwrap();
+        let pass1 = graph.add_command(pass(1, 10)).unwrap();
+        let pass2 = graph.add_command(pass(10, 11)).unwrap();
+        let pass3 = graph.add_command(pass(11, 12)).unwrap();
+        let short = graph.add_command(pass(2, 20)).unwrap();
+        let mix = graph.add_command(mix(20, 12, 3)).unwrap();
+
+        let crit = graph.critical_paths();
+        assert_eq!(crit[&mix], 1);
+        assert_eq!(crit[&short], 2);
+        assert_eq!(crit[&pass3], 2);
+        assert_eq!(crit[&pass2], 3);
+        assert_eq!(crit[&pass1], 4);
+        assert_eq!(crit[&split], 5);
+        assert_eq!(crit[&input], 6);
     }
 }
