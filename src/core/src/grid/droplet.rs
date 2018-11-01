@@ -13,6 +13,13 @@ pub struct DropletId {
     pub process_id: ProcessId,
 }
 
+#[cfg(test)]
+impl From<usize> for DropletId {
+    fn from(id: usize) -> DropletId {
+        DropletId {id, process_id: 0}
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct Droplet {
     // The droplet's id should never be modified once it has been created. They

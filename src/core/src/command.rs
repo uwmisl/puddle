@@ -830,3 +830,45 @@ impl Command for Output {
         pi.map(|pi| pi.output(&output, volume));
     }
 }
+
+#[cfg(test)]
+pub mod tests {
+
+    use super::*;
+
+    #[derive(Debug)]
+    pub struct Dummy {
+        ins: Vec<DropletId>,
+        outs: Vec<DropletId>,
+    }
+
+    impl Dummy {
+        pub fn new(ins: &[usize], outs: &[usize]) -> Dummy {
+            Dummy {
+                ins: ins.iter().map(|u| (*u).into()).collect(),
+                outs: outs.iter().map(|u| (*u).into()).collect(),
+            }
+        }
+        pub fn boxed(self) -> BoxedCommand {
+            Box::new(self)
+        }
+    }
+
+    impl Command for Dummy {
+        fn input_droplets(&self) -> Vec<DropletId> {
+            self.ins.clone()
+        }
+
+        fn output_droplets(&self) -> Vec<DropletId> {
+            self.outs.clone()
+        }
+
+        fn request(&self, _gridview: &mut GridView) -> CommandRequest {
+            unimplemented!()
+        }
+
+        fn run(&mut self, gridview: &mut GridSubView) {
+            unimplemented!()
+        }
+    }
+}
