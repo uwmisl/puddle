@@ -50,20 +50,6 @@ pub enum GraphError {
 
 type GraphResult<T> = Result<T, GraphError>;
 
-// TODO none of this should be owned
-struct PlacementRequest {
-    cmd_to_place: HashMap<CmdIndex, CommandRequest>,
-    fixed: Vec<Placement>,
-    storage: HashMap<DropletId, Grid>,
-}
-
-struct PlacementError {}
-
-// TODO make the actual placer implement this
-trait Placer {
-    fn place(&self, req: PlacementRequest) -> Result<Placement, PlacementError>;
-}
-
 impl Graph {
     pub fn new() -> Graph {
         Graph {
@@ -219,7 +205,7 @@ impl Graph {
         trace!("Graph validated!")
     }
 
-    fn maybe_validate(&self) {
+    pub fn maybe_validate(&self) {
         if self.debug {
             self.validate();
         }
@@ -233,6 +219,15 @@ impl Graph {
     pub fn set_node_state(&mut self, cmd_id: CmdIndex, state: State) {
         let node_data = &mut self.graph[cmd_id];
         node_data.state = state;
+    }
+
+    pub fn is_ready(&self, cmd_id: CmdIndex) -> bool {
+        // an edge is ready if it is `todo` and the incoming edges are `active`,
+        // i.e. they are being held on the board
+        (self.get_node_state(cmd_id) == State::Todo) && self
+            .graph
+            .edges_directed(cmd_id, Direction::Incoming)
+            .all(|e| e.weight().state == State::Active)
     }
 
     pub fn get_edge_state(&self, id: DropletId) -> State {
