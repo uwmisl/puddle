@@ -1,3 +1,4 @@
+mod sched;
 mod place;
 mod route;
 mod graph;
