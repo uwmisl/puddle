@@ -14,6 +14,7 @@ type Schedule = usize;
 pub struct Scheduler {
     debug: bool,
     node_sched: HashMap<CmdIndex, Schedule>,
+    current_sched: usize,
 }
 
 #[derive(Debug)]
@@ -37,12 +38,41 @@ impl Scheduler {
         Scheduler {
             debug: if cfg!(test) { true } else { false },
             node_sched: HashMap::new(),
+            current_sched: 0,
         }
     }
 
     pub fn maybe_validate(&self, req: &SchedRequest) {
         if self.debug {
             self.validate(req);
+        }
+    }
+
+    fn add_droplets_to_response(&self, req: &SchedRequest, resp: &mut SchedResponse) {
+        let graph = &req.graph.graph;
+
+        // assert some stuff about the schedule commands
+        for cmd in &resp.commands_to_run {
+            // make sure is in the graph
+            assert!(graph.contains_node(*cmd));
+            // make sure it's not already scheduled
+            assert_eq!(self.node_sched.get(cmd), None);
+        }
+
+        // make sure we haven't put anything in here yet
+        assert_eq!(resp.droplets_to_store, vec![]);
+
+        for (cmd, &sched) in self.node_sched.iter() {
+            assert!(sched < self.current_sched);
+
+            for e in graph.edges(*cmd) {
+                let cmd2 = e.target();
+
+                if !(self.node_sched.contains_key(&cmd2) || resp.commands_to_run.contains(&cmd2)) {
+                    let droplet_id = e.weight();
+                    resp.droplets_to_store.push(*droplet_id);
+                }
+            }
         }
     }
 
@@ -66,11 +96,13 @@ impl Scheduler {
             }
         }
 
-        // make sure the scheduled nodes are subset of the graph nodes
-        for node_id in self.node_sched.keys() {
-            if !graph.contains_node(*node_id) {
-                panic!("Graph doesn't contain node {:?}", node_id)
+        // make sure the scheduled nodes are subset of the graph nodes, and that
+        // they are less than the current sched
+        for (cmd, &sched) in self.node_sched.iter() {
+            if !graph.contains_node(*cmd) {
+                panic!("Graph doesn't contain node {:?}", cmd)
             }
+            assert!(sched < self.current_sched)
         }
 
         for node_id in graph.node_indices() {
@@ -102,20 +134,30 @@ impl Scheduler {
         assert_eq!(was_there, None);
     }
 
-    // pub fn schedule(&mut self, req: &SchedRequest) -> Result<SchedResponse> {
-    //     let criticality = req.graph.critical_paths();
-    //     let (&most_critical_todo, _max_criticality) = criticality
-    //         .iter()
-    //         .filter(|&(node, _crit)| req.graph.get_node_state(*node) == State::Todo)
-    //         .max_by_key(|&(_node, crit)| crit)
-    //         .ok_or(SchedError::NothingToSchedule)?;
+    fn is_ready(&self, req: &SchedRequest, cmd: CmdIndex) -> bool {
+        let graph = &req.graph.graph;
+        graph.neighbors_directed(cmd, Incoming).all(|c| self.node_sched.contains_key(&c))
+    }
 
-    //     // the most critical node must be ready, otherwise something above it
-    //     // (more critical) would also be `todo`
-    //     assert!(req.graph.is_ready(most_critical_todo));
+    pub fn schedule(&mut self, req: &SchedRequest) -> Result<SchedResponse> {
+        let criticality = critical_paths(&req.graph);
+        let (&most_critical_todo, _max_criticality) = criticality
+            .iter()
+            .filter(|&(node, _crit)| !self.node_sched.contains_key(&node))
+            .max_by_key(|&(_node, crit)| crit)
+            .ok_or(SchedError::NothingToSchedule)?;
 
-    //     unimplemented!()
-    // }
+        // the most critical node must be ready, otherwise something above it
+        // (more critical) would also be `todo`
+        assert!(self.is_ready(req, most_critical_todo));
+
+        let mut resp = SchedResponse {
+            commands_to_run: vec![most_critical_todo],
+            droplets_to_store: vec![],
+        };
+        self.add_droplets_to_response(&req, &mut resp);
+        Ok(resp)
+    }
 }
 
 fn critical_paths(graph: &Graph) -> HashMap<CmdIndex, usize> {
@@ -168,7 +210,9 @@ mod tests {
     fn test_validate_bad_transitions() {
         let (graph, in0, _, mix) = simple_graph();
         let req = SchedRequest { graph: &graph };
+
         let mut sched = Scheduler::new();
+        sched.current_sched = 100;
 
         sched.set_node_schedule(in0, 9);
         sched.set_node_schedule(mix, 1);
@@ -180,40 +224,74 @@ mod tests {
     fn test_validate_okay_transitions() {
         let (graph, in0, _, _) = simple_graph();
         let req = SchedRequest { graph: &graph };
+
         let mut sched = Scheduler::new();
+        sched.current_sched = 100;
 
         sched.set_node_schedule(in0, 1);
         sched.validate(&req);
     }
 
-    #[test]
-    fn test_critical_path() {
+    fn long_graph() -> (Graph, HashMap<&'static str, CmdIndex>) {
         //
-        //             /------------> short ------------\
-        // input -> split                               mix -->
-        //             \--> pass1 --> pass2 --> pass3 --/
+        //                 /-----------(2)---------> short ----------(20)--------\
+        // input -(0)-> split                                                    mix --(3)-->
+        //                 \--(1)--> pass1 --(10)--> pass2 --(11)--> pass3 -(12)-/
         //
 
         let pass = |x, y| Dummy::new(&[x], &[y]).boxed();
         let split = |x, y1, y2| Dummy::new(&[x], &[y1, y2]).boxed();
 
         let mut graph = Graph::new();
-        let input = graph.add_command(input(0)).unwrap();
-        let split = graph.add_command(split(0, 1, 2)).unwrap();
-        let pass1 = graph.add_command(pass(1, 10)).unwrap();
-        let pass2 = graph.add_command(pass(10, 11)).unwrap();
-        let pass3 = graph.add_command(pass(11, 12)).unwrap();
-        let short = graph.add_command(pass(2, 20)).unwrap();
-        let mix = graph.add_command(mix(20, 12, 3)).unwrap();
+        let mut map = HashMap::new();
+
+        map.insert("input", graph.add_command(input(0)).unwrap());
+        map.insert("split", graph.add_command(split(0, 1, 2)).unwrap());
+        map.insert("pass1", graph.add_command(pass(1, 10)).unwrap());
+        map.insert("pass2", graph.add_command(pass(10, 11)).unwrap());
+        map.insert("pass3", graph.add_command(pass(11, 12)).unwrap());
+        map.insert("short", graph.add_command(pass(2, 20)).unwrap());
+        map.insert("mix", graph.add_command(mix(20, 12, 3)).unwrap());
+
+        (graph, map)
+    }
+
+    #[test]
+    fn test_critical_path() {
+
+        let (graph, map) = long_graph();
 
         let crit = critical_paths(&graph);
 
-        assert_eq!(crit[&mix], 1);
-        assert_eq!(crit[&short], 2);
-        assert_eq!(crit[&pass3], 2);
-        assert_eq!(crit[&pass2], 3);
-        assert_eq!(crit[&pass1], 4);
-        assert_eq!(crit[&split], 5);
-        assert_eq!(crit[&input], 6);
+        assert_eq!(crit[&map["mix"]], 1);
+        assert_eq!(crit[&map["short"]], 2);
+        assert_eq!(crit[&map["pass3"]], 2);
+        assert_eq!(crit[&map["pass2"]], 3);
+        assert_eq!(crit[&map["pass1"]], 4);
+        assert_eq!(crit[&map["split"]], 5);
+        assert_eq!(crit[&map["input"]], 6);
+    }
+
+    #[test]
+    fn test_storing_droplets() {
+        let (graph, map) = long_graph();
+
+        let mut sched = Scheduler::new();
+        sched.current_sched = 3;
+
+        sched.set_node_schedule(map["input"], 0);
+        sched.set_node_schedule(map["split"], 1);
+        sched.set_node_schedule(map["short"], 2);
+        sched.set_node_schedule(map["pass1"], 2);
+
+        let req = SchedRequest { graph: &graph };
+        let mut resp = SchedResponse {
+            commands_to_run: vec![map["pass2"]],
+            droplets_to_store: vec![],
+        };
+
+        sched.add_droplets_to_response(&req, &mut resp);
+
+        assert_eq!(resp.droplets_to_store, &[20.into()]);
     }
 }
