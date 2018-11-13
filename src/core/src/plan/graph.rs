@@ -1,6 +1,7 @@
-use petgraph::prelude::*;
 
 use std::collections::HashMap;
+
+use petgraph::prelude::*;
 
 use util::find_duplicate;
 
@@ -108,7 +109,6 @@ impl Graph {
 
         Ok(cmd_id)
     }
-
 }
 
 #[cfg(test)]

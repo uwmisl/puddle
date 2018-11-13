@@ -1,8 +1,8 @@
-use grid::gridview::{GridSubView, GridView};
 use std::fmt;
 use std::sync::mpsc::Sender;
 use std::thread;
 use std::time::Duration;
+use std::collections::HashMap;
 
 use plan::PlanError;
 
@@ -10,11 +10,21 @@ use plan::PlanError;
 use pi::RaspberryPi;
 
 use grid::{
-    droplet::{Blob, SimpleBlob},
+    gridview::{GridSubView, GridView},
+    SimpleBlob, Blob,
     Droplet, DropletId, DropletInfo, Grid, Location, Peripheral, Snapshot,
 };
 
 use process::{ProcessId, PuddleResult};
+
+#[derive(Debug)]
+pub struct CommandRequest {
+    pub shape: Grid,
+    pub input_locations: Vec<Location>,
+    // TODO needed to plan ahead, but we can omit if we don't do that for now
+    // pub outputs: Vec<Droplet>,
+    pub trusted: bool,
+}
 
 pub trait Command: fmt::Debug + Send {
     fn input_droplets(&self) -> Vec<DropletId> {
@@ -27,8 +37,7 @@ pub trait Command: fmt::Debug + Send {
         false
     }
 
-    // FIXME this shouldn't be mut, but we need to set the collision groups in mix
-    fn request(&self, &mut GridView) -> CommandRequest;
+    fn request(&self, droplets: &HashMap<DropletId, Droplet>) -> CommandRequest;
 
     // FIXME this is definitely a hack for combining droplets
     // run before the final routing tick that
@@ -63,13 +72,6 @@ pub struct Create {
     trusted: bool,
 }
 
-#[derive(Debug)]
-pub struct CommandRequest {
-    pub shape: Grid,
-    pub input_locations: Vec<Location>,
-    pub trusted: bool,
-}
-
 // TODO: dimensions probably shouldn't be optional?
 impl Create {
     pub fn new(
@@ -98,7 +100,7 @@ impl Command for Create {
         self.outputs.clone()
     }
 
-    fn request(&self, _gridview: &mut GridView) -> CommandRequest {
+    fn request(&self, droplets: &HashMap<DropletId, Droplet>) -> CommandRequest {
         let grid = Grid::rectangle(self.dimensions.y as usize, self.dimensions.x as usize);
 
         CommandRequest {
@@ -138,7 +140,7 @@ impl Flush {
 }
 
 impl Command for Flush {
-    fn request(&self, _gridview: &mut GridView) -> CommandRequest {
+    fn request(&self, droplets: &HashMap<DropletId, Droplet>) -> CommandRequest {
         CommandRequest {
             shape: Grid::rectangle(0, 0),
             input_locations: vec![],
@@ -197,9 +199,9 @@ impl Command for Move {
         self.outputs.clone()
     }
 
-    fn request(&self, gridview: &mut GridView) -> CommandRequest {
+    fn request(&self, droplets: &HashMap<DropletId, Droplet>) -> CommandRequest {
         let old_id = self.inputs[0];
-        let dim = gridview.snapshot().droplets[&old_id].dimensions;
+        let dim = droplets[&old_id].dimensions;
         CommandRequest {
             shape: Grid::rectangle(dim.y as usize, dim.x as usize),
             input_locations: vec![self.destination[0]],
@@ -280,34 +282,34 @@ impl Command for Combine {
         self.outputs.clone()
     }
 
-    fn bypass(&self, gridview: &GridView) -> bool {
-        let droplets = &gridview.snapshot().droplets;
-        if droplets.contains_key(&self.outputs[0]) {
-            assert!(!droplets.contains_key(&self.inputs[0]));
-            assert!(!droplets.contains_key(&self.inputs[1]));
-            true
-        } else {
-            false
-        }
-    }
+    // FIXME remove bypass
+    // fn bypass(&self, gridview: &GridView) -> bool {
+    //     let droplets = &gridview.snapshot().droplets;
+    //     if droplets.contains_key(&self.outputs[0]) {
+    //         assert!(!droplets.contains_key(&self.inputs[0]));
+    //         assert!(!droplets.contains_key(&self.inputs[1]));
+    //         true
+    //     } else {
+    //         false
+    //     }
+    // }
 
-    fn request(&self, gridview: &mut GridView) -> CommandRequest {
-        let droplets = &mut gridview.snapshot_mut().droplets;
-
+    fn request(&self, droplets: &HashMap<DropletId, Droplet>) -> CommandRequest {
         let id0 = &self.inputs[0];
         let id1 = &self.inputs[1];
 
+        // FIXME what to do about collisions?
         // set the collision groups to be the same
         // must scope the mutable borrow
-        {
-            let cg1 = droplets[id1].collision_group;
-            let d0 = droplets.get_mut(id0).unwrap();
-            d0.collision_group = cg1;
+        // {
+        //     let cg1 = droplets[id1].collision_group;
+        //     let d0 = droplets.get_mut(id0).unwrap();
+        //     d0.collision_group = cg1;
 
-            if self.pin_d0 {
-                d0.pinned = true;
-            }
-        }
+        //     if self.pin_d0 {
+        //         d0.pinned = true;
+        //     }
+        // }
 
         let d0 = &droplets[id0];
         let d1 = &droplets[id1];
@@ -392,9 +394,8 @@ impl Command for Agitate {
         self.outputs.clone()
     }
 
-    fn request(&self, gridview: &mut GridView) -> CommandRequest {
-        let droplets = &mut gridview.snapshot_mut().droplets;
-        let droplet = droplets.get_mut(&self.inputs[0]).unwrap();
+    fn request(&self, droplets: &HashMap<DropletId, Droplet>) -> CommandRequest {
+        let droplet = &droplets[&self.inputs[0]];
 
         CommandRequest {
             shape: Grid::rectangle(
@@ -458,21 +459,21 @@ impl Command for Split {
         self.outputs.clone()
     }
 
-    fn bypass(&self, gridview: &GridView) -> bool {
-        let droplets = &gridview.snapshot().droplets;
-        // if it has one, it better have both
-        if droplets.contains_key(&self.outputs[0]) || droplets.contains_key(&self.outputs[1]) {
-            assert!(droplets.contains_key(&self.outputs[0]));
-            assert!(droplets.contains_key(&self.outputs[1]));
-            assert!(!droplets.contains_key(&self.inputs[0]));
-            true
-        } else {
-            false
-        }
-    }
+    // FIXME skip bypass
+    // fn bypass(&self, gridview: &GridView) -> bool {
+    //     let droplets = &gridview.snapshot().droplets;
+    //     // if it has one, it better have both
+    //     if droplets.contains_key(&self.outputs[0]) || droplets.contains_key(&self.outputs[1]) {
+    //         assert!(droplets.contains_key(&self.outputs[0]));
+    //         assert!(droplets.contains_key(&self.outputs[1]));
+    //         assert!(!droplets.contains_key(&self.inputs[0]));
+    //         true
+    //     } else {
+    //         false
+    //     }
+    // }
 
-    fn request(&self, gridview: &mut GridView) -> CommandRequest {
-        let droplets = &gridview.snapshot().droplets;
+    fn request(&self, droplets: &HashMap<DropletId, Droplet>) -> CommandRequest {
         let d0 = droplets.get(&self.inputs[0]).unwrap();
         // we only split in the x right now, so we don't need y padding
         let x_dim = (d0.dimensions.x as usize) + SPLIT_PADDING;
@@ -560,8 +561,7 @@ impl Command for Heat {
         self.outputs.clone()
     }
 
-    fn request(&self, gridview: &mut GridView) -> CommandRequest {
-        let droplets = &gridview.snapshot().droplets;
+    fn request(&self, droplets: &HashMap<DropletId, Droplet>) -> CommandRequest {
         let d = droplets.get(&self.inputs[0]).unwrap();
         // we only split in the x right now, so we don't need y padding
         let x_dim = d.dimensions.x as usize;
@@ -661,7 +661,7 @@ impl Command for Input {
         self.outputs.clone()
     }
 
-    fn request(&self, _gridview: &mut GridView) -> CommandRequest {
+    fn request(&self, droplets: &HashMap<DropletId, Droplet>) -> CommandRequest {
         let mut grid = Grid::rectangle(self.dimensions.y as usize, self.dimensions.x as usize + 1);
 
         // fake peripheral used to match up with the real one
@@ -772,8 +772,7 @@ impl Command for Output {
         vec![]
     }
 
-    fn request(&self, gridview: &mut GridView) -> CommandRequest {
-        let droplets = &gridview.snapshot().droplets;
+    fn request(&self, droplets: &HashMap<DropletId, Droplet>) -> CommandRequest {
         let d = droplets.get(&self.inputs[0]).unwrap();
 
         let mut grid = Grid::rectangle(d.dimensions.y as usize, d.dimensions.x as usize);
@@ -863,7 +862,7 @@ pub mod tests {
             self.outs.clone()
         }
 
-        fn request(&self, _gridview: &mut GridView) -> CommandRequest {
+        fn request(&self, droplets: &HashMap<DropletId, Droplet>) -> CommandRequest {
             unimplemented!()
         }
 

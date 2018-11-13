@@ -23,12 +23,12 @@ pub enum SchedError {
 }
 
 pub struct SchedRequest<'a> {
-    graph: &'a Graph,
+    pub graph: &'a Graph,
 }
 
 pub struct SchedResponse {
-    commands_to_run: Vec<CmdIndex>,
-    droplets_to_store: Vec<DropletId>,
+    pub commands_to_run: Vec<CmdIndex>,
+    pub droplets_to_store: Vec<DropletId>,
 }
 
 type Result<T> = std::result::Result<T, SchedError>;

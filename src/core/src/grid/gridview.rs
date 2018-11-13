@@ -87,12 +87,14 @@ impl Snapshot {
     }
 
     pub fn abort(mut self, gridview: &mut GridView) {
-        for mut cmd in self.commands_to_finalize.drain(..) {
-            debug!("Sending command back for replanning: {:#?}", cmd);
-            if let Err((mut cmd, err)) = gridview.plan(cmd) {
-                cmd.abort(err);
-            }
-        }
+        // FIXME replace
+        unimplemented!()
+        // for mut cmd in self.commands_to_finalize.drain(..) {
+        //     debug!("Sending command back for replanning: {:#?}", cmd);
+        //     if let Err((mut cmd, err)) = gridview.plan(cmd) {
+        //         cmd.abort(err);
+        //     }
+        // }
     }
 
     pub fn droplet_info(&self, pid_option: Option<ProcessId>) -> Vec<DropletInfo> {

@@ -1,13 +1,21 @@
-mod sched;
+mod graph;
 mod place;
 mod route;
-mod graph;
+mod sched;
 
-use self::place::Placement;
+use self::graph::{Graph, CmdIndex};
+use self::place::{Placement, PlacementRequest, Placer};
+use self::route::{Router, RoutingRequest};
+use self::sched::{SchedRequest, Scheduler};
+
 pub use self::route::Path;
 
 use command::{BoxedCommand, Command, CommandRequest};
-use grid::{Droplet, DropletId, Grid, GridView, Location, Snapshot};
+use grid::{
+    droplet::{Droplet, DropletId},
+    Grid, GridView, Location, Snapshot,
+};
+use std::collections::HashMap;
 use util::collections::Map;
 
 #[derive(Debug)]
@@ -46,6 +54,13 @@ pub struct Plan {
     grid: Grid,
     cmds: Vec<PlannedCommand>,
     routes: Vec<PlannedRoute>,
+
+    droplets: HashMap<DropletId, Droplet>,
+
+    graph: Graph,
+    scheduler: Scheduler,
+    placer: Placer,
+    router: Router,
 }
 
 pub struct PlanSnapshot {
@@ -56,13 +71,54 @@ impl Plan {
     fn new(grid: Grid) -> Plan {
         Plan {
             grid,
-            cmds: vec![],
-            routes: vec![],
+            .. unimplemented!()
         }
     }
 
-    fn plan(&self, cmd: BoxedCommand) -> PlanResult {
-        unimplemented!()
+    fn plan(&mut self, cmd: BoxedCommand) -> PlanResult {
+        // FIXME get rid of unwraps
+        let cmd_id = self.graph.add_command(cmd).unwrap();
+        // let cmd = self.graph.graph[cmd_id];
+
+        let sched_resp = {
+            let req = SchedRequest { graph: &self.graph };
+            self.scheduler.schedule(&req).unwrap()
+        };
+
+        let command_requests: Vec<_> = sched_resp
+            .commands_to_run
+            .iter()
+            .map(|cmd_id: &CmdIndex| {
+                let cmd = self.graph.graph[*cmd_id].as_ref().expect("Command was unbound!");
+                let cmd_req = cmd.request(&self.droplets);
+                // TODO update the outputs
+                // for out in cmd_req.outputs {
+                //     self.droplets.insert(out.id, out);
+                // }
+                cmd_req
+            }).collect();
+
+        let place_resp = {
+            let req = PlacementRequest {
+                grid: &self.grid,
+                fixed_commands: vec![],
+                commands: command_requests.as_slice(),
+                stored_droplets: sched_resp.droplets_to_store.as_slice(),
+            };
+            self.placer.place(&req).unwrap();
+        };
+
+        let route_resp = {
+            let req = RoutingRequest {
+                grid: &self.grid,
+                blockages: unimplemented!(),
+                droplets: unimplemented!(),
+            };
+            self.router.route(&req).unwrap();
+        };
+
+        // commit phase
+
     }
 
     fn snapshot_at(&self, tick: Tick) -> PlanSnapshot {
@@ -90,7 +146,8 @@ impl GridView {
         }
 
         let in_ids = cmd.input_droplets();
-        let req = cmd.request(self);
+        // FIXME
+        let req = cmd.request(unimplemented!());
 
         debug!(
             "Command requests a shape of w={w},h={h}",
