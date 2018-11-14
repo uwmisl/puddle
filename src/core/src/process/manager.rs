@@ -56,11 +56,14 @@ impl Manager {
 
         let gridview = GridView::new(grid);
         let gv_lock = Arc::new(Mutex::new(gridview));
-        let mut executor = Executor::new(blocking, gv_lock.clone());
+        // FIXME
+        // let mut executor = Executor::new(blocking, gv_lock.clone());
+        let mut executor = Executor::new();
 
         let exec_thread = thread::Builder::new()
             .name("exec".into())
-            .spawn(move || executor.run(execs))
+            // FIXME
+            .spawn(move || ())
             .expect("Execution thread failed to start!");
 
         Manager {

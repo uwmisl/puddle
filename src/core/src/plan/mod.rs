@@ -44,14 +44,17 @@ pub struct PlannedCommand {
     placement: Placement,
 }
 
+pub struct PlanPhase {}
+
+type PlanResult = Result<Vec<PlanPhase>, (Box<dyn Command>, PlanError)>;
+
 struct PlannedRoute {
     id: DropletId,
     start_tick: Tick,
     route: Path,
 }
 
-pub struct Plan {
-    grid: Grid,
+pub struct Planner {
     cmds: Vec<PlannedCommand>,
     routes: Vec<PlannedRoute>,
 
@@ -67,17 +70,22 @@ pub struct PlanSnapshot {
     cmd_shapes: Vec<Placement>,
 }
 
-impl Plan {
-    fn new(grid: Grid) -> Plan {
-        Plan {
-            grid,
+impl Planner {
+    pub fn new() -> Planner {
+        Planner {
             .. unimplemented!()
         }
     }
 
-    fn plan(&mut self, cmd: BoxedCommand) -> PlanResult {
+    pub fn add(&mut self, grid: &Grid, cmd: BoxedCommand) -> Result<CmdIndex, ()> {
         // FIXME get rid of unwraps
         let cmd_id = self.graph.add_command(cmd).unwrap();
+        // TODO verify something here
+        Ok(cmd_id)
+    }
+
+    pub fn plan(&mut self, grid: &Grid, _droplets: &[DropletId]) -> PlanResult {
+        // FIXME get rid of unwraps
         // let cmd = self.graph.graph[cmd_id];
 
         let sched_resp = {
@@ -100,7 +108,7 @@ impl Plan {
 
         let place_resp = {
             let req = PlacementRequest {
-                grid: &self.grid,
+                grid: &grid,
                 fixed_commands: vec![],
                 commands: command_requests.as_slice(),
                 stored_droplets: sched_resp.droplets_to_store.as_slice(),
@@ -110,7 +118,7 @@ impl Plan {
 
         let route_resp = {
             let req = RoutingRequest {
-                grid: &self.grid,
+                grid: &grid,
                 blockages: unimplemented!(),
                 droplets: unimplemented!(),
             };
@@ -131,8 +139,6 @@ impl Plan {
         PlanSnapshot { cmd_shapes }
     }
 }
-
-type PlanResult = Result<CommandPlan, (Box<dyn Command>, PlanError)>;
 
 impl GridView {
     pub fn plan(&mut self, mut cmd: Box<dyn Command>) -> Result<(), (Box<dyn Command>, PlanError)> {
