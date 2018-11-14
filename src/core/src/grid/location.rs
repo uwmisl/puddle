@@ -93,6 +93,15 @@ impl fmt::Display for Location {
     }
 }
 
+impl From<(i32, i32)> for Location {
+    fn from(tuple: (i32, i32)) -> Location {
+        Location {
+            y: tuple.0,
+            x: tuple.1,
+        }
+    }
+}
+
 impl FromStr for Location {
     type Err = ParseIntError;
 
