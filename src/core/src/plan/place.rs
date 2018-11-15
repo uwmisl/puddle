@@ -27,7 +27,7 @@ pub struct PlacementRequest<'a> {
 #[derive(Debug)]
 pub enum PlacementError {}
 
-type PlacementResult = Result<Placement, PlacementError>;
+type PlacementResult = Result<PlacementResponse, PlacementError>;
 
 pub struct Placer {}
 

@@ -60,7 +60,9 @@ impl Process {
 
     fn plan(&self, cmd: Box<dyn Command>) -> PuddleResult<()> {
         let mut gv = self.gridview.lock().unwrap();
-        gv.plan(cmd).map_err(|(_cmd, err)| PlanError(err))
+        // FIXME
+        // gv.plan(cmd).map_err(|(_cmd, err)| PlanError(err))
+        unimplemented!()
     }
 }
 
@@ -159,7 +161,8 @@ impl Process {
                 return;
             }
         };
-        gv.close();
+        // FIXME
+        // gv.close();
     }
 }
 

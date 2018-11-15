@@ -228,7 +228,7 @@ pub struct RoutingRequest<'a> {
 }
 
 pub struct RoutingResponse {
-    routes: Map<DropletId, Path>,
+    pub routes: Map<DropletId, Path>,
 }
 
 #[derive(Debug)]
@@ -256,23 +256,6 @@ impl Router {
         }
 
         Err(Error::NoRoute)
-    }
-}
-
-impl GridView {
-    pub fn route(&self) -> Option<Map<DropletId, Path>> {
-        let mut droplets = self.snapshot().droplets.iter().collect::<Vec<_>>();
-        let mut rng = mk_rng();
-        for i in 1..20 {
-            rng.shuffle(&mut droplets);
-            let result = route_many(&droplets, &self.grid, &self.bad_edges);
-            if result.is_some() {
-                return result;
-            }
-            trace!("route failed, trying iteration {}", i);
-        }
-
-        None
     }
 }
 

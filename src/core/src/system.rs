@@ -1,44 +1,40 @@
 
 use ::{PuddleResult};
 use command::{BoxedCommand, CommandRequest};
-use grid::{Grid, DropletId, Droplet, GridView, Location, Snapshot};
+use grid::{Grid, DropletId, Droplet, GridView, Location};
 use exec::Executor;
 
 use plan::{Planner};
+use plan::graph::{Graph, CmdIndex};
 use std::sync::{Arc, Mutex};
-
-// struct Runner {
-//     plan: Plan,
-// }
 
 struct System {
     grid: Grid,
-    planner: Arc<Mutex<Planner>>,
+    graph: Graph,
     // TODO probably don't wanna have arc/mutex here
-    execuctor: Arc<Mutex<Executor>>,
+    planner: Arc<Mutex<Planner>>,
+    executor: Executor,
 }
 
 impl System {
 
-    fn add(&self, cmd: BoxedCommand) -> Result<(), ()> {
-        let mut planner = self.planner.lock().unwrap();
-        let _cmd_id = planner.add(&self.grid, cmd)?;
+    fn add(&mut self, cmd: BoxedCommand) -> Result<(), ()> {
+        // TODO unwrap
+        let _cmd_id = self.graph.add_command(cmd).unwrap();
         Ok(())
     }
 
-    fn flush(&self, droplets: &[DropletId]) -> PuddleResult<()> {
-        let planned_phases = {
+    // TODO switch to event loop here
+    fn flush(&mut self, droplets: &[DropletId]) -> PuddleResult<()> {
+        let phase = {
             // scope the planner lock
             let mut planner = self.planner.lock().unwrap();
             // FIXME unwrap
-            planner.plan(&self.grid, droplets).unwrap()
+            planner.plan(&self.graph, droplets).unwrap()
         };
 
-        let mut executor = self.execuctor.lock().unwrap();
         // FIXME For now this is blocking
-        for phase in planned_phases {
-            executor.run(&phase)
-        }
+        self.executor.run(&phase, &mut self.graph);
 
         Ok(())
     }

@@ -1,9 +1,10 @@
-mod graph;
-mod place;
+// TODO move graph
+pub mod graph;
+pub mod place;
 mod route;
 mod sched;
 
-use self::graph::{Graph, CmdIndex};
+use self::graph::{CmdIndex, Graph};
 use self::place::{Placement, PlacementRequest, Placer};
 use self::route::{Router, RoutingRequest};
 use self::sched::{SchedRequest, Scheduler};
@@ -13,7 +14,7 @@ pub use self::route::Path;
 use command::{BoxedCommand, Command, CommandRequest};
 use grid::{
     droplet::{Droplet, DropletId},
-    Grid, GridView, Location, Snapshot,
+    Grid, GridView, Location,
 };
 use std::collections::HashMap;
 use util::collections::Map;
@@ -27,69 +28,35 @@ pub enum PlanError {
     PlaceError,
 }
 
-pub type Schedule = usize;
-pub type Routing = Map<DropletId, Path>;
-
-pub struct CommandPlan {
-    schedule: Schedule,
-    placement: Placement,
-    routing: Routing,
-}
-
-pub type Tick = usize;
-
 pub struct PlannedCommand {
-    cmd: BoxedCommand,
-    start_tick: Tick,
-    placement: Placement,
+    pub cmd_id: CmdIndex,
+    pub placement: Placement,
 }
 
-pub struct PlanPhase {}
-
-type PlanResult = Result<Vec<PlanPhase>, (Box<dyn Command>, PlanError)>;
-
-struct PlannedRoute {
-    id: DropletId,
-    start_tick: Tick,
-    route: Path,
+pub struct PlanPhase {
+    pub routes: Map<DropletId, Path>,
+    pub planned_commands: Vec<PlannedCommand>,
 }
+
+type PlanResult = Result<PlanPhase, (Box<dyn Command>, PlanError)>;
 
 pub struct Planner {
-    cmds: Vec<PlannedCommand>,
-    routes: Vec<PlannedRoute>,
-
+    grid: Grid,
     droplets: HashMap<DropletId, Droplet>,
-
-    graph: Graph,
     scheduler: Scheduler,
     placer: Placer,
     router: Router,
 }
 
-pub struct PlanSnapshot {
-    cmd_shapes: Vec<Placement>,
-}
-
 impl Planner {
     pub fn new() -> Planner {
-        Planner {
-            .. unimplemented!()
-        }
+        Planner { ..unimplemented!() }
     }
 
-    pub fn add(&mut self, grid: &Grid, cmd: BoxedCommand) -> Result<CmdIndex, ()> {
+    pub fn plan(&mut self, graph: &Graph, _droplets: &[DropletId]) -> PlanResult {
         // FIXME get rid of unwraps
-        let cmd_id = self.graph.add_command(cmd).unwrap();
-        // TODO verify something here
-        Ok(cmd_id)
-    }
-
-    pub fn plan(&mut self, grid: &Grid, _droplets: &[DropletId]) -> PlanResult {
-        // FIXME get rid of unwraps
-        // let cmd = self.graph.graph[cmd_id];
-
         let sched_resp = {
-            let req = SchedRequest { graph: &self.graph };
+            let req = SchedRequest { graph };
             self.scheduler.schedule(&req).unwrap()
         };
 
@@ -97,7 +64,7 @@ impl Planner {
             .commands_to_run
             .iter()
             .map(|cmd_id: &CmdIndex| {
-                let cmd = self.graph.graph[*cmd_id].as_ref().expect("Command was unbound!");
+                let cmd = graph.graph[*cmd_id].as_ref().expect("Command was unbound!");
                 let cmd_req = cmd.request(&self.droplets);
                 // TODO update the outputs
                 // for out in cmd_req.outputs {
@@ -108,157 +75,157 @@ impl Planner {
 
         let place_resp = {
             let req = PlacementRequest {
-                grid: &grid,
+                grid: &self.grid,
                 fixed_commands: vec![],
                 commands: command_requests.as_slice(),
                 stored_droplets: sched_resp.droplets_to_store.as_slice(),
             };
-            self.placer.place(&req).unwrap();
+            self.placer.place(&req).unwrap()
         };
 
         let route_resp = {
             let req = RoutingRequest {
-                grid: &grid,
-                blockages: unimplemented!(),
-                droplets: unimplemented!(),
+                grid: &self.grid,
+                blockages: vec![],
+                droplets: vec![], // FIXME put something in here
             };
-            self.router.route(&req).unwrap();
+            self.router.route(&req).unwrap()
         };
 
-        // commit phase
-
-    }
-
-    fn snapshot_at(&self, tick: Tick) -> PlanSnapshot {
-        let cmd_shapes = self
-            .cmds
+        let routes = route_resp.routes;
+        let planned_commands: Vec<_> = sched_resp
+            .commands_to_run
             .iter()
-            .filter(|cmd| tick >= cmd.start_tick)
-            .map(|cmd| cmd.placement.clone())
+            .zip(place_resp.commands)
+            .map(|(&cmd_id, placement)| PlannedCommand { cmd_id, placement })
             .collect();
-        PlanSnapshot { cmd_shapes }
+
+        Ok(PlanPhase {
+            routes,
+            planned_commands,
+        })
     }
 }
 
-impl GridView {
-    pub fn plan(&mut self, mut cmd: Box<dyn Command>) -> Result<(), (Box<dyn Command>, PlanError)> {
-        info!("Planning {:?}", cmd);
+// impl GridView {
+//     pub fn plan(&mut self, mut cmd: Box<dyn Command>) -> Result<(), (Box<dyn Command>, PlanError)> {
+//         info!("Planning {:?}", cmd);
 
-        // make sure there's a snapshot available to plan into
-        self.snapshot_ensure();
-        if cmd.bypass(&self) {
-            info!("Bypassing command: {:#?}", cmd);
-            return Ok(());
-        }
+//         // make sure there's a snapshot available to plan into
+//         self.snapshot_ensure();
+//         if cmd.bypass(&self) {
+//             info!("Bypassing command: {:#?}", cmd);
+//             return Ok(());
+//         }
 
-        let in_ids = cmd.input_droplets();
-        // FIXME
-        let req = cmd.request(unimplemented!());
+//         let in_ids = cmd.input_droplets();
+//         // FIXME
+//         let req = cmd.request(unimplemented!());
 
-        debug!(
-            "Command requests a shape of w={w},h={h}",
-            w = req.shape.max_width(),
-            h = req.shape.max_height(),
-        );
+//         debug!(
+//             "Command requests a shape of w={w},h={h}",
+//             w = req.shape.max_width(),
+//             h = req.shape.max_height(),
+//         );
 
-        debug!(
-            "Input droplets: {:?}",
-            cmd.input_droplets()
-                .iter()
-                .map(|id| &self.snapshot().droplets[id])
-                .collect::<Vec<_>>()
-        );
+//         debug!(
+//             "Input droplets: {:?}",
+//             cmd.input_droplets()
+//                 .iter()
+//                 .map(|id| &self.snapshot().droplets[id])
+//                 .collect::<Vec<_>>()
+//         );
 
-        let placement_mapping = if req.trusted {
-            // if we are trusting placement, just use an identity map
-            self.grid
-                .locations()
-                .map(|(loc, _cell)| (loc, loc))
-                .collect::<Map<_, _>>()
-        } else {
-            // TODO place should be a method of gridview
-            let mut snapshot: Snapshot = self.snapshot().new_with_same_droplets();
+//         let placement_mapping = if req.trusted {
+//             // if we are trusting placement, just use an identity map
+//             self.grid
+//                 .locations()
+//                 .map(|(loc, _cell)| (loc, loc))
+//                 .collect::<Map<_, _>>()
+//         } else {
+//             // TODO place should be a method of gridview
+//             let mut snapshot: Snapshot = self.snapshot().new_with_same_droplets();
 
-            for id in &in_ids {
-                snapshot.droplets.remove(id);
-            }
-            match self.grid.place(&req.shape, &snapshot, &self.bad_edges) {
-                None => return Err((cmd, PlanError::PlaceError)),
-                Some(placement_mapping) => placement_mapping,
-            }
-        };
+//             for id in &in_ids {
+//                 snapshot.droplets.remove(id);
+//             }
+//             match self.grid.place(&req.shape, &snapshot, &self.bad_edges) {
+//                 None => return Err((cmd, PlanError::PlaceError)),
+//                 Some(placement_mapping) => placement_mapping,
+//             }
+//         };
 
-        debug!("placement for {:#?}: {:#?}", cmd, placement_mapping);
+//         debug!("placement for {:#?}: {:#?}", cmd, placement_mapping);
 
-        assert_eq!(req.input_locations.len(), in_ids.len());
+//         assert_eq!(req.input_locations.len(), in_ids.len());
 
-        for (loc, id) in req.input_locations.iter().zip(&in_ids) {
-            // this should have been put to none last time
-            let droplet = self
-                .snapshot_mut()
-                .droplets
-                .get_mut(&id)
-                .expect("Command gave back and invalid DropletId");
+//         for (loc, id) in req.input_locations.iter().zip(&in_ids) {
+//             // this should have been put to none last time
+//             let droplet = self
+//                 .snapshot_mut()
+//                 .droplets
+//                 .get_mut(&id)
+//                 .expect("Command gave back and invalid DropletId");
 
-            assert!(droplet.destination.is_none());
+//             assert!(droplet.destination.is_none());
 
-            let mapped_loc = placement_mapping.get(loc).unwrap_or_else(|| {
-                panic!(
-                    "Input location {} wasn't in placement.\n  All input locations: {:?}",
-                    loc, req.input_locations
-                )
-            });
-            droplet.destination = Some(*mapped_loc);
-        }
+//             let mapped_loc = placement_mapping.get(loc).unwrap_or_else(|| {
+//                 panic!(
+//                     "Input location {} wasn't in placement.\n  All input locations: {:?}",
+//                     loc, req.input_locations
+//                 )
+//             });
+//             droplet.destination = Some(*mapped_loc);
+//         }
 
-        debug!("routing {:?}", cmd);
-        let paths = match self.route() {
-            Some(p) => p,
-            None => {
-                return Err((
-                    cmd,
-                    PlanError::RouteError {
-                        placement: Placement {
-                            mapping: placement_mapping,
-                        },
-                        droplets: self.snapshot().droplets.values().cloned().collect(),
-                    },
-                ))
-            }
-        };
-        debug!("route for {:#?}: {:#?}", cmd, paths);
+//         debug!("routing {:?}", cmd);
+//         let paths = match self.route() {
+//             Some(p) => p,
+//             None => {
+//                 return Err((
+//                     cmd,
+//                     PlanError::RouteError {
+//                         placement: Placement {
+//                             mapping: placement_mapping,
+//                         },
+//                         droplets: self.snapshot().droplets.values().cloned().collect(),
+//                     },
+//                 ))
+//             }
+//         };
+//         debug!("route for {:#?}: {:#?}", cmd, paths);
 
-        trace!("Taking paths...");
-        // FIXME final tick is a hack
-        // we *carefully* pre-run the command before making the final tick
-        let final_tick = false;
-        self.take_paths(&paths, final_tick);
+//         trace!("Taking paths...");
+//         // FIXME final tick is a hack
+//         // we *carefully* pre-run the command before making the final tick
+//         let final_tick = false;
+//         self.take_paths(&paths, final_tick);
 
-        {
-            let mut subview = self.subview(in_ids.iter().cloned(), placement_mapping.clone());
+//         {
+//             let mut subview = self.subview(in_ids.iter().cloned(), placement_mapping.clone());
 
-            trace!("Pre-Running command {:?}", cmd);
-            cmd.pre_run(&mut subview);
-            subview.tick();
+//             trace!("Pre-Running command {:?}", cmd);
+//             cmd.pre_run(&mut subview);
+//             subview.tick();
 
-            trace!("Running command {:?}", cmd);
-            cmd.run(&mut subview);
-        }
+//             trace!("Running command {:?}", cmd);
+//             cmd.run(&mut subview);
+//         }
 
-        self.register(cmd);
+//         self.register(cmd);
 
-        // teardown destinations if the droplets are still there
-        // TODO is this ever going to be true?
-        for id in in_ids {
-            if let Some(droplet) = self.snapshot_mut().droplets.get_mut(&id) {
-                assert_eq!(Some(droplet.location), droplet.destination);
-                droplet.destination = None;
-            };
-        }
+//         // teardown destinations if the droplets are still there
+//         // TODO is this ever going to be true?
+//         for id in in_ids {
+//             if let Some(droplet) = self.snapshot_mut().droplets.get_mut(&id) {
+//                 assert_eq!(Some(droplet.location), droplet.destination);
+//                 droplet.destination = None;
+//             };
+//         }
 
-        Ok(())
-    }
-}
+//         Ok(())
+//     }
+// }
 
 #[cfg(test)]
 mod tests {
@@ -277,44 +244,44 @@ mod tests {
         GridView::new(Grid::from_reader(f).unwrap())
     }
 
-    #[test]
-    fn plan_input() {
-        let mut gv = mk_gv("tests/arches/purpledrop.json");
-        let cmd = {
-            let substance = "input".into();
-            let volume = 1.0;
-            let dimensions = Location { y: 3, x: 3 };
-            let out_id = DropletId {
-                id: 0,
-                process_id: 0,
-            };
-            command::Input::new(substance, volume, dimensions, out_id).unwrap()
-        };
-        gv.plan(Box::new(cmd)).unwrap();
-    }
+    // #[test]
+    // fn plan_input() {
+    //     let mut gv = mk_gv("tests/arches/purpledrop.json");
+    //     let cmd = {
+    //         let substance = "input".into();
+    //         let volume = 1.0;
+    //         let dimensions = Location { y: 3, x: 3 };
+    //         let out_id = DropletId {
+    //             id: 0,
+    //             process_id: 0,
+    //         };
+    //         command::Input::new(substance, volume, dimensions, out_id).unwrap()
+    //     };
+    //     gv.plan(Box::new(cmd)).unwrap();
+    // }
 
-    #[test]
-    fn plan_output() {
-        let mut gv = mk_gv("tests/arches/purpledrop.json");
+    // #[test]
+    // fn plan_output() {
+    //     let mut gv = mk_gv("tests/arches/purpledrop.json");
 
-        let id = DropletId {
-            id: 0,
-            process_id: 0,
-        };
-        let droplet = {
-            let volume = 1.0;
-            let location = Location { y: 7, x: 0 };
-            let dimensions = Location { y: 1, x: 1 };
-            Droplet::new(id, volume, location, dimensions)
-        };
-        gv.snapshot_mut().droplets.insert(id, droplet);
+    //     let id = DropletId {
+    //         id: 0,
+    //         process_id: 0,
+    //     };
+    //     let droplet = {
+    //         let volume = 1.0;
+    //         let location = Location { y: 7, x: 0 };
+    //         let dimensions = Location { y: 1, x: 1 };
+    //         Droplet::new(id, volume, location, dimensions)
+    //     };
+    //     gv.snapshot_mut().droplets.insert(id, droplet);
 
-        let cmd = {
-            let substance = "output".into();
-            command::Output::new(substance, id).unwrap()
-        };
+    //     let cmd = {
+    //         let substance = "output".into();
+    //         command::Output::new(substance, id).unwrap()
+    //     };
 
-        gv.plan(Box::new(cmd)).unwrap();
-    }
+    //     gv.plan(Box::new(cmd)).unwrap();
+    // }
 
 }

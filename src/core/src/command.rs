@@ -12,7 +12,7 @@ use pi::RaspberryPi;
 use grid::{
     gridview::{GridSubView, GridView},
     SimpleBlob, Blob,
-    Droplet, DropletId, DropletInfo, Grid, Location, Peripheral, Snapshot,
+    Droplet, DropletId, DropletInfo, Grid, Location, Peripheral,
 };
 
 use process::{ProcessId, PuddleResult};
@@ -24,6 +24,11 @@ pub struct CommandRequest {
     // TODO needed to plan ahead, but we can omit if we don't do that for now
     // pub outputs: Vec<Droplet>,
     pub trusted: bool,
+}
+
+pub enum RunStatus {
+    Done,
+    KeepGoing
 }
 
 pub trait Command: fmt::Debug + Send {
@@ -44,10 +49,10 @@ pub trait Command: fmt::Debug + Send {
     // this better not tick!!!
     fn pre_run(&self, &mut GridSubView) {}
 
-    fn run(&mut self, &mut GridSubView);
+    fn run(&mut self, &mut GridSubView) -> RunStatus;
 
     #[cfg(not(feature = "pi"))]
-    fn finalize(&mut self, &Snapshot) {}
+    fn finalize(&mut self, &GridSubView) {}
     #[cfg(feature = "pi")]
     fn finalize(&mut self, &Snapshot, Option<&mut RaspberryPi>) {}
 
@@ -110,14 +115,14 @@ impl Command for Create {
         }
     }
 
-    fn run(&mut self, gridview: &mut GridSubView) {
+    fn run(&mut self, gridview: &mut GridSubView) -> RunStatus {
         gridview.insert(Droplet::new(
             self.outputs[0],
             self.volume,
             self.location,
             self.dimensions,
         ));
-        gridview.tick();
+        RunStatus::Done
     }
 }
 
@@ -148,14 +153,16 @@ impl Command for Flush {
         }
     }
 
-    fn run(&mut self, gridview: &mut GridSubView) {
-        gridview.tick();
+    fn run(&mut self, gridview: &mut GridSubView) -> RunStatus {
+        // gridview.tick();
+        RunStatus::Done
     }
 
     #[cfg(not(feature = "pi"))]
-    fn finalize(&mut self, gv: &Snapshot) {
-        let info = gv.droplet_info(Some(self.pid));
-        self.tx.send(Ok(info)).unwrap();
+    fn finalize(&mut self, gv: &GridSubView) {
+        // FIXME
+        // let info = gv.droplet_info(Some(self.pid));
+        // self.tx.send(Ok(info)).unwrap();
     }
     #[cfg(feature = "pi")]
     fn finalize(&mut self, gv: &Snapshot, _: Option<&mut RaspberryPi>) {
@@ -209,14 +216,15 @@ impl Command for Move {
         }
     }
 
-    fn run(&mut self, gridview: &mut GridSubView) {
-        let old_id = self.inputs[0];
-        let new_id = self.outputs[0];
-        let mut d = gridview.remove(&old_id);
-        // NOTE this is pretty much the only place it's ok to change an id
-        d.id = new_id;
-        gridview.insert(d);
-        gridview.tick()
+    fn run(&mut self, gridview: &mut GridSubView) -> RunStatus {
+        // let old_id = self.inputs[0];
+        // let new_id = self.outputs[0];
+        // let mut d = gridview.remove(&old_id);
+        // // NOTE this is pretty much the only place it's ok to change an id
+        // d.id = new_id;
+        // gridview.insert(d);
+        // gridview.tick()
+        RunStatus::Done
     }
 }
 
@@ -344,22 +352,24 @@ impl Command for Combine {
     }
 
     fn pre_run(&self, gridview: &mut GridSubView) {
-        let in0 = self.inputs[0];
-        let in1 = self.inputs[1];
-        let out = self.outputs[0];
+        // let in0 = self.inputs[0];
+        // let in1 = self.inputs[1];
+        // let out = self.outputs[0];
 
-        let d0 = gridview.remove(&in0);
-        let d1 = gridview.remove(&in1);
-        // TODO right now this only mixes vertical
-        // it should somehow communicate with the Combine command to control the mixed droplets dimensions
-        let combined = self.combined(&d0, &d1);
+        // let d0 = gridview.remove(&in0);
+        // let d1 = gridview.remove(&in1);
+        // // TODO right now this only mixes vertical
+        // // it should somehow communicate with the Combine command to control the mixed droplets dimensions
+        // let combined = self.combined(&d0, &d1);
 
-        // assert_eq!(d0.location.y, d1.location.y);
-        // assert_eq!(d0.location.x + d0.dimensions.x, d1.location.x);
-        gridview.insert(combined.to_droplet(out));
+        // // assert_eq!(d0.location.y, d1.location.y);
+        // // assert_eq!(d0.location.x + d0.dimensions.x, d1.location.x);
+        // gridview.insert(combined.to_droplet(out));
     }
 
-    fn run(&mut self, _: &mut GridSubView) {}
+    fn run(&mut self, _: &mut GridSubView) -> RunStatus {
+        RunStatus::Done
+    }
 }
 
 //
@@ -407,25 +417,26 @@ impl Command for Agitate {
         }
     }
 
-    fn run(&mut self, gridview: &mut GridSubView) {
-        let in_id = self.inputs[0];
-        let out_id = self.outputs[0];
+    fn run(&mut self, gridview: &mut GridSubView) -> RunStatus {
+        // let in_id = self.inputs[0];
+        // let out_id = self.outputs[0];
 
-        for i in 0..self.n_agitation_loops {
-            debug!("Agitating droplet {:?}, iteration {}", in_id, i);
-            gridview.move_south(in_id);
-            gridview.tick();
-            gridview.move_east(in_id);
-            gridview.tick();
-            gridview.move_north(in_id);
-            gridview.tick();
-            gridview.move_west(in_id);
-            gridview.tick();
-        }
+        // for i in 0..self.n_agitation_loops {
+        //     debug!("Agitating droplet {:?}, iteration {}", in_id, i);
+        //     gridview.move_south(in_id);
+        //     gridview.tick();
+        //     gridview.move_east(in_id);
+        //     gridview.tick();
+        //     gridview.move_north(in_id);
+        //     gridview.tick();
+        //     gridview.move_west(in_id);
+        //     gridview.tick();
+        // }
 
-        let mut droplet = gridview.remove(&in_id);
-        droplet.id = out_id;
-        gridview.insert(droplet)
+        // let mut droplet = gridview.remove(&in_id);
+        // droplet.id = out_id;
+        // gridview.insert(droplet)
+        RunStatus::Done
     }
 }
 
@@ -489,40 +500,41 @@ impl Command for Split {
         }
     }
 
-    fn run(&mut self, gridview: &mut GridSubView) {
-        let x_dim = {
-            // limit the scope of d0 borrow
-            let d0 = gridview.get(&self.inputs[0]);
-            (d0.dimensions.x as usize) + SPLIT_PADDING
-        };
+    fn run(&mut self, gridview: &mut GridSubView) -> RunStatus {
+        // let x_dim = {
+        //     // limit the scope of d0 borrow
+        //     let d0 = gridview.get(&self.inputs[0]);
+        //     (d0.dimensions.x as usize) + SPLIT_PADDING
+        // };
 
-        let inp = self.inputs[0];
-        let out0 = self.outputs[0];
-        let out1 = self.outputs[1];
+        // let inp = self.inputs[0];
+        // let out0 = self.outputs[0];
+        // let out1 = self.outputs[1];
 
-        let d = gridview.remove(&inp);
-        let vol = d.volume / 2.0;
+        // let d = gridview.remove(&inp);
+        // let vol = d.volume / 2.0;
 
-        // TODO: this should be related to volume in some fashion
-        // currently, take the ceiling of the division of the split by two
-        let dim = Location {
-            y: d.dimensions.y,
-            x: (d.dimensions.x + 1) / 2,
-        };
+        // // TODO: this should be related to volume in some fashion
+        // // currently, take the ceiling of the division of the split by two
+        // let dim = Location {
+        //     y: d.dimensions.y,
+        //     x: (d.dimensions.x + 1) / 2,
+        // };
 
-        let loc0 = Location { y: 0, x: 1 };
-        let loc1 = Location {
-            y: 0,
-            x: x_dim as i32 - (dim.x + 1),
-        };
+        // let loc0 = Location { y: 0, x: 1 };
+        // let loc1 = Location {
+        //     y: 0,
+        //     x: x_dim as i32 - (dim.x + 1),
+        // };
 
-        gridview.insert(Droplet::new(out0, vol, loc0, dim));
-        gridview.insert(Droplet::new(out1, vol, loc1, dim));
+        // gridview.insert(Droplet::new(out0, vol, loc0, dim));
+        // gridview.insert(Droplet::new(out1, vol, loc1, dim));
 
-        gridview.tick();
-        gridview.move_west(out0);
-        gridview.move_east(out1);
-        gridview.tick();
+        // gridview.tick();
+        // gridview.move_west(out0);
+        // gridview.move_east(out1);
+        // gridview.tick();
+        RunStatus::Done
     }
 }
 
@@ -592,31 +604,32 @@ impl Command for Heat {
         }
     }
 
-    fn run(&mut self, gridview: &mut GridSubView) {
-        #[cfg(feature = "pi")]
-        {
-            let d = gridview.get(&self.inputs[0]);
-            let loc = Location {
-                y: d.dimensions.y - 1,
-                x: 0,
-            };
-            let heater = gridview
-                .get_electrode(&loc)
-                .cloned()
-                .unwrap()
-                .peripheral
-                .unwrap();
-            assert_matches!(heater, Peripheral::Heater{..});
-            self.heater = Some(heater)
-        }
-        let old_id = self.inputs[0];
-        let new_id = self.outputs[0];
+    fn run(&mut self, gridview: &mut GridSubView) -> RunStatus {
+        // #[cfg(feature = "pi")]
+        // {
+        //     let d = gridview.get(&self.inputs[0]);
+        //     let loc = Location {
+        //         y: d.dimensions.y - 1,
+        //         x: 0,
+        //     };
+        //     let heater = gridview
+        //         .get_electrode(&loc)
+        //         .cloned()
+        //         .unwrap()
+        //         .peripheral
+        //         .unwrap();
+        //     assert_matches!(heater, Peripheral::Heater{..});
+        //     self.heater = Some(heater)
+        // }
+        // let old_id = self.inputs[0];
+        // let new_id = self.outputs[0];
 
-        let mut d = gridview.remove(&old_id);
-        // NOTE this is a rare place it's ok to change an id, like move
-        d.id = new_id;
-        gridview.insert(d);
-        gridview.tick()
+        // let mut d = gridview.remove(&old_id);
+        // // NOTE this is a rare place it's ok to change an id, like move
+        // d.id = new_id;
+        // gridview.insert(d);
+        // gridview.tick()
+        RunStatus::Done
     }
 
     #[cfg(feature = "pi")]
@@ -684,29 +697,30 @@ impl Command for Input {
         }
     }
 
-    fn run(&mut self, gridview: &mut GridSubView) {
-        // FIXME: this is a total hack to assume that input is always on the right-hand side
-        let input_loc = Location {
-            y: self.dimensions.y / 2,
-            x: self.dimensions.x - 1 + 1,
-        };
-        #[cfg(feature = "pi")]
-        {
-            let input = gridview
-                .get_electrode(&input_loc)
-                .cloned()
-                .unwrap()
-                .peripheral
-                .unwrap();
-            assert_matches!(input, Peripheral::Input{..});
-            self.input = Some(input);
-        }
-        let new_id = self.outputs[0];
+    fn run(&mut self, gridview: &mut GridSubView) -> RunStatus {
+        // // FIXME: this is a total hack to assume that input is always on the right-hand side
+        // let input_loc = Location {
+        //     y: self.dimensions.y / 2,
+        //     x: self.dimensions.x - 1 + 1,
+        // };
+        // #[cfg(feature = "pi")]
+        // {
+        //     let input = gridview
+        //         .get_electrode(&input_loc)
+        //         .cloned()
+        //         .unwrap()
+        //         .peripheral
+        //         .unwrap();
+        //     assert_matches!(input, Peripheral::Input{..});
+        //     self.input = Some(input);
+        // }
+        // let new_id = self.outputs[0];
 
-        let d_loc = Location { y: 0, x: 0 };
-        let d = Droplet::new(new_id, self.volume, d_loc, self.dimensions);
-        gridview.insert(d);
-        gridview.tick()
+        // let d_loc = Location { y: 0, x: 0 };
+        // let d = Droplet::new(new_id, self.volume, d_loc, self.dimensions);
+        // gridview.insert(d);
+        // gridview.tick()
+        RunStatus::Done
     }
 
     #[cfg(feature = "pi")]
@@ -797,29 +811,30 @@ impl Command for Output {
         }
     }
 
-    fn run(&mut self, gridview: &mut GridSubView) {
-        let id = self.inputs[0];
-        #[cfg(feature = "pi")]
-        {
-            // FIXME: this is a total hack to assume that output is always on the left-hand side
-            let loc = Location {
-                y: gridview.get(&id).dimensions.y / 2,
-                x: 0,
-            };
-            let volume = gridview.get(&id).volume;
-            let output = gridview
-                .get_electrode(&loc)
-                .cloned()
-                .unwrap()
-                .peripheral
-                .unwrap();
-            assert_matches!(output, Peripheral::Output{..});
-            self.output = Some(output);
-            self.volume = Some(volume);
-            // gridview.with_pi(|pi| pi.output(&output, volume));
-        }
-        gridview.remove(&id);
-        gridview.tick()
+    fn run(&mut self, gridview: &mut GridSubView) -> RunStatus {
+        // let id = self.inputs[0];
+        // #[cfg(feature = "pi")]
+        // {
+        //     // FIXME: this is a total hack to assume that output is always on the left-hand side
+        //     let loc = Location {
+        //         y: gridview.get(&id).dimensions.y / 2,
+        //         x: 0,
+        //     };
+        //     let volume = gridview.get(&id).volume;
+        //     let output = gridview
+        //         .get_electrode(&loc)
+        //         .cloned()
+        //         .unwrap()
+        //         .peripheral
+        //         .unwrap();
+        //     assert_matches!(output, Peripheral::Output{..});
+        //     self.output = Some(output);
+        //     self.volume = Some(volume);
+        //     // gridview.with_pi(|pi| pi.output(&output, volume));
+        // }
+        // gridview.remove(&id);
+        // gridview.tick()
+        RunStatus::Done
     }
 
     #[cfg(feature = "pi")]
@@ -866,7 +881,7 @@ pub mod tests {
             unimplemented!()
         }
 
-        fn run(&mut self, gridview: &mut GridSubView) {
+        fn run(&mut self, gridview: &mut GridSubView) -> RunStatus {
             unimplemented!()
         }
     }

@@ -4,7 +4,7 @@ use serde_json;
 use std::collections::HashSet;
 use std::io::Read;
 
-use super::{Location, Snapshot};
+use super::{Location};
 use util::collections::{Map, Set};
 
 use grid::parse::{Mark, ParsedElectrode, ParsedGrid};
@@ -41,7 +41,7 @@ impl Electrode {
     }
 }
 
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Debug, Default, PartialEq, Eq, Clone)]
 pub struct Grid {
     pub vec: Vec<Vec<Option<Electrode>>>,
 }
@@ -146,82 +146,82 @@ impl Grid {
         })
     }
 
-    /// Tests if this grid is compatible within `bigger` when `offset` is applied
-    /// to `self`
-    fn is_compatible_within(
-        &self,
-        offset: Location,
-        bigger: &Self,
-        snapshot: &Snapshot,
-        bad_edges: &Set<(Location, Location)>,
-    ) -> bool {
-        self.locations().all(|(loc, my_cell)| {
-            let their_loc = &loc + &offset;
-            bigger.get_cell(&their_loc).map_or(false, |theirs| {
-                // make sure that it's not the case that an internal edge to this subgrid is a bad edge in the larger grid
-                my_cell.is_compatible(&theirs)
-                    && !snapshot.droplets.values().any(|droplet| {
-                        let corner1 = droplet.location;
-                        let corner2 = &droplet.location + &droplet.dimensions;
-                        their_loc.min_distance_to_box(corner1, corner2) <= 0
-                    })
-                    && !(self.get_cell(&loc.south()).is_some()
-                        && bad_edges.contains(&(their_loc, their_loc.south())))
-                    && !(self.get_cell(&loc.east()).is_some()
-                        && bad_edges.contains(&(their_loc, their_loc.east())))
-            })
-        })
-    }
+    // /// Tests if this grid is compatible within `bigger` when `offset` is applied
+    // /// to `self`
+    // fn is_compatible_within(
+    //     &self,
+    //     offset: Location,
+    //     bigger: &Self,
+    //     snapshot: &Snapshot,
+    //     bad_edges: &Set<(Location, Location)>,
+    // ) -> bool {
+    //     self.locations().all(|(loc, my_cell)| {
+    //         let their_loc = &loc + &offset;
+    //         bigger.get_cell(&their_loc).map_or(false, |theirs| {
+    //             // make sure that it's not the case that an internal edge to this subgrid is a bad edge in the larger grid
+    //             my_cell.is_compatible(&theirs)
+    //                 && !snapshot.droplets.values().any(|droplet| {
+    //                     let corner1 = droplet.location;
+    //                     let corner2 = &droplet.location + &droplet.dimensions;
+    //                     their_loc.min_distance_to_box(corner1, corner2) <= 0
+    //                 })
+    //                 && !(self.get_cell(&loc.south()).is_some()
+    //                     && bad_edges.contains(&(their_loc, their_loc.south())))
+    //                 && !(self.get_cell(&loc.east()).is_some()
+    //                     && bad_edges.contains(&(their_loc, their_loc.east())))
+    //         })
+    //     })
+    // }
 
-    fn mapping_into_other_from_offset(
-        &self,
-        offset: Location,
-        _bigger: &Self,
-    ) -> Map<Location, Location> {
-        // assert!(self.is_compatible_within(offset, bigger));
+    // fn mapping_into_other_from_offset(
+    //     &self,
+    //     offset: Location,
+    //     _bigger: &Self,
+    // ) -> Map<Location, Location> {
+    //     // assert!(self.is_compatible_within(offset, bigger));
 
-        let mut map = Map::new();
+    //     let mut map = Map::new();
 
-        for (loc, _) in self.locations() {
-            map.insert(loc, &loc + &offset);
-        }
+    //     for (loc, _) in self.locations() {
+    //         map.insert(loc, &loc + &offset);
+    //     }
 
-        map
-    }
+    //     map
+    // }
 
-    pub fn place(
-        &self,
-        smaller: &Self,
-        snapshot: &Snapshot,
-        bad_edges: &Set<(Location, Location)>,
-    ) -> Option<Map<Location, Location>> {
-        let offset_found = self
-            .vec
-            .iter()
-            .enumerate()
-            .flat_map(move |(i, row)| {
-                (0..row.len()).map(move |j| Location {
-                    y: i as i32,
-                    x: j as i32,
-                })
-            }).find(|&offset| smaller.is_compatible_within(offset, self, snapshot, bad_edges));
+    // pub fn place(
+    //     &self,
+    //     smaller: &Self,
+    //     snapshot: &Snapshot,
+    //     bad_edges: &Set<(Location, Location)>,
+    // ) -> Option<Map<Location, Location>> {
+    //     let offset_found = self
+    //         .vec
+    //         .iter()
+    //         .enumerate()
+    //         .flat_map(move |(i, row)| {
+    //             (0..row.len()).map(move |j| Location {
+    //                 y: i as i32,
+    //                 x: j as i32,
+    //             })
+    //         }).find(|&offset| smaller.is_compatible_within(offset, self, snapshot, bad_edges));
 
-        let result =
-            offset_found.map(|offset| smaller.mapping_into_other_from_offset(offset, self));
+    //     let result =
+    //         offset_found.map(|offset| smaller.mapping_into_other_from_offset(offset, self));
 
-        // verify the mapping by checking that each space is far enough away from the droplets
-        if let Some(mapping) = result.as_ref() {
-            for droplet in snapshot.droplets.values() {
-                let corner1 = droplet.location;
-                let corner2 = &droplet.location + &droplet.dimensions;
-                for loc in mapping.values() {
-                    assert!(loc.min_distance_to_box(corner1, corner2) > 0);
-                }
-            }
-        };
+    //     // verify the mapping by checking that each space is far enough away from the droplets
+    //     if let Some(mapping) = result.as_ref() {
+    //         for droplet in snapshot.droplets.values() {
+    //             let corner1 = droplet.location;
+    //             let corner2 = &droplet.location + &droplet.dimensions;
+    //             for loc in mapping.values() {
+    //                 assert!(loc.min_distance_to_box(corner1, corner2) > 0);
+    //             }
+    //         }
+    //     };
 
-        result
-    }
+    //     result
+    // }
 
     pub fn from_function<F>(mut f: F, height: usize, width: usize) -> Grid
     where
@@ -331,78 +331,78 @@ impl<'de> Deserialize<'de> for Grid {
     }
 }
 
-#[cfg(test)]
-pub mod tests {
-    use super::*;
+// #[cfg(test)]
+// pub mod tests {
+//     use super::*;
 
-    use std::iter::FromIterator;
+//     use std::iter::FromIterator;
 
-    #[test]
-    fn test_connected() {
-        let el = || {
-            Some(Electrode {
-                pin: 0,
-                peripheral: None,
-            })
-        };
-        let grid1 = Grid {
-            vec: vec![vec![None, el()], vec![el(), None]],
-        };
-        let grid2 = Grid {
-            vec: vec![vec![el(), el()], vec![None, None]],
-        };
+//     #[test]
+//     fn test_connected() {
+//         let el = || {
+//             Some(Electrode {
+//                 pin: 0,
+//                 peripheral: None,
+//             })
+//         };
+//         let grid1 = Grid {
+//             vec: vec![vec![None, el()], vec![el(), None]],
+//         };
+//         let grid2 = Grid {
+//             vec: vec![vec![el(), el()], vec![None, None]],
+//         };
 
-        assert!(!grid1.is_connected());
-        assert!(grid2.is_connected())
-    }
+//         assert!(!grid1.is_connected());
+//         assert!(grid2.is_connected())
+//     }
 
-    #[test]
-    fn test_place_heater() {
-        let mut grid = Grid::rectangle(3, 3);
-        let heater_loc = Location { y: 2, x: 1 };
-        grid.get_cell_mut(&heater_loc).unwrap().peripheral = Some(Peripheral::Heater {
-            // these don't matter, they shouldn't be used for compatibility
-            pwm_channel: 10,
-            spi_channel: 42,
-        });
+//     #[test]
+//     fn test_place_heater() {
+//         let mut grid = Grid::rectangle(3, 3);
+//         let heater_loc = Location { y: 2, x: 1 };
+//         grid.get_cell_mut(&heater_loc).unwrap().peripheral = Some(Peripheral::Heater {
+//             // these don't matter, they shouldn't be used for compatibility
+//             pwm_channel: 10,
+//             spi_channel: 42,
+//         });
 
-        let mut small_grid = Grid::rectangle(1, 1);
-        small_grid
-            .get_cell_mut(&Location { y: 0, x: 0 })
-            .unwrap()
-            .peripheral = Some(Peripheral::Heater {
-            pwm_channel: 0,
-            spi_channel: 0,
-        });
+//         let mut small_grid = Grid::rectangle(1, 1);
+//         small_grid
+//             .get_cell_mut(&Location { y: 0, x: 0 })
+//             .unwrap()
+//             .peripheral = Some(Peripheral::Heater {
+//             pwm_channel: 0,
+//             spi_channel: 0,
+//         });
 
-        let snapshot = &Snapshot::default();
-        let bad_edges = &Set::default();
+//         let snapshot = &Snapshot::default();
+//         let bad_edges = &Set::default();
 
-        let map = grid.place(&small_grid, snapshot, bad_edges).unwrap();
+//         let map = grid.place(&small_grid, snapshot, bad_edges).unwrap();
 
-        assert_eq!(map.get(&Location { y: 0, x: 0 }), Some(&heater_loc));
-    }
+//         assert_eq!(map.get(&Location { y: 0, x: 0 }), Some(&heater_loc));
+//     }
 
-    #[test]
-    fn grid_self_compatible() {
-        let g1 = Grid::rectangle(5, 4);
-        let g2 = Grid::rectangle(5, 4);
-        let zero = Location { x: 0, y: 0 };
-        let snapshot = &Snapshot::default();
-        let bad_edges = &Set::default();
-        assert!(g1.is_compatible_within(zero, &g2, snapshot, bad_edges))
-    }
+//     #[test]
+//     fn grid_self_compatible() {
+//         let g1 = Grid::rectangle(5, 4);
+//         let g2 = Grid::rectangle(5, 4);
+//         let zero = Location { x: 0, y: 0 };
+//         let snapshot = &Snapshot::default();
+//         let bad_edges = &Set::default();
+//         assert!(g1.is_compatible_within(zero, &g2, snapshot, bad_edges))
+//     }
 
-    #[test]
-    fn grid_self_place() {
-        let grid = Grid::rectangle(5, 4);
+//     #[test]
+//     fn grid_self_place() {
+//         let grid = Grid::rectangle(5, 4);
 
-        let snapshot = &Snapshot::default();
-        let bad_edges = &Set::default();
-        let map = grid.place(&grid, snapshot, bad_edges).unwrap();
+//         let snapshot = &Snapshot::default();
+//         let bad_edges = &Set::default();
+//         let map = grid.place(&grid, snapshot, bad_edges).unwrap();
 
-        let identity_locs: Map<Location, Location> =
-            Map::from_iter(grid.locations().map(|(loc, _)| (loc, loc)));
-        assert_eq!(&identity_locs, &map);
-    }
-}
+//         let identity_locs: Map<Location, Location> =
+//             Map::from_iter(grid.locations().map(|(loc, _)| (loc, loc)));
+//         assert_eq!(&identity_locs, &map);
+//     }
+// }

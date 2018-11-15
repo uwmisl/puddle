@@ -39,13 +39,11 @@ impl GridView {
 
     pub fn subview<'a>(
         &'a mut self,
-        ids: impl IntoIterator<Item = &'a DropletId>,
         placement: &'a Placement
     ) -> GridSubView<'a> {
         GridSubView {
             backing_gridview: self,
             placement,
-            ids: ids.into_iter().cloned().collect(),
         }
     }
 }
@@ -53,7 +51,6 @@ impl GridView {
 pub struct GridSubView<'a> {
     backing_gridview: &'a mut GridView,
     placement: &'a Placement,
-    ids: Set<DropletId>,
 }
 
 impl<'a> GridSubView<'a> {
@@ -70,12 +67,13 @@ impl<'a> GridSubView<'a> {
 
     // TODO: translate or somehow hide the untranslated location of this
     pub fn get(&self, id: &DropletId) -> &Droplet {
-        assert!(self.ids.contains(&id));
+        // assert!(self.ids.contains(&id));
+        // TODO we can at least assert that this thing is in the placed locations
         &self.backing_gridview.droplets[id]
     }
 
     fn get_mut(&mut self, id: &DropletId) -> &mut Droplet {
-        assert!(self.ids.contains(&id));
+        // assert!(self.ids.contains(&id));
         self.backing_gridview
             .droplets
             .get_mut(id)
@@ -86,16 +84,16 @@ impl<'a> GridSubView<'a> {
         let new_loc = self.placement.mapping.get(&droplet.location);
         trace!("Inserting {:#?} at {:?}", droplet, new_loc);
         droplet.location = *new_loc.unwrap();
-        let was_not_there = self.ids.insert(droplet.id);
-        assert!(was_not_there);
+        // let was_not_there = self.ids.insert(droplet.id);
+        // assert!(was_not_there);
         let droplets = &mut self.backing_gridview.droplets;
         let was_there = droplets.insert(droplet.id, droplet);
         assert!(was_there.is_none());
     }
 
     pub fn remove(&mut self, id: &DropletId) -> Droplet {
-        let was_there = self.ids.remove(id);
-        assert!(was_there);
+        // let was_there = self.ids.remove(id);
+        // assert!(was_there);
         let droplets = &mut self.backing_gridview.droplets;
         let mut droplet = droplets.remove(id).unwrap();
         // TODO this is pretty slow
@@ -225,8 +223,7 @@ pub mod tests {
 
         let placement = placement_rect((0, 2), (4, 7));
         // let ids: Vec<_> = gv.droplets.keys().cloned().collect();
-        let ids = &[c2id('b')];
-        let mut sub = gv.subview(ids, &placement);
+        let mut sub = gv.subview(&placement);
 
         sub.move_north(c2id('b'));
         let _c = sub.get(&c2id('b'));
@@ -237,14 +234,16 @@ pub mod tests {
     #[test]
     #[should_panic]
     fn test_subview_check() {
-        let mut gv = parse_gridview(&["a.b.c"]);
+        let mut gv = parse_gridview(&["a...b...c"]);
 
         // placement only contains b
-        let placement = placement_rect((0, 1), (0, 2));
-        let ids = &[c2id('b')];
-        let mut sub = gv.subview(ids, &placement);
+        let placement = placement_rect((0, 4), (0, 2));
+        let mut sub = gv.subview(&placement);
 
-        sub.get(&c2id('a'));
+        // try to move b to an invalid location outside the placement
+        sub.update(&c2id('b'), |b| {
+            b.location = (0, 2).into()
+        })
     }
 
 }
