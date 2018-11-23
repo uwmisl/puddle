@@ -273,7 +273,7 @@ fn route_many(
 
     debug!(
         "Routing droplets in this order: {:?}",
-        droplets.iter().map(|(id, _)| id.id).collect::<Vec<_>>()
+        droplets.iter().map(|(id, _)| id).collect::<Vec<_>>()
     );
 
     for &(&id, droplet) in droplets.iter() {

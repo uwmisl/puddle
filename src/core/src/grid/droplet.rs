@@ -1,3 +1,4 @@
+use std::fmt;
 use std::collections::HashSet;
 use std::sync::atomic::AtomicUsize;
 use std::sync::atomic::Ordering::Relaxed;
@@ -7,10 +8,20 @@ use process::ProcessId;
 
 static NEXT_COLLISION_GROUP: AtomicUsize = AtomicUsize::new(0);
 
-#[derive(PartialEq, Eq, PartialOrd, Hash, Ord, Debug, Clone, Copy, Serialize, Deserialize)]
+#[derive(PartialEq, Eq, PartialOrd, Hash, Ord, Clone, Copy, Serialize, Deserialize)]
 pub struct DropletId {
     pub id: usize,
     pub process_id: ProcessId,
+}
+
+impl fmt::Debug for DropletId {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", self.id)?;
+        if self.process_id != 0 {
+            write!(f, "p{}", self.process_id)?;
+        }
+        Ok(())
+    }
 }
 
 #[cfg(test)]
