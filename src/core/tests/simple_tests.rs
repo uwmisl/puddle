@@ -152,37 +152,42 @@ fn mix_split() {
 // //     assert_ne!(droplets[&id1].volume, droplets[&id2].volume);
 // // }
 
-// #[test]
-// fn process_isolation() {
-//     // Spawn 6 processes
-//     let num_processes = 6;
+#[test]
+fn process_isolation() {
+    // Spawn 6 processes
+    let num_processes = 6;
 
-//     let manager = manager_from_rect(9, 9);
-//     let ps = (0..num_processes).map(|i| manager.get_new_process(format!("test-{}", i)));
+    let manager = manager_from_rect(9, 9);
+    let ps = (0..num_processes).map(|i| manager.get_new_process(format!("test-{}", i)));
 
-//     crossbeam::scope(|scope| {
-//         for p in ps {
-//             scope.spawn(move || {
-//                 let _drop_id = p.create(None, 1.0, None).unwrap();
-//                 p.flush().unwrap();
-//             });
-//         }
-//     });
-// }
+    crossbeam::scope(|scope| {
+        for p in ps {
+            scope.spawn(move || {
+                let _drop_id = p.create(None, 1.0, None).unwrap();
+                p.flush().unwrap();
+            });
+        }
+    });
+}
 
-// #[test]
-// fn create_does_not_fit() {
-//     let man = manager_from_rect(2, 2);
-//     let p = man.get_new_process("test");
+#[test]
+#[ignore("We don't verify commands ahead of time")]
+fn create_does_not_fit() {
+    let man = manager_from_rect(2, 2);
+    let p = man.get_new_process("test");
 
-//     let _id1 = p.create(None, 1.0, None).unwrap();
-//     let id2 = p.create(None, 1.0, None);
+    let _id1 = p.create(None, 1.0, None).unwrap();
+    let id2 = p.create(None, 1.0, None);
 
-//     assert_matches!(
-//         id2,
-//         Err(PuddleError::PlanError(plan::PlanError::PlaceError))
-//     );
-// }
+    if id2.is_ok() {
+        let droplets = info_dict(&p);
+    }
+
+    assert_matches!(
+        id2,
+        Err(PuddleError::PlanError(plan::PlanError::PlaceError(_)))
+    );
+}
 
 // fn check_mix_dimensions(dim1: Location, dim2: Location, dim_result: Location) {
 //     let man = manager_from_rect(20, 20);

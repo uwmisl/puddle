@@ -21,12 +21,9 @@ use util::collections::Map;
 
 #[derive(Debug)]
 pub enum PlanError {
-    RouteError {
-        placement: Placement,
-        droplets: Vec<Droplet>,
-    },
-    PlaceError,
+    RouteError(self::route::RoutingError),
     SchedError(self::sched::SchedError),
+    PlaceError(self::place::PlacementError),
 }
 
 pub struct PlannedCommand {
@@ -66,7 +63,7 @@ impl Planner {
         let sched_resp = {
             let req = SchedRequest { graph };
             debug!("Schedule request");
-            let resp = self.scheduler.schedule(&req)?;
+            let resp = self.scheduler.schedule(&req).map_err(PlanError::SchedError)?;
             debug!("{:?}", resp);
             for cmd_id in &resp.commands_to_run {
                 debug!("Gonna schedule {:?}: {:?}", cmd_id, graph.graph[*cmd_id])
@@ -94,21 +91,14 @@ impl Planner {
                 commands: command_requests.as_slice(),
                 stored_droplets: sched_resp.droplets_to_store.as_slice(),
             };
-            let resp = self.placer.place(&req).unwrap();
+            let resp = self.placer.place(&req).map_err(PlanError::PlaceError)?;
             debug!("{:?}", resp);
             resp
         };
 
         let route_resp = {
 
-            let mut droplets = Vec::new();
-
-            let stored = sched_resp.droplets_to_store.iter().zip(place_resp.stored_droplets);
-            for (id, loc) in stored {
-                let droplet = self.gridview.droplets.get_mut(id).unwrap();
-                droplet.destination = Some(loc);
-                droplets.push(droplet.clone())
-            }
+            let mut droplets: Vec<_> = sched_resp.droplets_to_store.iter().zip(place_resp.stored_droplets).map(|(&id, loc)| self::route::DropletRouteRequest {id, destination: loc}).collect();
 
             // TODO getting these input droplets is pretty painful
             let placed = sched_resp.commands_to_run.iter().zip(command_requests).zip(&place_resp.commands);
@@ -116,22 +106,20 @@ impl Planner {
                 let cmd = graph.graph[*cmd_id].as_ref().expect("Command was unbound!");
                 let in_ids = cmd.input_droplets();
                 let ins = in_ids.iter().zip(req.input_locations);
-                for (droplet_id, location) in ins {
-                    let droplet = self.gridview.droplets.get_mut(droplet_id).unwrap();
-                    debug!("mapping: {:#?}", placement);
-                    droplet.destination = Some(placement.mapping[&location]);
-                    droplets.push(droplet.clone())
+                for (&droplet_id, location) in ins {
+                    droplets.push(self::route::DropletRouteRequest {id: droplet_id, destination: location});
                 }
             }
 
-
             let req = RoutingRequest {
-                grid: &self.gridview.grid,
+                gridview: &self.gridview,
                 blockages: vec![],
                 droplets: droplets,
             };
-            let resp = self.router.route(&req).unwrap();
+            // debug!("{:?}", req);
+            let resp = self.router.route(&req).map_err(PlanError::RouteError)?;
             debug!("{:?}", resp);
+
             resp
         };
 

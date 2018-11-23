@@ -221,10 +221,22 @@ impl Node {
 // TODO this is the beginning of the router interface
 pub struct Router {}
 
+#[derive(Clone)]
+pub struct DropletRouteRequest {
+    pub id: DropletId,
+    pub destination: Location,
+}
+
 pub struct RoutingRequest<'a> {
-    pub grid: &'a Grid,
-    pub droplets: Vec<Droplet>,
+    pub gridview: &'a GridView,
+    pub droplets: Vec<DropletRouteRequest>,
     pub blockages: Vec<Grid>,
+}
+
+impl std::fmt::Debug for DropletRouteRequest {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, " {:?} -> {:?} ", self.id, self.destination)
+    }
 }
 
 #[derive(Debug)]
@@ -233,7 +245,7 @@ pub struct RoutingResponse {
 }
 
 #[derive(Debug)]
-pub enum Error {
+pub enum RoutingError {
     NoRoute,
 }
 
@@ -242,41 +254,40 @@ impl Router {
         Router {}
     }
 
-    pub fn route(&mut self, req: &RoutingRequest) -> Result<RoutingResponse, Error> {
-        let mut droplets = req.droplets.iter().map(|d| (&d.id, d)).collect::<Vec<_>>();
+    pub fn route(&mut self, req: &RoutingRequest) -> Result<RoutingResponse, RoutingError> {
+        let mut droplets = req.droplets.clone();
         let mut rng = mk_rng();
         // TODO: we should get rid of bad edges eventually
         let bad_edges = Set::new();
         for i in 1..20 {
             rng.shuffle(&mut droplets);
-            let result = route_many(&droplets, req.grid, &bad_edges);
+            let result = route_many(&droplets, req.gridview, &bad_edges);
             if let Some(paths) = result {
                 return Ok(RoutingResponse { routes: paths });
             }
             trace!("route failed, trying iteration {}", i);
         }
 
-        Err(Error::NoRoute)
+        Err(RoutingError::NoRoute)
     }
 }
 
 fn route_many(
-    droplets: &[(&DropletId, &Droplet)],
-    grid: &Grid,
+    droplet_destinations: &[DropletRouteRequest],
+    gridview: &GridView,
     bad_edges: &Set<(Location, Location)>,
 ) -> Option<Map<DropletId, Path>> {
     let mut av_set = AvoidanceSet::default();
-    let num_cells = grid.locations().count();
+    let num_cells = gridview.grid.locations().count();
 
     let mut paths = Map::new();
     let mut max_t = 0;
 
-    debug!(
-        "Routing droplets in this order: {:?}",
-        droplets.iter().map(|(id, _)| id).collect::<Vec<_>>()
-    );
+    debug!("Routing droplets in this order: {:?}", droplet_destinations);
 
-    for &(&id, droplet) in droplets.iter() {
+    for req in droplet_destinations.iter() {
+        let id = req.id;
+        let droplet = &gridview.droplets[&id];
         // route a single droplet
 
         trace!(
@@ -291,7 +302,7 @@ fn route_many(
                 let nodes = if droplet.pinned {
                     node.stay()
                 } else {
-                    node.expand(grid)
+                    node.expand(&gridview.grid)
                 };
                 nodes
                     .iter()
@@ -304,13 +315,10 @@ fn route_many(
             };
 
             let done_fn = |node: &Node| {
-                node.location == match droplet.destination {
-                    Some(x) => x,
-                    None => droplet.location,
-                } && !av_set.would_finally_collide(node)
+                node.location == req.destination && !av_set.would_finally_collide(node)
             };
 
-            route_one(&droplet, max_time, next_fn, done_fn)
+            route_one(&droplet, req.destination, max_time, next_fn, done_fn)
         };
         let path = match result {
             None => return None,
@@ -320,7 +328,7 @@ fn route_many(
         max_t = max_t.max(path.len() as Time);
 
         // once we know this path works, add to our avoidance set
-        av_set.avoid_path(&path, grid, &droplet);
+        av_set.avoid_path(&path, &gridview.grid, &droplet);
         paths.insert(id, path);
     }
 
@@ -329,6 +337,7 @@ fn route_many(
 
 fn route_one<FNext, FDone>(
     droplet: &Droplet,
+    destination: Location,
     max_time: Time,
     mut next_fn: FNext,
     mut done_fn: FDone,
@@ -355,13 +364,8 @@ where
     todo.push(0, start_node);
     best_so_far.insert(start_node, 0);
 
-    let dest = match droplet.destination {
-        Some(x) => x,
-        None => droplet.location,
-    };
-
     // use manhattan distance from goal as the heuristic
-    let heuristic = |node: Node| -> Cost { dest.distance_to(&node.location) * MOVE_COST };
+    let heuristic = |node: Node| -> Cost { destination.distance_to(&node.location) * MOVE_COST };
 
     let result = loop {
         let node = match todo.pop() {
@@ -420,9 +424,7 @@ where
         "Routing droplet {id} from {src} to {dst}",
         id = droplet.id.id,
         src = droplet.location,
-        dst = droplet
-            .destination
-            .map_or("nowhere".into(), |dst| format!("{}", dst))
+        dst = destination
     );
     let duration = start_time.elapsed();
     trace!(

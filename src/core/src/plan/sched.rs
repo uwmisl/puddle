@@ -23,12 +23,6 @@ pub enum SchedError {
     NothingToSchedule,
 }
 
-impl From<SchedError> for super::PlanError {
-    fn from(e: SchedError) -> Self {
-        super::PlanError::SchedError(e)
-    }
-}
-
 pub struct SchedRequest<'a> {
     pub graph: &'a Graph,
 }

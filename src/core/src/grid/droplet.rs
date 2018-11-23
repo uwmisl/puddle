@@ -41,8 +41,6 @@ pub struct Droplet {
     pub volume: f64,
 
     // all this stuff is used for routing
-    // TODO should droplets really know about their destinations?
-    pub destination: Option<Location>,
     pub collision_group: usize,
     pub pinned: bool,
 }
@@ -67,7 +65,6 @@ impl Droplet {
             id,
             location,
             dimensions,
-            destination: None,
             volume: volume,
             collision_group: NEXT_COLLISION_GROUP.fetch_add(1, Relaxed),
             pinned: false,
@@ -142,7 +139,6 @@ impl Default for Droplet {
             dimensions: bad_loc,
             pinned: false,
             volume: 1.0,
-            destination: None,
             collision_group: NEXT_COLLISION_GROUP.fetch_add(1, Relaxed),
         }
     }

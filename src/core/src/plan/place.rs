@@ -62,6 +62,19 @@ impl Placer {
             stored_droplets: Vec::new(),
         };
 
+        // build up a set of location that currently hold droplets, and would
+        // therefore require moving them if a command was placed on top of them.
+        // Use this to avoid unnecessary moves.
+        let mut locations_initially_holding_droplets = HashSet::new();
+        for id in req.stored_droplets {
+            let droplet = &req.gridview.droplets[id];
+            for y in -1..(droplet.dimensions.y + 1) {
+                for x in -1..(droplet.dimensions.x + 1) {
+                    locations_initially_holding_droplets.insert(&droplet.location + &Location {x, y});
+                }
+            }
+        }
+
         // iteratively place the commands
         for cmd_req in req.commands {
             debug!("Placing {:?}", cmd_req);
@@ -71,12 +84,23 @@ impl Placer {
                 continue;
             }
 
-            // simply find an offset by testing all of them.
-            let offset = req
+            let mut potential_offsets: Vec<_> = req
                 .gridview
                 .grid
                 .locations()
-                .map(|(loc, _cell)| loc)
+                .map(|(loc, _cell)| {
+                    let would_require_move = locations_initially_holding_droplets.contains(&loc);
+                    let i = if would_require_move { 1 } else { 0 };
+                    (i, loc)
+                })
+                .collect();
+
+            potential_offsets.sort();
+
+            // simply find an offset by testing all of them.
+            let offset = potential_offsets
+                .iter()
+                .map(|(_, loc)| *loc)
                 .find(|loc| is_compatible(&req.gridview.grid, &cmd_req.shape, *loc, &bad_locs))
                 .ok_or(PlacementError::Bad)?;
 
@@ -118,6 +142,9 @@ impl Placer {
                 .map(|&(_distance, loc)| loc)
                 .find(|loc| is_compatible(&req.gridview.grid, &shape, *loc, &bad_locs))
                 .ok_or(PlacementError::Bad)?;
+
+            // mark these spots as taken
+            bad_locs.extend(shape.locations().map(|(loc, _cell)| &offset + &loc));
 
             response.stored_droplets.push(offset)
         }
