@@ -1,9 +1,8 @@
 use std::collections::HashSet;
 
-use grid::{Grid, Location, DropletId};
-use command::{CommandRequest};
+use command::CommandRequest;
+use grid::{DropletId, Grid, GridView, Location};
 use util::collections::Map;
-
 
 #[derive(Debug, Clone)]
 pub struct Placement {
@@ -11,6 +10,7 @@ pub struct Placement {
     pub mapping: Map<Location, Location>,
 }
 
+#[derive(Debug)]
 pub struct PlacementResponse {
     pub commands: Vec<Placement>,
     // droplets only need to be "placed" by their upper left corner
@@ -18,14 +18,16 @@ pub struct PlacementResponse {
 }
 
 pub struct PlacementRequest<'a> {
-    pub grid: &'a Grid,
+    pub gridview: &'a GridView,
     pub fixed_commands: Vec<Placement>,
     pub commands: &'a [CommandRequest],
     pub stored_droplets: &'a [DropletId],
 }
 
 #[derive(Debug)]
-pub enum PlacementError {}
+pub enum PlacementError {
+    Bad,
+}
 
 type PlacementResult = Result<PlacementResponse, PlacementError>;
 
@@ -37,33 +39,90 @@ impl Placer {
     }
 
     pub fn place(&self, req: &PlacementRequest) -> PlacementResult {
-        unimplemented!()
-        // let snapshot = self.snapshot_at(start_tick);
+        let mut bad_locs = HashSet::new();
 
-        // let bad_locs: HashSet<Location> = snapshot
-        //     .cmd_shapes
-        //     .iter()
-        //     // should refer to placement, but that's not what command gives you right now
-        //     .flat_map(|placement| placement.mapping.values())
-        //     .cloned()
-        //     .collect();
+        // initialize bad locs with the fixed commands
+        for placement in &req.fixed_commands {
+            bad_locs.extend(placement.mapping.values().cloned())
+        }
 
-        // let offset = self
-        //     .grid
-        //     .locations()
-        //     .map(|(loc, _cell)| loc)
-        //     .find(|loc| is_compatible(&self.grid, shape, *loc, &bad_locs));
+        for cmd_req in req.commands {
+            // TODO assert that these are disjoint!
+            if cmd_req.trusted {
+                bad_locs.extend(cmd_req.shape.locations().map(|(loc, _cell)| loc))
+            }
+        }
 
-        // if let Some(offset) = offset {
-        //     let mapping = self
-        //         .grid
-        //         .locations()
-        //         .map(|(loc, _)| (loc, &loc + &offset))
-        //         .collect();
-        //     Ok(Placement { mapping })
-        // } else {
-        //     Err(PlacementError::Bad)
-        // }
+        // TODO we only support one placement at a time for now
+        assert_eq!(req.commands.len(), 1);
+
+        // build an empty response for now
+        let mut response = PlacementResponse {
+            commands: Vec::new(),
+            stored_droplets: Vec::new(),
+        };
+
+        // iteratively place the commands
+        for cmd_req in req.commands {
+            debug!("Placing {:?}", cmd_req);
+            if cmd_req.trusted {
+                let identity_mapping: Map<_, _> = req.gridview.grid.locations().map(|(loc, _cell)| (loc, loc)).collect();
+                response.commands.push(Placement { mapping: identity_mapping });
+                continue;
+            }
+
+            // simply find an offset by testing all of them.
+            let offset = req
+                .gridview
+                .grid
+                .locations()
+                .map(|(loc, _cell)| loc)
+                .find(|loc| is_compatible(&req.gridview.grid, &cmd_req.shape, *loc, &bad_locs))
+                .ok_or(PlacementError::Bad)?;
+
+            let mapping = cmd_req
+                .shape
+                .locations()
+                .map(|(loc, _)| (loc, &loc + &offset))
+                .collect();
+
+            let placement = Placement { mapping };
+
+            // mark these spots as taken
+            bad_locs.extend(placement.mapping.values().cloned());
+
+            // save this for returning
+            response.commands.push(placement)
+        }
+
+        // iteratively place the droplets
+        for id in req.stored_droplets {
+            debug!("Placing {:?}", id);
+            // simply find an offset by testing all of them.
+
+            let droplet = &req.gridview.droplets[id];
+
+            let mut locations_by_distance: Vec<(u32, Location)> = req
+                .gridview
+                .grid
+                .locations()
+                .map(|(loc, _cell)| (loc.distance_to(&droplet.location), loc))
+                .collect();
+            locations_by_distance.sort();
+
+            let Location {y, x} = droplet.dimensions;
+            let shape = Grid::rectangle(y as usize, x as usize);
+
+            let offset = locations_by_distance
+                .iter()
+                .map(|&(_distance, loc)| loc)
+                .find(|loc| is_compatible(&req.gridview.grid, &shape, *loc, &bad_locs))
+                .ok_or(PlacementError::Bad)?;
+
+            response.stored_droplets.push(offset)
+        }
+
+        Ok(response)
     }
 }
 
@@ -75,7 +134,8 @@ fn is_compatible(
 ) -> bool {
     smaller.locations().all(|(small_loc, small_cell)| {
         let big_loc = &small_loc + &offset;
-        if bad_locs.contains(&big_loc) {
+        let nbrs = bigger.neighbors9(&big_loc);
+        if nbrs.iter().any(|n| bad_locs.contains(n)) {
             return false;
         }
 

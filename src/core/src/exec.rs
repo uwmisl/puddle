@@ -1,12 +1,11 @@
 use plan::{PlanPhase, Path, PlannedCommand, graph::{Graph, CmdIndex}};
-use grid::{GridView, DropletId};
+use grid::{GridView, Grid, DropletId};
 use util::collections::{Map, Set};
 use command::{Command, RunStatus};
 
 pub struct Executor {
-    gridview: GridView,
+    pub gridview: GridView,
     running_commands: Map<CmdIndex, PlannedCommand>,
-    done_commands: Vec<CmdIndex>,
 }
 
 pub enum ExecResponse {
@@ -14,12 +13,18 @@ pub enum ExecResponse {
 }
 
 impl Executor {
-    pub fn new() -> Executor {
-        unimplemented!()
+    pub fn new(grid: Grid) -> Executor {
+        info!("Creating an Executor");
+        Executor {
+            gridview: GridView::new(grid),
+            running_commands: Map::new(),
+        }
     }
 
     fn run_all_commands(&mut self, graph: &mut Graph) {
         let mut done = Vec::new();
+
+        debug!("Run step, {} active commands", self.running_commands.len());
 
         // run each of the running commands one step
         for (&cmd_id, planned_cmd) in self.running_commands.iter() {
@@ -30,8 +35,10 @@ impl Executor {
             let mut subview = &mut self.gridview.subview(&planned_cmd.placement);
 
             // write down if they are done
+            debug!("Running command: {:?}", cmd);
             match cmd.run(subview) {
                 RunStatus::Done => {
+                    info!("Finalizing a command");
                     cmd.finalize(subview);
                     done.push(planned_cmd.cmd_id);
                 }
@@ -69,12 +76,23 @@ impl Executor {
         }
     }
 
-    pub fn run(&mut self, phase: &PlanPhase, graph: &mut Graph) -> ExecResponse {
-        //
-        assert_eq!(self.done_commands, []);
+    pub fn run(&mut self, phase: PlanPhase, graph: &mut Graph) -> ExecResponse {
+        info!("Run step");
 
         // this could be inefficient if one route is much much longer than another
         self.take_routes(&phase.routes, graph);
+
+        // add all the planned commands
+        for planned_cmd in phase.planned_commands {
+            let was_there = self.running_commands.insert(planned_cmd.cmd_id, planned_cmd);
+            assert!(was_there.is_none());
+        }
+
+        // just drive all commands to completion for now
+        while self.running_commands.len() > 0 {
+            self.run_all_commands(graph);
+        }
+
         ExecResponse::Ok
     }
 }

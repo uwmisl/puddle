@@ -227,6 +227,7 @@ pub struct RoutingRequest<'a> {
     pub blockages: Vec<Grid>,
 }
 
+#[derive(Debug)]
 pub struct RoutingResponse {
     pub routes: Map<DropletId, Path>,
 }

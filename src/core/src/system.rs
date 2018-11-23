@@ -4,11 +4,11 @@ use command::{BoxedCommand, CommandRequest};
 use grid::{Grid, DropletId, Droplet, GridView, Location};
 use exec::Executor;
 
-use plan::{Planner};
+use plan::{Planner, PlanError, sched::SchedError};
 use plan::graph::{Graph, CmdIndex};
 use std::sync::{Arc, Mutex};
 
-struct System {
+pub struct System {
     grid: Grid,
     graph: Graph,
     // TODO probably don't wanna have arc/mutex here
@@ -18,23 +18,52 @@ struct System {
 
 impl System {
 
-    fn add(&mut self, cmd: BoxedCommand) -> Result<(), ()> {
+    pub fn new(grid: Grid) -> System {
+        info!("Creating a system");
+        let planner = {
+            let gv = GridView::new(grid.clone());
+            Planner::new(gv)
+        };
+        System {
+            grid: grid.clone(),
+            graph: Graph::new(),
+            planner: Arc::new(Mutex::new(planner)),
+            executor: Executor::new(grid.clone()),
+        }
+    }
+
+    pub fn add(&mut self, cmd: BoxedCommand) -> PuddleResult<()> {
         // TODO unwrap
+        info!("Adding command {:?}", cmd);
         let _cmd_id = self.graph.add_command(cmd).unwrap();
         Ok(())
     }
 
     // TODO switch to event loop here
-    fn flush(&mut self, droplets: &[DropletId]) -> PuddleResult<()> {
-        let phase = {
-            // scope the planner lock
-            let mut planner = self.planner.lock().unwrap();
-            // FIXME unwrap
-            planner.plan(&self.graph, droplets).unwrap()
-        };
+    pub fn flush(&mut self, droplets: &[DropletId]) -> PuddleResult<()> {
 
-        // FIXME For now this is blocking
-        self.executor.run(&phase, &mut self.graph);
+        info!("Flushing...");
+        loop {
+            let phase = {
+                // scope the planner lock
+                let mut planner = self.planner.lock().unwrap();
+                // FIXME unwrap
+                match planner.plan(&self.graph, droplets) {
+                    Ok(phase) => phase,
+                    Err(PlanError::SchedError(SchedError::NothingToSchedule)) => break,
+                    Err(e) => panic!("{:?}", e),
+                }
+            };
+
+            // TODO For now this is blocking
+            self.executor.run(phase, &mut self.graph);
+
+            // TODO this is a little hacky
+            let mut planner = self.planner.lock().unwrap();
+            planner.gridview = self.executor.gridview.clone();
+        }
+
+        info!("Flushed!");
 
         Ok(())
     }

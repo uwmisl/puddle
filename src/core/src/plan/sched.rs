@@ -8,6 +8,7 @@ use petgraph::{
 
 use grid::DropletId;
 use plan::graph::{CmdIndex, Graph};
+use util::collections::Map;
 
 type Schedule = usize;
 
@@ -22,10 +23,17 @@ pub enum SchedError {
     NothingToSchedule,
 }
 
+impl From<SchedError> for super::PlanError {
+    fn from(e: SchedError) -> Self {
+        super::PlanError::SchedError(e)
+    }
+}
+
 pub struct SchedRequest<'a> {
     pub graph: &'a Graph,
 }
 
+#[derive(Debug)]
 pub struct SchedResponse {
     pub commands_to_run: Vec<CmdIndex>,
     pub droplets_to_store: Vec<DropletId>,
@@ -143,7 +151,10 @@ impl Scheduler {
         let criticality = critical_paths(&req.graph);
         let (&most_critical_todo, _max_criticality) = criticality
             .iter()
+            // only consider nodes that we have not yet scheduled
             .filter(|&(node, _crit)| !self.node_sched.contains_key(&node))
+            // ignore nodes the "unbound" nodes
+            .filter(|&(node, _crit)| req.graph.graph[*node].is_some())
             .max_by_key(|&(_node, crit)| crit)
             .ok_or(SchedError::NothingToSchedule)?;
 
@@ -158,10 +169,18 @@ impl Scheduler {
         self.add_droplets_to_response(&req, &mut resp);
         Ok(resp)
     }
+
+    pub fn commit(&mut self, resp: &SchedResponse) {
+        for cmd_id in &resp.commands_to_run {
+            let was_there = self.node_sched.insert(*cmd_id, self.current_sched);
+            assert!(was_there.is_none());
+        }
+        self.current_sched += 1;
+    }
 }
 
-fn critical_paths(graph: &Graph) -> HashMap<CmdIndex, usize> {
-    let mut distances = HashMap::<CmdIndex, usize>::new();
+fn critical_paths(graph: &Graph) -> Map<CmdIndex, usize> {
+    let mut distances = Map::<CmdIndex, usize>::new();
 
     // do a reverse toposort so we can count the critical path lengths
     let working_space = None;

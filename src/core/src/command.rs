@@ -42,7 +42,7 @@ pub trait Command: fmt::Debug + Send {
         false
     }
 
-    fn request(&self, droplets: &HashMap<DropletId, Droplet>) -> CommandRequest;
+    fn request(&self, gridview: &GridView) -> CommandRequest;
 
     // FIXME this is definitely a hack for combining droplets
     // run before the final routing tick that
@@ -105,7 +105,7 @@ impl Command for Create {
         self.outputs.clone()
     }
 
-    fn request(&self, droplets: &HashMap<DropletId, Droplet>) -> CommandRequest {
+    fn request(&self, gridview: &GridView) -> CommandRequest {
         let grid = Grid::rectangle(self.dimensions.y as usize, self.dimensions.x as usize);
 
         CommandRequest {
@@ -145,7 +145,7 @@ impl Flush {
 }
 
 impl Command for Flush {
-    fn request(&self, droplets: &HashMap<DropletId, Droplet>) -> CommandRequest {
+    fn request(&self, gridview: &GridView) -> CommandRequest {
         CommandRequest {
             shape: Grid::rectangle(0, 0),
             input_locations: vec![],
@@ -154,15 +154,15 @@ impl Command for Flush {
     }
 
     fn run(&mut self, gridview: &mut GridSubView) -> RunStatus {
-        // gridview.tick();
         RunStatus::Done
     }
 
     #[cfg(not(feature = "pi"))]
     fn finalize(&mut self, gv: &GridSubView) {
         // FIXME
-        // let info = gv.droplet_info(Some(self.pid));
-        // self.tx.send(Ok(info)).unwrap();
+        let info = gv.droplet_info(Some(self.pid));
+        debug!("Flushing this info: {:?}", info);
+        self.tx.send(Ok(info)).unwrap();
     }
     #[cfg(feature = "pi")]
     fn finalize(&mut self, gv: &Snapshot, _: Option<&mut RaspberryPi>) {
@@ -206,9 +206,9 @@ impl Command for Move {
         self.outputs.clone()
     }
 
-    fn request(&self, droplets: &HashMap<DropletId, Droplet>) -> CommandRequest {
+    fn request(&self, gridview: &GridView) -> CommandRequest {
         let old_id = self.inputs[0];
-        let dim = droplets[&old_id].dimensions;
+        let dim = gridview.droplets[&old_id].dimensions;
         CommandRequest {
             shape: Grid::rectangle(dim.y as usize, dim.x as usize),
             input_locations: vec![self.destination[0]],
@@ -217,13 +217,12 @@ impl Command for Move {
     }
 
     fn run(&mut self, gridview: &mut GridSubView) -> RunStatus {
-        // let old_id = self.inputs[0];
-        // let new_id = self.outputs[0];
-        // let mut d = gridview.remove(&old_id);
-        // // NOTE this is pretty much the only place it's ok to change an id
-        // d.id = new_id;
-        // gridview.insert(d);
-        // gridview.tick()
+        let old_id = self.inputs[0];
+        let new_id = self.outputs[0];
+        let mut d = gridview.remove(&old_id);
+        // NOTE this is pretty much the only place it's ok to change an id
+        d.id = new_id;
+        gridview.insert(d);
         RunStatus::Done
     }
 }
@@ -302,7 +301,7 @@ impl Command for Combine {
     //     }
     // }
 
-    fn request(&self, droplets: &HashMap<DropletId, Droplet>) -> CommandRequest {
+    fn request(&self, gridview: &GridView) -> CommandRequest {
         let id0 = &self.inputs[0];
         let id1 = &self.inputs[1];
 
@@ -319,8 +318,8 @@ impl Command for Combine {
         //     }
         // }
 
-        let d0 = &droplets[id0];
-        let d1 = &droplets[id1];
+        let d0 = &gridview.droplets[id0];
+        let d1 = &gridview.droplets[id1];
 
         let combined = self.combined(d0, d1);
 
@@ -336,12 +335,14 @@ impl Command for Combine {
         } else {
             CommandRequest {
                 shape: Grid::rectangle(
-                    combined.dimensions.y as usize,
+                    // we need the plus 1 to ensure a gap
+                    combined.dimensions.y as usize + 1,
                     combined.dimensions.x as usize,
                 ),
                 input_locations: vec![
+                    // we need the plus 1 to ensure a gap
                     Location {
-                        y: d1.dimensions.y,
+                        y: d1.dimensions.y + 1,
                         x: 0,
                     },
                     Location { y: 0, x: 0 },
@@ -351,23 +352,20 @@ impl Command for Combine {
         }
     }
 
-    fn pre_run(&self, gridview: &mut GridSubView) {
-        // let in0 = self.inputs[0];
-        // let in1 = self.inputs[1];
-        // let out = self.outputs[0];
+    fn run(&mut self, gridview: &mut GridSubView) -> RunStatus {
+        let in0 = self.inputs[0];
+        let in1 = self.inputs[1];
+        let out = self.outputs[0];
 
-        // let d0 = gridview.remove(&in0);
-        // let d1 = gridview.remove(&in1);
-        // // TODO right now this only mixes vertical
-        // // it should somehow communicate with the Combine command to control the mixed droplets dimensions
-        // let combined = self.combined(&d0, &d1);
+        let d0 = gridview.remove(&in0);
+        let d1 = gridview.remove(&in1);
+        // TODO right now this only mixes vertical
+        // it should somehow communicate with the Combine command to control the mixed droplets dimensions
+        let combined = self.combined(&d0, &d1);
 
-        // // assert_eq!(d0.location.y, d1.location.y);
-        // // assert_eq!(d0.location.x + d0.dimensions.x, d1.location.x);
-        // gridview.insert(combined.to_droplet(out));
-    }
-
-    fn run(&mut self, _: &mut GridSubView) -> RunStatus {
+        // assert_eq!(d0.location.y, d1.location.y);
+        // assert_eq!(d0.location.x + d0.dimensions.x, d1.location.x);
+        gridview.insert(combined.to_droplet(out));
         RunStatus::Done
     }
 }
@@ -381,6 +379,8 @@ pub struct Agitate {
     inputs: Vec<DropletId>,
     outputs: Vec<DropletId>,
     n_agitation_loops: u32,
+    current_step: usize,
+    current_loop: usize,
 }
 
 impl Agitate {
@@ -389,6 +389,8 @@ impl Agitate {
             inputs: vec![in_id],
             outputs: vec![out_id],
             n_agitation_loops: 1,
+            current_step: 0,
+            current_loop: 0,
         })
     }
 }
@@ -404,8 +406,8 @@ impl Command for Agitate {
         self.outputs.clone()
     }
 
-    fn request(&self, droplets: &HashMap<DropletId, Droplet>) -> CommandRequest {
-        let droplet = &droplets[&self.inputs[0]];
+    fn request(&self, gridview: &GridView) -> CommandRequest {
+        let droplet = &gridview.droplets[&self.inputs[0]];
 
         CommandRequest {
             shape: Grid::rectangle(
@@ -418,25 +420,33 @@ impl Command for Agitate {
     }
 
     fn run(&mut self, gridview: &mut GridSubView) -> RunStatus {
-        // let in_id = self.inputs[0];
-        // let out_id = self.outputs[0];
+        let in_id = self.inputs[0];
 
-        // for i in 0..self.n_agitation_loops {
-        //     debug!("Agitating droplet {:?}, iteration {}", in_id, i);
-        //     gridview.move_south(in_id);
-        //     gridview.tick();
-        //     gridview.move_east(in_id);
-        //     gridview.tick();
-        //     gridview.move_north(in_id);
-        //     gridview.tick();
-        //     gridview.move_west(in_id);
-        //     gridview.tick();
-        // }
+        match self.current_step {
+            0 => gridview.move_south(in_id),
+            1 => gridview.move_east(in_id),
+            2 => gridview.move_north(in_id),
+            3 => gridview.move_west(in_id),
+            n => panic!("invalid state {}", n)
+        }
 
-        // let mut droplet = gridview.remove(&in_id);
-        // droplet.id = out_id;
-        // gridview.insert(droplet)
-        RunStatus::Done
+        self.current_step += 1;
+
+        if self.current_step == 4 {
+            self.current_step = 0;
+            self.current_loop += 1;
+            if self.current_loop < self.n_agitation_loops as usize {
+                RunStatus::KeepGoing
+            } else {
+                let out_id = self.outputs[0];
+                let mut droplet = gridview.remove(&in_id);
+                droplet.id = out_id;
+                gridview.insert(droplet);
+                RunStatus::Done
+            }
+        } else {
+            RunStatus::KeepGoing
+        }
     }
 }
 
@@ -448,6 +458,7 @@ impl Command for Agitate {
 pub struct Split {
     inputs: Vec<DropletId>,
     outputs: Vec<DropletId>,
+    state: usize,
 }
 
 impl Split {
@@ -455,6 +466,7 @@ impl Split {
         Ok(Split {
             inputs: vec![id],
             outputs: vec![out_id1, out_id2],
+            state: 0,
         })
     }
 }
@@ -484,8 +496,8 @@ impl Command for Split {
     //     }
     // }
 
-    fn request(&self, droplets: &HashMap<DropletId, Droplet>) -> CommandRequest {
-        let d0 = droplets.get(&self.inputs[0]).unwrap();
+    fn request(&self, gridview: &GridView) -> CommandRequest {
+        let d0 = gridview.droplets.get(&self.inputs[0]).unwrap();
         // we only split in the x right now, so we don't need y padding
         let x_dim = (d0.dimensions.x as usize) + SPLIT_PADDING;
         let y_dim = d0.dimensions.y as usize;
@@ -501,40 +513,44 @@ impl Command for Split {
     }
 
     fn run(&mut self, gridview: &mut GridSubView) -> RunStatus {
-        // let x_dim = {
-        //     // limit the scope of d0 borrow
-        //     let d0 = gridview.get(&self.inputs[0]);
-        //     (d0.dimensions.x as usize) + SPLIT_PADDING
-        // };
+        let inp = self.inputs[0];
+        let out0 = self.outputs[0];
+        let out1 = self.outputs[1];
 
-        // let inp = self.inputs[0];
-        // let out0 = self.outputs[0];
-        // let out1 = self.outputs[1];
+        if self.state == 0 {
+            self.state += 1;
 
-        // let d = gridview.remove(&inp);
-        // let vol = d.volume / 2.0;
+            let x_dim = {
+                // limit the scope of d0 borrow
+                let d0 = gridview.get(&self.inputs[0]);
+                (d0.dimensions.x as usize) + SPLIT_PADDING
+            };
 
-        // // TODO: this should be related to volume in some fashion
-        // // currently, take the ceiling of the division of the split by two
-        // let dim = Location {
-        //     y: d.dimensions.y,
-        //     x: (d.dimensions.x + 1) / 2,
-        // };
+            let d = gridview.remove(&inp);
+            let vol = d.volume / 2.0;
 
-        // let loc0 = Location { y: 0, x: 1 };
-        // let loc1 = Location {
-        //     y: 0,
-        //     x: x_dim as i32 - (dim.x + 1),
-        // };
+            // TODO: this should be related to volume in some fashion
+            // currently, take the ceiling of the division of the split by two
+            let dim = Location {
+                y: d.dimensions.y,
+                x: (d.dimensions.x + 1) / 2,
+            };
 
-        // gridview.insert(Droplet::new(out0, vol, loc0, dim));
-        // gridview.insert(Droplet::new(out1, vol, loc1, dim));
+            let loc0 = Location { y: 0, x: 1 };
+            let loc1 = Location {
+                y: 0,
+                x: x_dim as i32 - (dim.x + 1),
+            };
 
-        // gridview.tick();
-        // gridview.move_west(out0);
-        // gridview.move_east(out1);
-        // gridview.tick();
-        RunStatus::Done
+            gridview.insert(Droplet::new(out0, vol, loc0, dim));
+            gridview.insert(Droplet::new(out1, vol, loc1, dim));
+
+            RunStatus::KeepGoing
+        } else {
+            gridview.move_west(out0);
+            gridview.move_east(out1);
+            RunStatus::Done
+        }
     }
 }
 
@@ -573,8 +589,8 @@ impl Command for Heat {
         self.outputs.clone()
     }
 
-    fn request(&self, droplets: &HashMap<DropletId, Droplet>) -> CommandRequest {
-        let d = droplets.get(&self.inputs[0]).unwrap();
+    fn request(&self, gridview: &GridView) -> CommandRequest {
+        let d = gridview.droplets.get(&self.inputs[0]).unwrap();
         // we only split in the x right now, so we don't need y padding
         let x_dim = d.dimensions.x as usize;
         let y_dim = d.dimensions.y as usize;
@@ -674,7 +690,7 @@ impl Command for Input {
         self.outputs.clone()
     }
 
-    fn request(&self, droplets: &HashMap<DropletId, Droplet>) -> CommandRequest {
+    fn request(&self, gridview: &GridView) -> CommandRequest {
         let mut grid = Grid::rectangle(self.dimensions.y as usize, self.dimensions.x as usize + 1);
 
         // fake peripheral used to match up with the real one
@@ -786,8 +802,8 @@ impl Command for Output {
         vec![]
     }
 
-    fn request(&self, droplets: &HashMap<DropletId, Droplet>) -> CommandRequest {
-        let d = droplets.get(&self.inputs[0]).unwrap();
+    fn request(&self, gridview: &GridView) -> CommandRequest {
+        let d = gridview.droplets.get(&self.inputs[0]).unwrap();
 
         let mut grid = Grid::rectangle(d.dimensions.y as usize, d.dimensions.x as usize);
 
@@ -877,7 +893,7 @@ pub mod tests {
             self.outs.clone()
         }
 
-        fn request(&self, droplets: &HashMap<DropletId, Droplet>) -> CommandRequest {
+        fn request(&self, gridview: &GridView) -> CommandRequest {
             unimplemented!()
         }
 

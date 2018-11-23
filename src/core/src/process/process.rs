@@ -6,9 +6,10 @@ use std::sync::{Arc, Mutex};
 use util::seconds_duration;
 
 use grid::{DropletId, DropletInfo, GridView, Location};
+use system::{System};
 
 use command;
-use command::Command;
+use command::{Command, BoxedCommand};
 
 use plan::PlanError;
 
@@ -30,7 +31,7 @@ pub struct Process {
     #[allow(dead_code)]
     name: String,
     next_droplet_id: AtomicUsize,
-    gridview: Arc<Mutex<GridView>>,
+    system: Arc<Mutex<System>>,
     // TODO we probably want something like this for more precise flushing
     // unresolved_droplet_ids: Mutex<Set<DropletId>>,
 }
@@ -38,12 +39,12 @@ pub struct Process {
 static NEXT_PROCESS_ID: AtomicUsize = AtomicUsize::new(0);
 
 impl Process {
-    pub fn new(name: String, gridview: Arc<Mutex<GridView>>) -> Process {
+    pub fn new(name: String, system: Arc<Mutex<System>>) -> Process {
         Process {
             id: NEXT_PROCESS_ID.fetch_add(1, Relaxed),
             name: name,
             next_droplet_id: AtomicUsize::new(0),
-            gridview,
+            system,
         }
     }
 
@@ -58,11 +59,11 @@ impl Process {
         }
     }
 
-    fn plan(&self, cmd: Box<dyn Command>) -> PuddleResult<()> {
-        let mut gv = self.gridview.lock().unwrap();
+    // FIXME rename
+    fn plan(&self, cmd: BoxedCommand) -> PuddleResult<()> {
+        let mut sys = self.system.lock().unwrap();
         // FIXME
-        // gv.plan(cmd).map_err(|(_cmd, err)| PlanError(err))
-        unimplemented!()
+        sys.add(cmd)
     }
 }
 
@@ -78,6 +79,7 @@ impl Process {
         let flush_cmd = command::Flush::new(self.id, tx);
 
         self.plan(Box::new(flush_cmd))?;
+        self.system.lock().unwrap().flush(&[]).unwrap();
         rx.recv().unwrap().map_err(PlanError)
     }
 
@@ -154,8 +156,8 @@ impl Process {
     }
 
     pub fn close(&mut self) {
-        let mut gv = match self.gridview.lock() {
-            Ok(gv) => gv,
+        let mut sys = match self.system.lock() {
+            Ok(sys) => sys,
             Err(e) => {
                 error!("Error while closing! {:?}", e);
                 return;

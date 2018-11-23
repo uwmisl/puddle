@@ -1,10 +1,11 @@
 use grid::{Location, Droplet, DropletId, Grid, Electrode,
-           Blob,
+           Blob, DropletInfo
 };
+use process::{ProcessId};
 use util::collections::{Map, Set};
 use plan::place::Placement;
 
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct GridView {
     pub grid: Grid,
     pub droplets: Map<DropletId, Droplet>,
@@ -16,6 +17,14 @@ impl GridView {
             grid,
             ..GridView::default()
         }
+    }
+
+    pub fn droplet_info(&self, pid_option: Option<ProcessId>) -> Vec<DropletInfo> {
+        self.droplets
+            .values()
+            .filter(|&d| pid_option.map_or(true, |pid| d.id.process_id == pid))
+            .map(|d| d.info())
+            .collect()
     }
 
     /// Returns an invalid droplet, if any.
@@ -35,6 +44,12 @@ impl GridView {
             }
         }
         None
+    }
+
+    pub fn check_no_collision(&self) {
+        if let Some((_distance, d1, d2)) = self.get_collision() {
+            panic!("Collision!!!!! between {:#?} and {:#?}", d1, d2)
+        }
     }
 
     pub fn subview<'a>(
@@ -81,14 +96,18 @@ impl<'a> GridSubView<'a> {
     }
 
     pub fn insert(&mut self, mut droplet: Droplet) {
+        let id = droplet.id;
         let new_loc = self.placement.mapping.get(&droplet.location);
         trace!("Inserting {:#?} at {:?}", droplet, new_loc);
         droplet.location = *new_loc.unwrap();
         // let was_not_there = self.ids.insert(droplet.id);
         // assert!(was_not_there);
         let droplets = &mut self.backing_gridview.droplets;
-        let was_there = droplets.insert(droplet.id, droplet);
-        assert!(was_there.is_none());
+        let was_there = droplets.insert(id, droplet);
+        if let Some(was_there) = was_there {
+            let droplet = &droplets[&id];
+            panic!("Something was here! While inserting {:#?}, I found {:#?}", droplet, was_there);
+        }
     }
 
     pub fn remove(&mut self, id: &DropletId) -> Droplet {
@@ -156,6 +175,10 @@ impl<'a> GridSubView<'a> {
         self.update(&id, |droplet| {
             droplet.location = droplet.location.south();
         })
+    }
+
+    pub fn droplet_info(&self, pid_option: Option<ProcessId>) -> Vec<DropletInfo> {
+        self.backing_gridview.droplet_info(pid_option)
     }
 }
 

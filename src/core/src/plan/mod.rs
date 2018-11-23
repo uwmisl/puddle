@@ -2,7 +2,7 @@
 pub mod graph;
 pub mod place;
 mod route;
-mod sched;
+pub mod sched;
 
 use self::graph::{CmdIndex, Graph};
 use self::place::{Placement, PlacementRequest, Placer};
@@ -26,6 +26,7 @@ pub enum PlanError {
         droplets: Vec<Droplet>,
     },
     PlaceError,
+    SchedError(self::sched::SchedError),
 }
 
 pub struct PlannedCommand {
@@ -38,26 +39,39 @@ pub struct PlanPhase {
     pub planned_commands: Vec<PlannedCommand>,
 }
 
-type PlanResult = Result<PlanPhase, (Box<dyn Command>, PlanError)>;
+type PlanResult = Result<PlanPhase, PlanError>;
 
 pub struct Planner {
-    grid: Grid,
-    droplets: HashMap<DropletId, Droplet>,
+    pub gridview: GridView,
     scheduler: Scheduler,
     placer: Placer,
     router: Router,
 }
 
 impl Planner {
-    pub fn new() -> Planner {
-        Planner { ..unimplemented!() }
+    pub fn new(gridview: GridView) -> Planner {
+        Planner {
+            gridview: gridview,
+            scheduler: Scheduler::new(),
+            placer: Placer::new(),
+            router: Router::new(),
+        }
     }
 
     pub fn plan(&mut self, graph: &Graph, _droplets: &[DropletId]) -> PlanResult {
+        debug!("Planning GV: {:#?}", self.gridview.droplets);
+        self.gridview.check_no_collision();
+
         // FIXME get rid of unwraps
         let sched_resp = {
             let req = SchedRequest { graph };
-            self.scheduler.schedule(&req).unwrap()
+            debug!("Schedule request");
+            let resp = self.scheduler.schedule(&req)?;
+            debug!("{:?}", resp);
+            for cmd_id in &resp.commands_to_run {
+                debug!("Gonna schedule {:?}: {:?}", cmd_id, graph.graph[*cmd_id])
+            }
+            resp
         };
 
         let command_requests: Vec<_> = sched_resp
@@ -65,7 +79,7 @@ impl Planner {
             .iter()
             .map(|cmd_id: &CmdIndex| {
                 let cmd = graph.graph[*cmd_id].as_ref().expect("Command was unbound!");
-                let cmd_req = cmd.request(&self.droplets);
+                let cmd_req = cmd.request(&self.gridview);
                 // TODO update the outputs
                 // for out in cmd_req.outputs {
                 //     self.droplets.insert(out.id, out);
@@ -75,21 +89,50 @@ impl Planner {
 
         let place_resp = {
             let req = PlacementRequest {
-                grid: &self.grid,
+                gridview: &self.gridview,
                 fixed_commands: vec![],
                 commands: command_requests.as_slice(),
                 stored_droplets: sched_resp.droplets_to_store.as_slice(),
             };
-            self.placer.place(&req).unwrap()
+            let resp = self.placer.place(&req).unwrap();
+            debug!("{:?}", resp);
+            resp
         };
 
         let route_resp = {
+
+            let mut droplets = Vec::new();
+
+            let stored = sched_resp.droplets_to_store.iter().zip(place_resp.stored_droplets);
+            for (id, loc) in stored {
+                let droplet = self.gridview.droplets.get_mut(id).unwrap();
+                droplet.destination = Some(loc);
+                droplets.push(droplet.clone())
+            }
+
+            // TODO getting these input droplets is pretty painful
+            let placed = sched_resp.commands_to_run.iter().zip(command_requests).zip(&place_resp.commands);
+            for ((cmd_id, req), placement) in placed {
+                let cmd = graph.graph[*cmd_id].as_ref().expect("Command was unbound!");
+                let in_ids = cmd.input_droplets();
+                let ins = in_ids.iter().zip(req.input_locations);
+                for (droplet_id, location) in ins {
+                    let droplet = self.gridview.droplets.get_mut(droplet_id).unwrap();
+                    debug!("mapping: {:#?}", placement);
+                    droplet.destination = Some(placement.mapping[&location]);
+                    droplets.push(droplet.clone())
+                }
+            }
+
+
             let req = RoutingRequest {
-                grid: &self.grid,
+                grid: &self.gridview.grid,
                 blockages: vec![],
-                droplets: vec![], // FIXME put something in here
+                droplets: droplets,
             };
-            self.router.route(&req).unwrap()
+            let resp = self.router.route(&req).unwrap();
+            debug!("{:?}", resp);
+            resp
         };
 
         let routes = route_resp.routes;
@@ -99,6 +142,10 @@ impl Planner {
             .zip(place_resp.commands)
             .map(|(&cmd_id, placement)| PlannedCommand { cmd_id, placement })
             .collect();
+
+
+        // now commit to the schedule
+        self.scheduler.commit(&sched_resp);
 
         Ok(PlanPhase {
             routes,
