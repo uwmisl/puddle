@@ -1,118 +1,91 @@
+extern crate env_logger;
+extern crate hyper_staticfile;
+extern crate jsonrpc_core;
+extern crate jsonrpc_http_server;
+extern crate structopt;
+
 extern crate puddle_core;
 
-extern crate jsonrpc_core;
+use std::{env, fs::File, net::SocketAddr, path::Path, sync::Arc};
 
-extern crate clap;
-#[macro_use]
-extern crate rouille;
+use jsonrpc_core::{futures::Future, IoHandler};
+use jsonrpc_http_server::{hyper, RequestMiddlewareAction, Response, ServerBuilder};
+use structopt::StructOpt;
 
-extern crate env_logger;
-#[macro_use]
-extern crate log;
+use puddle_core::{Grid, Manager, Rpc};
 
-use std::env;
-use std::fs::File;
-use std::io::Read;
-use std::path::{Path, PathBuf};
-use std::sync::Arc;
-
-use rouille::{Request, Response};
-
-use jsonrpc_core::IoHandler;
-
-use clap::{App, Arg, ArgMatches};
-
-use puddle_core::*;
-
-fn handle(ioh: &IoHandler, req: &Request) -> Response {
-    // read the body into a string
-    let mut req_string = String::new();
-    let mut body = req.data().expect("body already retrieved!");
-    body.read_to_string(&mut req_string).expect("read failed");
-
-    info!("req: ({})", &req_string);
-
-    // handle the request with jsonrpc, then convert to IronResult
-    let resp_data = &ioh
-        .handle_request_sync(&req_string)
-        .expect("handle failed!");
-    let resp = Response::from_data("application/json", resp_data.bytes().collect::<Vec<_>>());
-    debug!("Resp: {:?}", resp_data);
-    resp
+#[derive(StructOpt)]
+struct PuddleServer {
+    #[structopt(long, default_value = "127.0.0.1:3000")]
+    addr: SocketAddr,
+    #[structopt(long = "static")]
+    static_dir: String,
+    #[structopt(long)]
+    should_sync: bool,
+    #[structopt(long = "arch")]
+    arch_file: String,
 }
 
-fn run(matches: &ArgMatches) -> Result<(), Box<::std::error::Error>> {
-    // required argument is safe to unwrap
-    let path = matches.value_of("arch").unwrap();
-    let reader = File::open(path)?;
-
-    let static_dir = PathBuf::from(matches.value_of("static").unwrap());
-
-    let should_sync = matches.occurrences_of("sync") > 0 || env::var("PUDDLE_VIZ").is_ok();
-
-    // let mut manager_opts = ErrorOptions::default();
-    // if let Some(err) = matches.value_of("split-error") {
-    //     manager_opts.split_error_stdev = err.parse()?;
-    // };
-
-    let grid = Grid::from_reader(reader)?;
-    let manager = Manager::new(should_sync, grid);
-    let arc = Arc::new(manager);
-
-    let mut ioh = IoHandler::new();
-    ioh.extend_with(arc.to_delegate());
-
-    // args that have defaults are safe to unwrap
-    let host = matches.value_of("host").unwrap();
-    let port = matches.value_of("port").unwrap();
-    let address = format!("{}:{}", host, port);
-
-    #[cfg(feature = "pi")]
-    {
-        println!("Make sure to manually set the voltage for the pi!");
-        println!("Something like: pi-test dac 1000");
-    }
-
-    // this has to be a print, not a log, because the python lib looks for it
-    println!("Listening on http://{}", address);
-
-    rouille::start_server(address, move |request| {
-        router!(
-            request,
-            (GET) (/status) => {
-                // Builds a `Response` object that contains the "hello world" text.
-                Response::text("Ok!")
-            },
-            (POST) (/rpc) => {
-                handle(&ioh, request)
-            },
-            (GET) (/{path: String}) => {
-                // FIXME this hack won't work on subdirectories
-                if path == "" {
-                    let mut pb = static_dir.clone();
-                    pb.push("index.html");
-                    Response::from_file(
-                        "html",
-                        File::open(pb).unwrap()
-                    )
-                } else {
-                    rouille::match_assets(&request, &static_dir)
-                }
-            },
-
-            _ => { rouille::Response::empty_404() }
-        )
-    });
+macro_rules! exit {
+    ($($arg:tt)*) => ({
+        eprintln!($($arg)*);
+        ::std::process::exit(1);
+    })
 }
 
-// clippy will complain about String when it's not consumed
-// this type is dictated by validator in clap
-#[cfg_attr(feature = "cargo-clippy", allow(needless_pass_by_value))]
-fn check_dir(dir: String) -> Result<(), String> {
-    if Path::new(&dir).is_dir() {
+impl PuddleServer {
+    fn run(&self) -> Result<(), Box<::std::error::Error>> {
+        if !Path::new(&self.static_dir).is_dir() {
+            exit!("static was not a directory: {}", self.static_dir)
+        }
+
+        if !Path::new(&self.arch_file).is_file() {
+            exit!("arch was not a file: {}", self.arch_file)
+        }
+
+        // required argument is safe to unwrap
+        let reader = File::open(&self.arch_file)?;
+
+        let static_dir = hyper_staticfile::Static::new(&self.static_dir);
+
+        let should_sync = self.should_sync || env::var("PUDDLE_VIZ").is_ok();
+
+        let grid = Grid::from_reader(reader)?;
+        let manager = Manager::new(should_sync, grid);
+        let arc = Arc::new(manager);
+
+        #[cfg(feature = "pi")]
+        {
+            println!("Make sure to manually set the voltage for the pi!");
+            println!("Something like: pi-test dac 1000");
+        }
+
+        let mut io = IoHandler::new();
+        io.extend_with(arc.to_delegate());
+
+        let server = ServerBuilder::new(io)
+            .request_middleware(
+                move |request: hyper::Request<hyper::Body>| -> RequestMiddlewareAction {
+                    if request.uri() == "/status" {
+                        Response::ok("Server running OK.").into()
+                    } else if request.uri() == "/rpc" {
+                        // pass it along
+                        request.into()
+                    } else {
+                        RequestMiddlewareAction::Respond {
+                            should_validate_hosts: true,
+                            response: Box::new(
+                                static_dir.serve(request).map_err(|e| panic!("{:#?}", e)),
+                            ),
+                        }
+                    }
+                },
+            ).start_http(&self.addr)
+            .expect("Couldn't start server");
+
+        server.wait();
+
         Ok(())
-    } else {
-        Err("static should be a directory".to_string())
     }
 }
 
@@ -120,44 +93,9 @@ fn main() {
     // enable logging
     let _ = env_logger::try_init();
 
-    let matches = App::new("puddle")
-        .version("0.1")
-        .author("Max Willsey <me@mwillsey.com>")
-        .about("Runs a server for Puddle")
-        .arg(
-            Arg::with_name("arch")
-                .value_name("ARCH_FILE")
-                .help("The architecture file")
-                .takes_value(true)
-                .required(true),
-        ).arg(
-            Arg::with_name("split-error")
-                .long("split-error-stdev")
-                .takes_value(true),
-        ).arg(
-            Arg::with_name("static")
-                .long("static")
-                .required(true)
-                .takes_value(true)
-                .validator(check_dir),
-        ).arg(
-            Arg::with_name("host")
-                .long("host")
-                .default_value("localhost")
-                .takes_value(true),
-        ).arg(
-            Arg::with_name("port")
-                .long("port")
-                .default_value("3000")
-                .takes_value(true),
-        ).arg(Arg::with_name("sync").long("sync"))
-        .get_matches();
+    let server = PuddleServer::from_args();
 
-    ::std::process::exit(match run(&matches) {
-        Ok(_) => 0,
-        Err(err) => {
-            error!("error: {}", err);
-            1
-        }
-    });
+    if let Err(e) = server.run() {
+        exit!("error: {}", e);
+    }
 }
