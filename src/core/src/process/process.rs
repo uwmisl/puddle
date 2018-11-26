@@ -5,11 +5,11 @@ use std::sync::{Arc, Mutex};
 
 use util::seconds_duration;
 
-use grid::{DropletId, DropletInfo, GridView, Location};
+use grid::{DropletId, DropletInfo, Location};
 use system::{System};
 
 use command;
-use command::{Command, BoxedCommand};
+use command::{BoxedCommand};
 
 use plan::PlanError;
 
@@ -156,7 +156,7 @@ impl Process {
     }
 
     pub fn close(&mut self) {
-        let mut sys = match self.system.lock() {
+        let _sys = match self.system.lock() {
             Ok(sys) => sys,
             Err(e) => {
                 error!("Error while closing! {:?}", e);

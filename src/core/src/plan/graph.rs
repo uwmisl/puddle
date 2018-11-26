@@ -5,8 +5,8 @@ use petgraph::prelude::*;
 
 use util::find_duplicate;
 
-use command::{BoxedCommand, CommandRequest};
-use grid::{DropletId, Grid};
+use command::{BoxedCommand};
+use grid::{DropletId};
 
 type NodeData = Option<BoxedCommand>;
 type EdgeData = DropletId;

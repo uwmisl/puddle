@@ -1,14 +1,11 @@
 use std::ops::{Deref, DerefMut, Drop};
-use std::sync::{Arc, Mutex, MutexGuard};
-use std::thread;
+use std::sync::{Arc, Mutex};
 
-use exec::Executor;
-use grid::{DropletInfo, Grid, GridView};
+use grid::{DropletInfo, Grid};
 use process::{Process, ProcessId, PuddleError, PuddleResult};
 use system::{System};
 
 use util::collections::Map;
-use util::endpoint::Endpoint;
 
 pub struct ProcessHandle<'a> {
     process: Option<Process>,

@@ -1,8 +1,6 @@
 use std::fmt;
 use std::sync::mpsc::Sender;
-use std::thread;
 use std::time::Duration;
-use std::collections::HashMap;
 
 use plan::PlanError;
 
@@ -105,7 +103,7 @@ impl Command for Create {
         self.outputs.clone()
     }
 
-    fn request(&self, gridview: &GridView) -> CommandRequest {
+    fn request(&self, _gridview: &GridView) -> CommandRequest {
         let grid = Grid::rectangle(self.dimensions.y as usize, self.dimensions.x as usize);
 
         CommandRequest {
@@ -145,7 +143,7 @@ impl Flush {
 }
 
 impl Command for Flush {
-    fn request(&self, gridview: &GridView) -> CommandRequest {
+    fn request(&self, _gridview: &GridView) -> CommandRequest {
         CommandRequest {
             shape: Grid::rectangle(0, 0),
             input_locations: vec![],
@@ -153,7 +151,7 @@ impl Command for Flush {
         }
     }
 
-    fn run(&mut self, gridview: &mut GridSubView) -> RunStatus {
+    fn run(&mut self, _gridview: &mut GridSubView) -> RunStatus {
         RunStatus::Done
     }
 
@@ -620,7 +618,7 @@ impl Command for Heat {
         }
     }
 
-    fn run(&mut self, gridview: &mut GridSubView) -> RunStatus {
+    fn run(&mut self, _gridview: &mut GridSubView) -> RunStatus {
         // #[cfg(feature = "pi")]
         // {
         //     let d = gridview.get(&self.inputs[0]);
@@ -690,7 +688,7 @@ impl Command for Input {
         self.outputs.clone()
     }
 
-    fn request(&self, gridview: &GridView) -> CommandRequest {
+    fn request(&self, _gridview: &GridView) -> CommandRequest {
         let mut grid = Grid::rectangle(self.dimensions.y as usize, self.dimensions.x as usize + 1);
 
         // fake peripheral used to match up with the real one
@@ -713,7 +711,7 @@ impl Command for Input {
         }
     }
 
-    fn run(&mut self, gridview: &mut GridSubView) -> RunStatus {
+    fn run(&mut self, _gridview: &mut GridSubView) -> RunStatus {
         // // FIXME: this is a total hack to assume that input is always on the right-hand side
         // let input_loc = Location {
         //     y: self.dimensions.y / 2,
@@ -827,7 +825,7 @@ impl Command for Output {
         }
     }
 
-    fn run(&mut self, gridview: &mut GridSubView) -> RunStatus {
+    fn run(&mut self, _gridview: &mut GridSubView) -> RunStatus {
         // let id = self.inputs[0];
         // #[cfg(feature = "pi")]
         // {
@@ -893,11 +891,11 @@ pub mod tests {
             self.outs.clone()
         }
 
-        fn request(&self, gridview: &GridView) -> CommandRequest {
+        fn request(&self, _gridview: &GridView) -> CommandRequest {
             unimplemented!()
         }
 
-        fn run(&mut self, gridview: &mut GridSubView) -> RunStatus {
+        fn run(&mut self, _gridview: &mut GridSubView) -> RunStatus {
             unimplemented!()
         }
     }

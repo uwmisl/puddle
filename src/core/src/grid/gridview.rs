@@ -1,6 +1,4 @@
-use grid::{Location, Droplet, DropletId, Grid, Electrode,
-           Blob, DropletInfo
-};
+use grid::{Location, Droplet, DropletId, Grid, Electrode, DropletInfo};
 use process::{ProcessId};
 use util::collections::{Map, Set};
 use plan::place::Placement;
@@ -185,6 +183,7 @@ impl<'a> GridSubView<'a> {
 #[cfg(test)]
 pub mod tests {
     use super::*;
+    use grid::droplet::Blob;
     use grid::parse::tests::parse_strings;
 
     pub fn id2c(id: &DropletId) -> char {

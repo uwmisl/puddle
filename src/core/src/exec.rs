@@ -1,7 +1,7 @@
 use plan::{PlanPhase, Path, PlannedCommand, graph::{Graph, CmdIndex}};
 use grid::{GridView, Grid, DropletId};
-use util::collections::{Map, Set};
-use command::{Command, RunStatus};
+use util::collections::{Map};
+use command::{RunStatus};
 
 pub struct Executor {
     pub gridview: GridView,

@@ -1,14 +1,15 @@
 
 use ::{PuddleResult};
-use command::{BoxedCommand, CommandRequest};
-use grid::{Grid, DropletId, Droplet, GridView, Location};
+use command::{BoxedCommand};
+use grid::{Grid, DropletId, GridView};
 use exec::Executor;
 
 use plan::{Planner, PlanError, sched::SchedError};
-use plan::graph::{Graph, CmdIndex};
+use plan::graph::{Graph};
 use std::sync::{Arc, Mutex};
 
 pub struct System {
+    #[allow(dead_code)]
     grid: Grid,
     graph: Graph,
     // TODO probably don't wanna have arc/mutex here

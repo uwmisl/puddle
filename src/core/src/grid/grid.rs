@@ -5,7 +5,7 @@ use std::collections::HashSet;
 use std::io::Read;
 
 use super::{Location};
-use util::collections::{Map, Set};
+use util::collections::{Map};
 
 use grid::parse::{Mark, ParsedElectrode, ParsedGrid};
 

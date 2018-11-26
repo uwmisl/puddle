@@ -11,12 +11,9 @@ use self::sched::{SchedRequest, Scheduler};
 
 pub use self::route::Path;
 
-use command::{BoxedCommand, Command, CommandRequest};
 use grid::{
-    droplet::{Droplet, DropletId},
-    Grid, GridView, Location,
-};
-use std::collections::HashMap;
+    droplet::{DropletId},
+    GridView, };
 use util::collections::Map;
 
 #[derive(Debug)]
@@ -102,7 +99,7 @@ impl Planner {
 
             // TODO getting these input droplets is pretty painful
             let placed = sched_resp.commands_to_run.iter().zip(command_requests).zip(&place_resp.commands);
-            for ((cmd_id, req), placement) in placed {
+            for ((cmd_id, req), _placement) in placed {
                 let cmd = graph.graph[*cmd_id].as_ref().expect("Command was unbound!");
                 let in_ids = cmd.input_droplets();
                 let ins = in_ids.iter().zip(req.input_locations);
@@ -142,125 +139,6 @@ impl Planner {
     }
 }
 
-// impl GridView {
-//     pub fn plan(&mut self, mut cmd: Box<dyn Command>) -> Result<(), (Box<dyn Command>, PlanError)> {
-//         info!("Planning {:?}", cmd);
-
-//         // make sure there's a snapshot available to plan into
-//         self.snapshot_ensure();
-//         if cmd.bypass(&self) {
-//             info!("Bypassing command: {:#?}", cmd);
-//             return Ok(());
-//         }
-
-//         let in_ids = cmd.input_droplets();
-//         // FIXME
-//         let req = cmd.request(unimplemented!());
-
-//         debug!(
-//             "Command requests a shape of w={w},h={h}",
-//             w = req.shape.max_width(),
-//             h = req.shape.max_height(),
-//         );
-
-//         debug!(
-//             "Input droplets: {:?}",
-//             cmd.input_droplets()
-//                 .iter()
-//                 .map(|id| &self.snapshot().droplets[id])
-//                 .collect::<Vec<_>>()
-//         );
-
-//         let placement_mapping = if req.trusted {
-//             // if we are trusting placement, just use an identity map
-//             self.grid
-//                 .locations()
-//                 .map(|(loc, _cell)| (loc, loc))
-//                 .collect::<Map<_, _>>()
-//         } else {
-//             // TODO place should be a method of gridview
-//             let mut snapshot: Snapshot = self.snapshot().new_with_same_droplets();
-
-//             for id in &in_ids {
-//                 snapshot.droplets.remove(id);
-//             }
-//             match self.grid.place(&req.shape, &snapshot, &self.bad_edges) {
-//                 None => return Err((cmd, PlanError::PlaceError)),
-//                 Some(placement_mapping) => placement_mapping,
-//             }
-//         };
-
-//         debug!("placement for {:#?}: {:#?}", cmd, placement_mapping);
-
-//         assert_eq!(req.input_locations.len(), in_ids.len());
-
-//         for (loc, id) in req.input_locations.iter().zip(&in_ids) {
-//             // this should have been put to none last time
-//             let droplet = self
-//                 .snapshot_mut()
-//                 .droplets
-//                 .get_mut(&id)
-//                 .expect("Command gave back and invalid DropletId");
-
-//             assert!(droplet.destination.is_none());
-
-//             let mapped_loc = placement_mapping.get(loc).unwrap_or_else(|| {
-//                 panic!(
-//                     "Input location {} wasn't in placement.\n  All input locations: {:?}",
-//                     loc, req.input_locations
-//                 )
-//             });
-//             droplet.destination = Some(*mapped_loc);
-//         }
-
-//         debug!("routing {:?}", cmd);
-//         let paths = match self.route() {
-//             Some(p) => p,
-//             None => {
-//                 return Err((
-//                     cmd,
-//                     PlanError::RouteError {
-//                         placement: Placement {
-//                             mapping: placement_mapping,
-//                         },
-//                         droplets: self.snapshot().droplets.values().cloned().collect(),
-//                     },
-//                 ))
-//             }
-//         };
-//         debug!("route for {:#?}: {:#?}", cmd, paths);
-
-//         trace!("Taking paths...");
-//         // FIXME final tick is a hack
-//         // we *carefully* pre-run the command before making the final tick
-//         let final_tick = false;
-//         self.take_paths(&paths, final_tick);
-
-//         {
-//             let mut subview = self.subview(in_ids.iter().cloned(), placement_mapping.clone());
-
-//             trace!("Pre-Running command {:?}", cmd);
-//             cmd.pre_run(&mut subview);
-//             subview.tick();
-
-//             trace!("Running command {:?}", cmd);
-//             cmd.run(&mut subview);
-//         }
-
-//         self.register(cmd);
-
-//         // teardown destinations if the droplets are still there
-//         // TODO is this ever going to be true?
-//         for id in in_ids {
-//             if let Some(droplet) = self.snapshot_mut().droplets.get_mut(&id) {
-//                 assert_eq!(Some(droplet.location), droplet.destination);
-//                 droplet.destination = None;
-//             };
-//         }
-
-//         Ok(())
-//     }
-// }
 
 #[cfg(test)]
 mod tests {
@@ -270,8 +148,7 @@ mod tests {
 
     use super::*;
 
-    use command;
-    use grid::{DropletId, Grid};
+    use grid::{Grid};
 
     fn mk_gv(path: &str) -> GridView {
         let _ = env_logger::try_init();
