@@ -138,7 +138,9 @@ impl Scheduler {
 
     fn is_ready(&self, req: &SchedRequest, cmd: CmdIndex) -> bool {
         let graph = &req.graph.graph;
-        graph.neighbors_directed(cmd, Incoming).all(|c| self.node_sched.contains_key(&c))
+        graph
+            .neighbors_directed(cmd, Incoming)
+            .all(|c| self.node_sched.contains_key(&c))
     }
 
     pub fn schedule(&mut self, req: &SchedRequest) -> Result<SchedResponse> {
@@ -271,7 +273,6 @@ mod tests {
 
     #[test]
     fn test_critical_path() {
-
         let (graph, map) = long_graph();
 
         let crit = critical_paths(&graph);

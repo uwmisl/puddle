@@ -3,7 +3,7 @@ use std::sync::{Arc, Mutex};
 
 use grid::{DropletInfo, Grid};
 use process::{Process, ProcessId, PuddleError, PuddleResult};
-use system::{System};
+use system::System;
 
 use util::collections::Map;
 
@@ -48,7 +48,6 @@ pub struct Manager {
 
 impl Manager {
     pub fn new(blocking: bool, grid: Grid) -> Manager {
-
         let system = Arc::new(Mutex::new(System::new(grid)));
 
         Manager {
@@ -117,5 +116,4 @@ impl Manager {
         // let info = endp.recv().unwrap();
         // Ok(info)
     }
-
 }

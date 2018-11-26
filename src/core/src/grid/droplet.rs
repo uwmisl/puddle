@@ -1,5 +1,5 @@
-use std::fmt;
 use std::collections::HashSet;
+use std::fmt;
 use std::sync::atomic::AtomicUsize;
 use std::sync::atomic::Ordering::Relaxed;
 
@@ -27,7 +27,7 @@ impl fmt::Debug for DropletId {
 #[cfg(test)]
 impl From<usize> for DropletId {
     fn from(id: usize) -> DropletId {
-        DropletId {id, process_id: 0}
+        DropletId { id, process_id: 0 }
     }
 }
 

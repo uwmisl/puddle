@@ -1,7 +1,10 @@
-use plan::{PlanPhase, Path, PlannedCommand, graph::{Graph, CmdIndex}};
-use grid::{GridView, Grid, DropletId};
-use util::collections::{Map};
-use command::{RunStatus};
+use command::RunStatus;
+use grid::{DropletId, Grid, GridView};
+use plan::{
+    graph::{CmdIndex, Graph},
+    Path, PlanPhase, PlannedCommand,
+};
+use util::collections::Map;
 
 pub struct Executor {
     pub gridview: GridView,
@@ -9,7 +12,7 @@ pub struct Executor {
 }
 
 pub enum ExecResponse {
-    Ok
+    Ok,
 }
 
 impl Executor {
@@ -28,7 +31,9 @@ impl Executor {
 
         // run each of the running commands one step
         for (&cmd_id, planned_cmd) in self.running_commands.iter() {
-            let cmd = graph.graph.node_weight_mut(cmd_id)
+            let cmd = graph
+                .graph
+                .node_weight_mut(cmd_id)
                 .expect("node not in graph")
                 .as_mut()
                 .expect("node unbound");
@@ -84,7 +89,9 @@ impl Executor {
 
         // add all the planned commands
         for planned_cmd in phase.planned_commands {
-            let was_there = self.running_commands.insert(planned_cmd.cmd_id, planned_cmd);
+            let was_there = self
+                .running_commands
+                .insert(planned_cmd.cmd_id, planned_cmd);
             assert!(was_there.is_none());
         }
 

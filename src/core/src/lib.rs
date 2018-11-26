@@ -46,8 +46,8 @@ mod exec;
 pub mod grid;
 pub mod plan;
 mod process;
-pub mod util;
 mod system;
+pub mod util;
 
 #[cfg(feature = "vision")]
 pub mod vision;

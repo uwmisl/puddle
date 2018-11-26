@@ -1,12 +1,11 @@
-
 use std::collections::HashMap;
 
 use petgraph::prelude::*;
 
 use util::find_duplicate;
 
-use command::{BoxedCommand};
-use grid::{DropletId};
+use command::BoxedCommand;
+use grid::DropletId;
 
 type NodeData = Option<BoxedCommand>;
 type EdgeData = DropletId;

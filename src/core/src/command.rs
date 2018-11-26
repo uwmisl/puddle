@@ -9,8 +9,7 @@ use pi::RaspberryPi;
 
 use grid::{
     gridview::{GridSubView, GridView},
-    SimpleBlob, Blob,
-    Droplet, DropletId, DropletInfo, Grid, Location, Peripheral,
+    Blob, Droplet, DropletId, DropletInfo, Grid, Location, Peripheral, SimpleBlob,
 };
 
 use process::{ProcessId, PuddleResult};
@@ -26,7 +25,7 @@ pub struct CommandRequest {
 
 pub enum RunStatus {
     Done,
-    KeepGoing
+    KeepGoing,
 }
 
 pub trait Command: fmt::Debug + Send {
@@ -425,7 +424,7 @@ impl Command for Agitate {
             1 => gridview.move_east(in_id),
             2 => gridview.move_north(in_id),
             3 => gridview.move_west(in_id),
-            n => panic!("invalid state {}", n)
+            n => panic!("invalid state {}", n),
         }
 
         self.current_step += 1;

@@ -70,7 +70,8 @@ impl Placer {
             let droplet = &req.gridview.droplets[id];
             for y in -1..(droplet.dimensions.y + 1) {
                 for x in -1..(droplet.dimensions.x + 1) {
-                    locations_initially_holding_droplets.insert(&droplet.location + &Location {x, y});
+                    locations_initially_holding_droplets
+                        .insert(&droplet.location + &Location { x, y });
                 }
             }
         }
@@ -79,8 +80,15 @@ impl Placer {
         for cmd_req in req.commands {
             debug!("Placing {:?}", cmd_req);
             if cmd_req.trusted {
-                let identity_mapping: Map<_, _> = req.gridview.grid.locations().map(|(loc, _cell)| (loc, loc)).collect();
-                response.commands.push(Placement { mapping: identity_mapping });
+                let identity_mapping: Map<_, _> = req
+                    .gridview
+                    .grid
+                    .locations()
+                    .map(|(loc, _cell)| (loc, loc))
+                    .collect();
+                response.commands.push(Placement {
+                    mapping: identity_mapping,
+                });
                 continue;
             }
 
@@ -92,8 +100,7 @@ impl Placer {
                     let would_require_move = locations_initially_holding_droplets.contains(&loc);
                     let i = if would_require_move { 1 } else { 0 };
                     (i, loc)
-                })
-                .collect();
+                }).collect();
 
             potential_offsets.sort();
 
@@ -134,7 +141,7 @@ impl Placer {
                 .collect();
             locations_by_distance.sort();
 
-            let Location {y, x} = droplet.dimensions;
+            let Location { y, x } = droplet.dimensions;
             let shape = Grid::rectangle(y as usize, x as usize);
 
             let offset = locations_by_distance

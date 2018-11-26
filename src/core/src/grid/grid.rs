@@ -4,8 +4,8 @@ use serde_json;
 use std::collections::HashSet;
 use std::io::Read;
 
-use super::{Location};
-use util::collections::{Map};
+use super::Location;
+use util::collections::Map;
 
 use grid::parse::{Mark, ParsedElectrode, ParsedGrid};
 

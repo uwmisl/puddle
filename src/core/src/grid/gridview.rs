@@ -1,7 +1,7 @@
-use grid::{Location, Droplet, DropletId, Grid, Electrode, DropletInfo};
-use process::{ProcessId};
-use util::collections::{Map, Set};
+use grid::{Droplet, DropletId, DropletInfo, Electrode, Grid, Location};
 use plan::place::Placement;
+use process::ProcessId;
+use util::collections::{Map, Set};
 
 #[derive(Default, Clone)]
 pub struct GridView {
@@ -50,10 +50,7 @@ impl GridView {
         }
     }
 
-    pub fn subview<'a>(
-        &'a mut self,
-        placement: &'a Placement
-    ) -> GridSubView<'a> {
+    pub fn subview<'a>(&'a mut self, placement: &'a Placement) -> GridSubView<'a> {
         GridSubView {
             backing_gridview: self,
             placement,
@@ -67,7 +64,6 @@ pub struct GridSubView<'a> {
 }
 
 impl<'a> GridSubView<'a> {
-
     // #[cfg(feature = "pi")]
     // pub fn with_pi<T>(&mut self, f: impl FnOnce(&mut RaspberryPi) -> T) -> Option<T> {
     //     self.backing_gridview.pi.as_mut().map(f)
@@ -87,10 +83,7 @@ impl<'a> GridSubView<'a> {
 
     fn get_mut(&mut self, id: &DropletId) -> &mut Droplet {
         // assert!(self.ids.contains(&id));
-        self.backing_gridview
-            .droplets
-            .get_mut(id)
-            .unwrap()
+        self.backing_gridview.droplets.get_mut(id).unwrap()
     }
 
     pub fn insert(&mut self, mut droplet: Droplet) {
@@ -104,7 +97,10 @@ impl<'a> GridSubView<'a> {
         let was_there = droplets.insert(id, droplet);
         if let Some(was_there) = was_there {
             let droplet = &droplets[&id];
-            panic!("Something was here! While inserting {:#?}, I found {:#?}", droplet, was_there);
+            panic!(
+                "Something was here! While inserting {:#?}, I found {:#?}",
+                droplet, was_there
+            );
         }
     }
 
@@ -263,9 +259,7 @@ pub mod tests {
         let mut sub = gv.subview(&placement);
 
         // try to move b to an invalid location outside the placement
-        sub.update(&c2id('b'), |b| {
-            b.location = (0, 2).into()
-        })
+        sub.update(&c2id('b'), |b| b.location = (0, 2).into())
     }
 
 }

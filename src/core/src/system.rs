@@ -1,11 +1,10 @@
-
-use ::{PuddleResult};
-use command::{BoxedCommand};
-use grid::{Grid, DropletId, GridView};
+use command::BoxedCommand;
 use exec::Executor;
+use grid::{DropletId, Grid, GridView};
+use PuddleResult;
 
-use plan::{Planner, PlanError, sched::SchedError};
-use plan::graph::{Graph};
+use plan::graph::Graph;
+use plan::{sched::SchedError, PlanError, Planner};
 use std::sync::{Arc, Mutex};
 
 pub struct System {
@@ -18,7 +17,6 @@ pub struct System {
 }
 
 impl System {
-
     pub fn new(grid: Grid) -> System {
         info!("Creating a system");
         let planner = {
@@ -42,7 +40,6 @@ impl System {
 
     // TODO switch to event loop here
     pub fn flush(&mut self, droplets: &[DropletId]) -> PuddleResult<()> {
-
         info!("Flushing...");
         loop {
             let phase = {

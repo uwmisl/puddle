@@ -11,9 +11,7 @@ use self::sched::{SchedRequest, Scheduler};
 
 pub use self::route::Path;
 
-use grid::{
-    droplet::{DropletId},
-    GridView, };
+use grid::{droplet::DropletId, GridView};
 use util::collections::Map;
 
 #[derive(Debug)]
@@ -60,7 +58,10 @@ impl Planner {
         let sched_resp = {
             let req = SchedRequest { graph };
             debug!("Schedule request");
-            let resp = self.scheduler.schedule(&req).map_err(PlanError::SchedError)?;
+            let resp = self
+                .scheduler
+                .schedule(&req)
+                .map_err(PlanError::SchedError)?;
             debug!("{:?}", resp);
             for cmd_id in &resp.commands_to_run {
                 debug!("Gonna schedule {:?}: {:?}", cmd_id, graph.graph[*cmd_id])
@@ -94,17 +95,30 @@ impl Planner {
         };
 
         let route_resp = {
-
-            let mut droplets: Vec<_> = sched_resp.droplets_to_store.iter().zip(place_resp.stored_droplets).map(|(&id, loc)| self::route::DropletRouteRequest {id, destination: loc}).collect();
+            let mut droplets: Vec<_> = sched_resp
+                .droplets_to_store
+                .iter()
+                .zip(place_resp.stored_droplets)
+                .map(|(&id, loc)| self::route::DropletRouteRequest {
+                    id,
+                    destination: loc,
+                }).collect();
 
             // TODO getting these input droplets is pretty painful
-            let placed = sched_resp.commands_to_run.iter().zip(command_requests).zip(&place_resp.commands);
+            let placed = sched_resp
+                .commands_to_run
+                .iter()
+                .zip(command_requests)
+                .zip(&place_resp.commands);
             for ((cmd_id, req), _placement) in placed {
                 let cmd = graph.graph[*cmd_id].as_ref().expect("Command was unbound!");
                 let in_ids = cmd.input_droplets();
                 let ins = in_ids.iter().zip(req.input_locations);
                 for (&droplet_id, location) in ins {
-                    droplets.push(self::route::DropletRouteRequest {id: droplet_id, destination: location});
+                    droplets.push(self::route::DropletRouteRequest {
+                        id: droplet_id,
+                        destination: location,
+                    });
                 }
             }
 
@@ -128,7 +142,6 @@ impl Planner {
             .map(|(&cmd_id, placement)| PlannedCommand { cmd_id, placement })
             .collect();
 
-
         // now commit to the schedule
         self.scheduler.commit(&sched_resp);
 
@@ -139,7 +152,6 @@ impl Planner {
     }
 }
 
-
 #[cfg(test)]
 mod tests {
     use env_logger;
@@ -148,7 +160,7 @@ mod tests {
 
     use super::*;
 
-    use grid::{Grid};
+    use grid::Grid;
 
     fn mk_gv(path: &str) -> GridView {
         let _ = env_logger::try_init();

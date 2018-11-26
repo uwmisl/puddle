@@ -6,10 +6,10 @@ use std::sync::{Arc, Mutex};
 use util::seconds_duration;
 
 use grid::{DropletId, DropletInfo, Location};
-use system::{System};
+use system::System;
 
 use command;
-use command::{BoxedCommand};
+use command::BoxedCommand;
 
 use plan::PlanError;
 
