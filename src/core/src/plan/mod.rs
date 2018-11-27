@@ -110,14 +110,14 @@ impl Planner {
                 .iter()
                 .zip(command_requests)
                 .zip(&place_resp.commands);
-            for ((cmd_id, req), _placement) in placed {
+            for ((cmd_id, req), placement) in placed {
                 let cmd = graph.graph[*cmd_id].as_ref().expect("Command was unbound!");
                 let in_ids = cmd.input_droplets();
                 let ins = in_ids.iter().zip(req.input_locations);
                 for (&droplet_id, location) in ins {
                     droplets.push(self::route::DropletRouteRequest {
                         id: droplet_id,
-                        destination: location,
+                        destination: placement.mapping[&location],
                     });
                 }
             }
