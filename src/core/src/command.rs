@@ -617,7 +617,7 @@ impl Command for Heat {
         }
     }
 
-    fn run(&mut self, _gridview: &mut GridSubView) -> RunStatus {
+    fn run(&mut self, gridview: &mut GridSubView) -> RunStatus {
         // #[cfg(feature = "pi")]
         // {
         //     let d = gridview.get(&self.inputs[0]);
@@ -634,14 +634,13 @@ impl Command for Heat {
         //     assert_matches!(heater, Peripheral::Heater{..});
         //     self.heater = Some(heater)
         // }
-        // let old_id = self.inputs[0];
-        // let new_id = self.outputs[0];
+        let old_id = self.inputs[0];
+        let new_id = self.outputs[0];
 
-        // let mut d = gridview.remove(&old_id);
-        // // NOTE this is a rare place it's ok to change an id, like move
-        // d.id = new_id;
-        // gridview.insert(d);
-        // gridview.tick()
+        let mut d = gridview.remove(&old_id);
+        // NOTE this is a rare place it's ok to change an id, like move
+        d.id = new_id;
+        gridview.insert(d);
         RunStatus::Done
     }
 

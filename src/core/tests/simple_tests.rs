@@ -322,14 +322,13 @@ fn split_single_nonzero_dimensions() {
 }
 
 #[test]
-#[ignore("Heat not yet supported")]
 fn heat_droplet() {
     let board_str = r#"{
         "board": [
             [ "a", "a", "a", "a", "a" ],
             [ "a", "a", "a", "a", "a" ],
-            [ "a", "a", "a", "a", "a" ],
-            [ "a", "a", "a", "a", "a" ]
+            [ " ", " ", "a", " ", " " ],
+            [ " ", " ", "a", " ", " " ]
         ],
         "peripherals": {
             "(3, 2)": {
@@ -349,10 +348,13 @@ fn heat_droplet() {
     let id1 = p.heat(id0, temp, 1.0).unwrap();
 
     let droplets = info_dict(&p);
-    let header_loc = Location { y: 3, x: 2 };
+
+    // we expect it to be just above the heater, since the runtime will move it
+    // off the heater when placing the flush command
+    let expected_loc = Location { y: 2, x: 2 };
 
     assert_eq!(droplets.len(), 1);
-    assert_eq!(droplets[&id1].location, header_loc);
+    assert_eq!(droplets[&id1].location, expected_loc);
 }
 
 #[test]
