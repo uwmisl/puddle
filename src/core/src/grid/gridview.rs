@@ -110,14 +110,21 @@ impl<'a> GridSubView<'a> {
         let droplets = &mut self.backing_gridview.droplets;
         let mut droplet = droplets.remove(id).unwrap();
         // TODO this is pretty slow
-        let (unmapped_loc, _) = self
+        let find_unmapped = self
             .placement
             .mapping
             .iter()
-            .find(|(_, &v)| v == droplet.location)
-            .unwrap();
-        droplet.location = *unmapped_loc;
-        droplet
+            .find(|(_, &v)| v == droplet.location);
+
+        if let Some((unmapped_loc, _)) = find_unmapped {
+            droplet.location = *unmapped_loc;
+            droplet
+        } else {
+            panic!(
+                "Droplet {:?} was not in mapping. Location: {}, Mapping: {:#?}",
+                id, droplet.location, self.placement
+            );
+        }
     }
 
     fn check_droplet(&self, id: &DropletId) {
