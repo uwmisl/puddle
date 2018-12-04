@@ -224,9 +224,11 @@ pub struct Router {}
 #[derive(Clone)]
 pub struct DropletRouteRequest {
     pub id: DropletId,
+    pub location: Location,
     pub destination: Location,
 }
 
+#[derive(Debug)]
 pub struct RoutingRequest<'a> {
     pub gridview: &'a GridView,
     pub droplets: Vec<DropletRouteRequest>,
@@ -235,7 +237,12 @@ pub struct RoutingRequest<'a> {
 
 impl std::fmt::Debug for DropletRouteRequest {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, " {:?} -> {:?} ", self.id, self.destination)
+        let sigil = if self.location == self.destination {
+            "|"
+        } else {
+            ">"
+        };
+        write!(f, "{:?}@{:?} -{} {:?}", self.id, self.location, sigil, self.destination)
     }
 }
 

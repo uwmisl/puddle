@@ -9,6 +9,17 @@ pub struct GridView {
     pub droplets: Map<DropletId, Droplet>,
 }
 
+use std::fmt;
+impl fmt::Debug for GridView {
+    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+        fmt.debug_struct("GridView")
+            .field("grid", &"...hiding grid...")
+            .field("droplets", &self.droplets)
+            .finish()
+    }
+}
+
+
 impl GridView {
     pub fn new(grid: Grid) -> GridView {
         GridView {

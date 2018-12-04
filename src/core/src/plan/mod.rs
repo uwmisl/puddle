@@ -101,6 +101,7 @@ impl Planner {
                 .zip(place_resp.stored_droplets)
                 .map(|(&id, loc)| self::route::DropletRouteRequest {
                     id,
+                    location: self.gridview.droplets[&id].location,
                     destination: loc,
                 }).collect();
 
@@ -117,6 +118,7 @@ impl Planner {
                 for (&droplet_id, location) in ins {
                     droplets.push(self::route::DropletRouteRequest {
                         id: droplet_id,
+                        location: self.gridview.droplets[&droplet_id].location,
                         destination: placement.mapping[&location],
                     });
                 }
