@@ -1,7 +1,7 @@
 use std::collections::{hash_map::Entry, HashMap, HashSet};
 use std::time::Instant;
 
-use grid::{grid::NEIGHBORS_5, Droplet, DropletId, Grid, GridView, Location};
+use grid::{grid::NEIGHBORS_5, Droplet, DropletId, Grid, GridView, Location, Rectangle};
 
 use util::collections::{Map, Set};
 use util::minheap::MinHeap;
@@ -43,6 +43,13 @@ impl Agent {
         Agent {
             location: &self.location + offset,
             ..self.clone()
+        }
+    }
+
+    fn rectangle(&self) -> Rectangle {
+        Rectangle {
+            location: self.location,
+            dimensions: self.dimensions,
         }
     }
 }
@@ -115,9 +122,7 @@ impl Node {
     fn is_valid(&self, ctx: &RoutingContext) -> bool {
         // make sure all the agents are in the grid
         for a in &self.agents {
-            let top_left = a.location;
-            let bottom_right = &a.location + &a.dimensions;
-            for loc in top_left.rectangle(bottom_right) {
+            for loc in a.rectangle().locations() {
                 if ctx.gridview.grid.get_cell(&loc).is_none() {
                     return false;
                 }

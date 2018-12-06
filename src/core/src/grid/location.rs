@@ -32,21 +32,6 @@ impl Location {
         }
     }
 
-    pub fn rectangle(self, other: Location) -> impl Iterator<Item = Location> {
-        assert!(self.x <= other.x);
-        assert!(self.y <= other.y);
-        let ys = (self.y)..(other.y);
-        ys.flat_map(move |y| {
-            let xs = (self.x)..(other.x);
-            xs.map(move |x| Location { y, x })
-        })
-    }
-
-    pub fn from_origin(self) -> impl Iterator<Item = Location> {
-        let origin = Location { y: 0, x: 0 };
-        origin.rectangle(self)
-    }
-
     pub fn north(&self) -> Location {
         Location {
             y: self.y - 1,
@@ -139,6 +124,58 @@ impl FromStr for Location {
     }
 }
 
+pub struct Rectangle {
+    pub location: Location,
+    pub dimensions: Location,
+}
+
+impl Rectangle {
+    fn top_edge(&self) -> i32 {
+        self.location.y
+    }
+    fn bottom_edge(&self) -> i32 {
+        self.location.y + self.dimensions.y
+    }
+    fn left_edge(&self) -> i32 {
+        self.location.x
+    }
+    fn right_edge(&self) -> i32 {
+        self.location.x + self.dimensions.x
+    }
+
+    pub fn collision_distance(&self, other: &Rectangle) -> i32 {
+        let y_dist = signed_min(
+            self.bottom_edge() - other.top_edge(),
+            self.top_edge() - other.bottom_edge(),
+        );
+        let x_dist = signed_min(
+            self.right_edge() - other.left_edge(),
+            self.left_edge() - other.right_edge(),
+        );
+
+        return y_dist.max(x_dist);
+    }
+
+    pub fn locations(self) -> impl Iterator<Item = Location> {
+        let ys = 0..(self.dimensions.y);
+        ys.flat_map(move |y| {
+            let xs = 0..(self.dimensions.x);
+            let base = self.location;
+            xs.map(move |x| &base + &Location { y, x })
+        })
+    }
+}
+
+fn signed_min(a: i32, b: i32) -> i32 {
+    let res = if (a < 0) == (b < 0) {
+        i32::min(a.abs(), b.abs())
+    } else {
+        -i32::min(a.abs(), b.abs())
+    };
+    trace!("signed min({}, {}) = {}", a, b, res);
+    res
+}
+
 #[cfg(test)]
 pub mod tests {
     use super::*;
@@ -193,7 +230,8 @@ pub mod tests {
             .map(|(k, v)| {
                 let vv = equivs.find(*v).index();
                 (*k, vv)
-            }).collect()
+            })
+            .collect()
     }
 
     type Pt = (i32, i32);

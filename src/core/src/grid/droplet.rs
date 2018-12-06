@@ -3,7 +3,7 @@ use std::fmt;
 use std::sync::atomic::AtomicUsize;
 use std::sync::atomic::Ordering::Relaxed;
 
-use super::Location;
+use super::{Location, Rectangle};
 use process::ProcessId;
 
 static NEXT_COLLISION_GROUP: AtomicUsize = AtomicUsize::new(0);
@@ -71,30 +71,15 @@ impl Droplet {
         }
     }
 
-    fn top_edge(&self) -> i32 {
-        self.location.y
-    }
-    fn bottom_edge(&self) -> i32 {
-        self.location.y + self.dimensions.y
-    }
-    fn left_edge(&self) -> i32 {
-        self.location.x
-    }
-    fn right_edge(&self) -> i32 {
-        self.location.x + self.dimensions.x
+    fn rectangle(&self) -> Rectangle {
+        Rectangle {
+            location: self.location,
+            dimensions: self.dimensions,
+        }
     }
 
     pub fn collision_distance(&self, other: &Droplet) -> i32 {
-        let y_dist = signed_min(
-            self.bottom_edge() - other.top_edge(),
-            self.top_edge() - other.bottom_edge(),
-        );
-        let x_dist = signed_min(
-            self.right_edge() - other.left_edge(),
-            self.left_edge() - other.right_edge(),
-        );
-
-        return y_dist.max(x_dist);
+        self.rectangle().collision_distance(&other.rectangle())
     }
 
     pub fn info(&self) -> DropletInfo {
@@ -113,16 +98,6 @@ impl Droplet {
             volume: self.volume,
         }
     }
-}
-
-fn signed_min(a: i32, b: i32) -> i32 {
-    let res = if (a < 0) == (b < 0) {
-        i32::min(a.abs(), b.abs())
-    } else {
-        -i32::min(a.abs(), b.abs())
-    };
-    trace!("signed min({}, {}) = {}", a, b, res);
-    res
 }
 
 impl Default for Droplet {
