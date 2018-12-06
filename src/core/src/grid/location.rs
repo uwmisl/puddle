@@ -32,6 +32,21 @@ impl Location {
         }
     }
 
+    pub fn rectangle(self, other: Location) -> impl Iterator<Item = Location> {
+        assert!(self.x <= other.x);
+        assert!(self.y <= other.y);
+        let ys = (self.y)..(other.y);
+        ys.flat_map(move |y| {
+            let xs = (self.x)..(other.x);
+            xs.map(move |x| Location { y, x })
+        })
+    }
+
+    pub fn from_origin(self) -> impl Iterator<Item = Location> {
+        let origin = Location { y: 0, x: 0 };
+        origin.rectangle(self)
+    }
+
     pub fn north(&self) -> Location {
         Location {
             y: self.y - 1,

@@ -60,6 +60,15 @@ const NEIGHBORS_8: [Location; 8] = [
 ];
 
 #[cfg_attr(rustfmt, rustfmt_skip)]
+pub const NEIGHBORS_5: [Location; 5] = [
+    Location { y:  0, x: -1 },
+    Location { y: -1, x:  0 },
+    Location { y:  0, x:  0 },
+    Location { y:  1, x:  0 },
+    Location { y:  0, x:  1 },
+];
+
+#[cfg_attr(rustfmt, rustfmt_skip)]
 const NEIGHBORS_4: [Location; 4] = [
     Location { y:  0, x: -1 },
     Location { y: -1, x: 0 },
@@ -93,6 +102,18 @@ impl Grid {
                     }).collect()
             }).collect();
         ParsedGrid { board, peripherals }
+    }
+
+    pub fn to_strs(&self) -> Vec<String> {
+        self.vec.iter().map(|row| {
+            row.iter().map(|electrode| {
+                if let Some(_) = electrode {
+                    '.'
+                } else {
+                    ' '
+                }
+            }).collect()
+        }).collect()
     }
 
     pub fn rectangle(h: usize, w: usize) -> Self {

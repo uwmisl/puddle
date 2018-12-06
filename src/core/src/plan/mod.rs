@@ -2,6 +2,7 @@
 pub mod graph;
 pub mod place;
 mod route;
+mod route2;
 pub mod sched;
 
 use self::graph::{CmdIndex, Graph};

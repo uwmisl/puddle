@@ -59,8 +59,11 @@ impl<K: Ord, T: Eq> Ord for MinHeapElem<K, T> {
         match other.cost.cmp(&self.cost) {
             Ordering::Equal => {
                 // use timestamp to resolve cost ties to ensure a LIFO behavior of the Heap
-                other.timestamp.cmp(&self.timestamp)
-            }
+                let ord = other.timestamp.cmp(&self.timestamp);
+                assert_ne!(ord, Ordering::Equal);
+                ord
+            },
+            ord => ord
         }
     }
 }
