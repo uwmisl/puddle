@@ -17,21 +17,6 @@ impl Location {
         (self.y.abs() + self.x.abs()) as u32
     }
 
-    pub fn min_distance_to_box(&self, corner1: Location, corner2: Location) -> i32 {
-        assert!(corner1.x <= corner2.x);
-        assert!(corner1.y <= corner2.y);
-
-        // these ds are negative if the point is inside, 0 if on boundary, else positive
-        let dy = i32::max(corner1.y - (self.y + 1), self.y - corner2.y);
-        let dx = i32::max(corner1.x - (self.x + 1), self.x - corner2.x);
-
-        if dy < 0 && dx < 0 {
-            -1
-        } else {
-            dy.max(0) + dx.max(0)
-        }
-    }
-
     pub fn north(&self) -> Location {
         Location {
             y: self.y - 1,
@@ -130,15 +115,25 @@ pub struct Rectangle {
 }
 
 impl Rectangle {
+    pub fn new(location: impl Into<Location>, dimensions: impl Into<Location>) -> Rectangle {
+        Rectangle {
+            location: location.into(),
+            dimensions: dimensions.into(),
+        }
+    }
+
     fn top_edge(&self) -> i32 {
         self.location.y
     }
+
     fn bottom_edge(&self) -> i32 {
         self.location.y + self.dimensions.y
     }
+
     fn left_edge(&self) -> i32 {
         self.location.x
     }
+
     fn right_edge(&self) -> i32 {
         self.location.x + self.dimensions.x
     }
@@ -234,25 +229,6 @@ pub mod tests {
             .collect()
     }
 
-    type Pt = (i32, i32);
-    fn dist_to_box(p: Pt, c1: Pt, c2: Pt) -> i32 {
-        Location { y: p.0, x: p.1 }
-            .min_distance_to_box(Location { y: c1.0, x: c1.1 }, Location { y: c2.0, x: c2.1 })
-    }
-
-    #[test]
-    fn test_min_distance_to_box() {
-        assert_eq!(dist_to_box((0, 0), (1, 1), (2, 2)), 0);
-        assert_eq!(dist_to_box((1, 1), (1, 1), (2, 2)), -1);
-        assert_eq!(dist_to_box((0, 0), (2, 2), (3, 3)), 2);
-        assert_eq!(dist_to_box((1, 0), (2, 2), (3, 3)), 1);
-
-        // the point intersects with the right side of the box
-        assert_eq!(dist_to_box((0, 2), (1, 1), (2, 2)), 0);
-        assert_eq!(dist_to_box((1, 2), (1, 1), (2, 2)), 0);
-        assert_eq!(dist_to_box((2, 2), (1, 1), (2, 2)), 0);
-    }
-
     #[test]
     fn test_connected_components() {
         // check that diagonal is not connected, but adjacent is
@@ -275,5 +251,54 @@ pub mod tests {
         ];
         let cb = connected_components(lb.iter().cloned());
         assert!(cb.values().all(|v| *v == 0));
+    }
+
+    fn check_dist(r1: Rectangle, r2: Rectangle, expected: i32) {
+        let actual1 = r1.collision_distance(&r2);
+        let actual2 = r2.collision_distance(&r1);
+
+        assert_eq!(actual1, actual2);
+        assert_eq!(actual1, expected);
+    }
+
+    #[test]
+    fn test_rectangle_distance() {
+        // simple test
+        // a.b
+        check_dist(
+            Rectangle::new((0, 0), (1, 1)),
+            Rectangle::new((2, 0), (1, 1)),
+            1,
+        );
+
+        // diagonals should still collide
+        // a.
+        // .b
+        check_dist(
+            Rectangle::new((0, 0), (1, 1)),
+            Rectangle::new((1, 1), (1, 1)),
+            0,
+        );
+
+        // larger things
+        // ....aa....
+        // ....aa....
+        // ..........
+        // ..........
+        // ...bbbb...
+        check_dist(
+            Rectangle::new((0, 4), (2, 2)),
+            Rectangle::new((4, 3), (1, 4)),
+            2,
+        );
+
+        // overlap
+        // ....aa....
+        // ....aXbb..
+        check_dist(
+            Rectangle::new((0, 4), (2, 2)),
+            Rectangle::new((1, 5), (1, 3)),
+            -1,
+        );
     }
 }
