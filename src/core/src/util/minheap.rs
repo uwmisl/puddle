@@ -17,6 +17,14 @@ impl<K: Ord, T: Eq> MinHeap<K, T> {
         }
     }
 
+    pub fn len(&self) -> usize {
+        self.heap.len()
+    }
+
+    pub fn timestamp(&self) -> u32 {
+        self.timestamp
+    }
+
     pub fn push(&mut self, cost: K, elem: T) {
         let x = MinHeapElem {
             cost: cost,

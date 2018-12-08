@@ -8,6 +8,9 @@ authors = ["Max Willsey <me@mwillsey.com>"]
 pi = []
 vision = []
 
+[profile.release]
+debug = true
+
 [[bin]]
 name = "puddle-server"
 
@@ -51,6 +54,9 @@ ncollide2d = "0.16"
 
 matches = "0.1"
 petgraph = "0.4"
+
+# faster hashtables
+hashbrown = "0.1"
 
 [dev-dependencies]
 glob = "^0.2"

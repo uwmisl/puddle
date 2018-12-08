@@ -219,6 +219,9 @@ pub mod tests {
     }
 
     pub fn parse_gridview(strs: &[&str]) -> GridView {
+        // this commonly used function will start logging
+        let _ = env_logger::try_init();
+
         // same chars are guaranteed to have the same ids
 
         let (grid, blobs) = parse_strings(&strs);

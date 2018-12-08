@@ -1,9 +1,11 @@
-use std::collections::{hash_map::Entry, HashMap, HashSet};
 use std::time::Instant;
 
-use grid::{grid::NEIGHBORS_5, Droplet, DropletId, Grid, GridView, Location, Rectangle};
+use hashbrown::{
+    hash_map::{Entry, HashMap},
+    HashSet,
+};
 
-use util::collections::{Map, Set};
+use grid::{grid::NEIGHBORS_5, Droplet, DropletId, Grid, GridView, Location, Rectangle};
 use util::minheap::MinHeap;
 
 pub type Path = Vec<Location>;
@@ -47,10 +49,7 @@ impl Agent {
     }
 
     fn rectangle(&self) -> Rectangle {
-        Rectangle {
-            location: self.location,
-            dimensions: self.dimensions,
-        }
+        Rectangle::new(self.location, self.dimensions)
     }
 }
 
@@ -71,13 +70,15 @@ struct Cost {
 }
 
 type EdgeCost = u32;
+const STAY_COST: EdgeCost = 1;
+const MOVE_COST: EdgeCost = 2;
 
-fn step_cost(loc: &Location) -> u32 {
+fn step_cost(loc: &Location) -> EdgeCost {
     let sit_still = Location { y: 0, x: 0 };
     if loc == &sit_still {
-        0
+        STAY_COST
     } else {
-        1
+        MOVE_COST
     }
 }
 
@@ -96,10 +97,7 @@ impl Node {
         assert_eq!(other.time, 0);
         let mut agents = self.agents.clone();
         agents.extend(other.agents.clone());
-        Node {
-            agents,
-            time: 0,
-        }
+        Node { agents, time: 0 }
     }
 
     fn new_cost(&self, cost_so_far: u32) -> Cost {
@@ -112,7 +110,8 @@ impl Node {
     }
 
     fn heuristic(&self) -> u32 {
-        self.agents.iter().map(|d| d.heuristic()).sum()
+        let n_steps: u32 = self.agents.iter().map(|d| d.heuristic()).sum();
+        MOVE_COST * n_steps
     }
 
     fn is_done(&self) -> bool {
@@ -128,8 +127,19 @@ impl Node {
                 }
             }
         }
-// make droplets for now so we can use the collision_distance function
-        // let droplets = self.agents.iter().map(|a| )
+
+        let mut iter = self.agents.iter();
+        while let Some(a1) = iter.next() {
+            for a2 in iter.clone() {
+                let dist = a1.rectangle().collision_distance(&a2.rectangle());
+                // collision distance is the number of spaces between, so
+                // anything above 0 is good
+                if dist <= 0 {
+                    return false;
+                }
+            }
+        }
+
         true
     }
 
@@ -204,7 +214,39 @@ impl<'a> RoutingContext<'a> {
     // }
 }
 
+fn path_nth(path: &[Location], i: usize) -> Location {
+    *path.get(i).unwrap_or_else(|| path.last().unwrap())
+}
+
+type PathMap = HashMap<Agent, Vec<Location>>;
+
+fn find_collisions(paths: &PathMap) -> Vec<(&Agent, &Agent, usize)> {
+    let mut collisions = Vec::new();
+
+    let max_length = paths.values().map(|p| p.len()).max().unwrap();
+
+    for i in 0..max_length {
+        let mut iter = paths.iter();
+        while let Some((a1, p1)) = iter.next() {
+            let p1 = p1.as_ref();
+            let loc1 = path_nth(p1, i);
+            let rect1 = Rectangle::new(loc1, a1.dimensions);
+            for (a2, p2) in iter.clone() {
+                let p2 = p2.as_ref();
+                let loc2 = path_nth(p2, i);
+                let rect2 = Rectangle::new(loc2, a2.dimensions);
+                if rect1.collision_distance(&rect2) <= 0 {
+                    collisions.push((a1, a2, i))
+                }
+            }
+        }
+    }
+
+    collisions
+}
+
 impl<'a> RoutingContext<'a> {
+    // FIXME this is not deterministic!
     fn route_one(&mut self, initial: &Node, max_time: u32) -> Option<Vec<Path>> {
         let start_time = Instant::now();
 
@@ -221,10 +263,30 @@ impl<'a> RoutingContext<'a> {
         best_so_far.insert(initial.clone(), 0);
 
         let result = loop {
-            let node = match todo.pop() {
-                Some((_, node)) => node,
+            let (popped_cost, node) = match todo.pop() {
+                Some(cn) => cn,
                 _ => break None,
             };
+
+            // node must be in best_so_far because it was inserted when we put
+            // it in the minheap
+            let node_cost_so_far: u32 = best_so_far[&node];
+
+            trace!(
+                "Popped: time={} best_cost_so_far={} h={} cost={:?} agents:{}",
+                node.time,
+                node_cost_so_far,
+                node.heuristic(),
+                popped_cost,
+                {
+                    // print each agent on a new line
+                    let mut s = String::new();
+                    for a in &node.agents {
+                        s.extend(format!("\n  {:?}", a).chars())
+                    }
+                    s
+                }
+            );
 
             n_explored += 1;
 
@@ -238,17 +300,22 @@ impl<'a> RoutingContext<'a> {
                 continue;
             }
 
-            // node must be in best_so_far because it was inserted when we put
-            // it in the minheap
-            let node_cost_so_far: u32 = best_so_far[&node];
-
             assert_eq!(next_nodes.len(), 0);
             node.open(self, &mut next_nodes);
 
             for (edge_cost, next) in next_nodes.drain(..) {
+                debug_assert!(next.is_valid(self));
+
                 if done.contains(&next) {
                     continue;
                 }
+
+                trace!(
+                    "  Pushed: time={} edge_cost={} h={}",
+                    next.time,
+                    edge_cost,
+                    next.heuristic(),
+                );
 
                 let mut next_cost = node_cost_so_far + edge_cost;
 
@@ -268,7 +335,7 @@ impl<'a> RoutingContext<'a> {
                     }
                 };
 
-                let new_cost = node.new_cost(next_cost);
+                let new_cost = next.new_cost(next_cost);
                 todo.push(new_cost, next)
             }
         };
@@ -280,11 +347,13 @@ impl<'a> RoutingContext<'a> {
         //     dst = destination
         // );
         let duration = start_time.elapsed();
-        trace!(
-            "I saw {} nodes in {}.{:03} sec",
-            n_explored,
+        debug!(
+            "Routing took {}.{:06} sec. Nodes: {} + {} = {} (explored + unseen = total)",
             duration.as_secs(),
-            duration.subsec_nanos() / 1_000_000
+            duration.subsec_micros(),
+            n_explored,
+            todo.len(),
+            todo.timestamp(),
         );
 
         result
@@ -373,7 +442,7 @@ mod tests {
     fn test_routes(
         gv_start: &GridView,
         gv_end: &GridView,
-        max_time: u32,
+        expected_time: u32,
         expected_routes: &ExpectedRoutes,
     ) {
         let req = mk_route_request(&gv_start, &gv_end);
@@ -384,11 +453,18 @@ mod tests {
 
         let node = Node::singleton(req.agents[0].clone());
 
-        let route = ctx.route_one(&node, max_time).unwrap();
+        let route = ctx.route_one(&node, expected_time).unwrap();
         println!("{:#?}", route);
+
+        let agent_paths: PathMap = req.agents.iter().cloned().zip(route.clone()).collect();
+        let collisions = find_collisions(&agent_paths);
+        assert_eq!(collisions, vec![]);
 
         let actual = draw_path(&route[0], 'a', &gv_start);
         let expected = expected_routes[&'a'];
+
+        let max_length = route.iter().map(|p| p.len()).max().unwrap();
+        assert_eq!(max_length as u32 - 1, expected_time);
 
         if actual != expected {
             panic!(
@@ -403,32 +479,31 @@ mod tests {
         #[rustfmt::skip]
         let gv0 = parse_gridview(&[
             "a..",
-            "  .",
-            "  .",
+            ". .",
+            "...",
         ]);
 
         #[rustfmt::skip]
         let gv1 = parse_gridview(&[
             "...",
-            "  .",
-            "  a",
+            ". .",
+            "..a",
         ]);
 
         let mut expected = ExpectedRoutes::new();
         #[rustfmt::skip]
         expected.insert('a', &[
-            "Aaa",
-            "  a",
-            "  a",
+            "A..",
+            "a .",
+            "aaa",
         ]);
 
-        // TODO 7 shouldn't work
         test_routes(&gv0, &gv1, 4, &expected);
     }
 
     #[test]
     #[should_panic]
-    fn test_simple_route_fail() {
+    fn test_impossible_route_fail() {
         let gv0 = parse_gridview(&["a.. ..."]);
         let gv1 = parse_gridview(&["... ..a"]);
         let mut expected = ExpectedRoutes::new();
@@ -437,43 +512,83 @@ mod tests {
     }
 
     #[test]
-    fn test_cooperative_route() {
+    #[should_panic]
+    fn test_big_droplet_route_fail() {
+        let gv0 = parse_gridview(&[
+            "aa..........................",
+            "aa..............     .......",
+        ]);
+        let gv1 = parse_gridview(&[
+            ".........................aa.",
+            "................     ....aa.",
+        ]);
+        let mut expected = ExpectedRoutes::new();
+        expected.insert('a', &[""]);
+        test_routes(&gv0, &gv1, 100, &expected);
+    }
+
+    #[test]
+    fn test_easy_cooperative_route() {
         #[rustfmt::skip]
         let gv0 = parse_gridview(&[
-            "a.....b",
-            "   .   ",
-            "   .   "]
+            "a...b",
+            "  .  ",
+            "  .  "]
         );
         #[rustfmt::skip]
         let gv1 = parse_gridview(&[
-            "b.....a",
-            "   .   ",
-            "   .   "]
+            "b...a",
+            "  .  ",
+            "  .  "]
         );
 
         let req = mk_route_request(&gv0, &gv1);
 
-        let mut ctx = RoutingContext {
-            gridview: &gv0,
-        };
+        let mut ctx = RoutingContext { gridview: &gv0 };
 
         let node0 = Node::singleton(req.agents[0].clone());
         let node1 = Node::singleton(req.agents[1].clone());
         let node = node0.merge(&node1);
 
-        let route = ctx.route_one(&node, 100).unwrap();
+        let expected_time = 10;
+        let route = ctx.route_one(&node, expected_time).unwrap();
         println!("{:#?}", route);
 
-        // let actual = draw_path(&route[0], 'a', &gv0);
-        // if actual != expected {
-        //     panic!(
-        //         "Route check failed\nExpected: {:#?}\nActual: {:#?}",
-        //         expected, actual
-        //     )
-        // }
-        // let mut expected = ExpectedRoutes::new();
-        // expected.insert('a', &[""]);
-        // test_routes(&gv0, &gv1, 100, &expected);
+        let max_length = route.iter().map(|p| p.len()).max().unwrap();
+        assert_eq!(max_length as u32 - 1, expected_time);
+    }
 
+    #[test]
+    #[ignore("can only be run with release profile")]
+    fn test_hard_cooperative_route() {
+        #[rustfmt::skip]
+        let gv0 = parse_gridview(&[
+            "a.....b",
+            "    .  ",
+            "c.....d"]
+        );
+        #[rustfmt::skip]
+        let gv1 = parse_gridview(&[
+            "d.....c",
+            "    .  ",
+            "b.....a"]
+        );
+
+        let req = mk_route_request(&gv0, &gv1);
+
+        let mut ctx = RoutingContext { gridview: &gv0 };
+
+        let node0 = Node::singleton(req.agents[0].clone());
+        let node1 = Node::singleton(req.agents[1].clone());
+        let node2 = Node::singleton(req.agents[2].clone());
+        let node3 = Node::singleton(req.agents[3].clone());
+        let node = node0.merge(&node1).merge(&node2).merge(&node3);
+
+        let expected_time = 21;
+        let route = ctx.route_one(&node, expected_time).unwrap();
+        println!("{:#?}", route);
+
+        let max_length = route.iter().map(|p| p.len()).max().unwrap();
+        assert_eq!(max_length as u32 - 1, expected_time);
     }
 }

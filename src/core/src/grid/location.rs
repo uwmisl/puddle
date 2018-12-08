@@ -167,7 +167,6 @@ fn signed_min(a: i32, b: i32) -> i32 {
     } else {
         -i32::min(a.abs(), b.abs())
     };
-    trace!("signed min({}, {}) = {}", a, b, res);
     res
 }
 

@@ -40,6 +40,8 @@ extern crate matches;
 
 extern crate petgraph;
 
+extern crate hashbrown;
+
 // these need to be pub until we have an api
 mod command;
 mod exec;

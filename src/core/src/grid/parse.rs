@@ -88,14 +88,14 @@ pub mod tests {
     use serde_json as sj;
 
     use grid::{droplet::SimpleBlob, Grid, Location};
-    use std::collections::{HashMap, HashSet};
+    use std::collections::{BTreeMap, BTreeSet};
     use std::env;
 
-    pub fn parse_strings(rows: &[&str]) -> (Grid, HashMap<char, SimpleBlob>) {
+    pub fn parse_strings(rows: &[&str]) -> (Grid, BTreeMap<char, SimpleBlob>) {
         use grid::location::tests::connected_components;
 
-        let mut droplet_map = HashMap::new();
-        let mut cell_locs = HashSet::new();
+        let mut droplet_map = BTreeMap::new();
+        let mut cell_locs = BTreeSet::new();
 
         for (i, row) in rows.iter().enumerate() {
             for (j, ch) in row.chars().enumerate() {
@@ -121,7 +121,7 @@ pub mod tests {
             }
         }
 
-        let blob_map: HashMap<_, _> = droplet_map
+        let blob_map: BTreeMap<_, _> = droplet_map
             .iter()
             .map(|(&ch, locs)| {
                 // make sure it only has one connected component
