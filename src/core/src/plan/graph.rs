@@ -2,10 +2,10 @@ use std::collections::HashMap;
 
 use petgraph::prelude::*;
 
-use util::find_duplicate;
+use crate::util::find_duplicate;
 
-use command::BoxedCommand;
-use grid::DropletId;
+use crate::command::BoxedCommand;
+use crate::grid::DropletId;
 
 type NodeData = Option<BoxedCommand>;
 type EdgeData = DropletId;
@@ -114,7 +114,7 @@ impl Graph {
 mod tests {
 
     use super::*;
-    use command::{tests::Dummy, BoxedCommand};
+    use crate::command::{tests::Dummy, BoxedCommand};
 
     fn input(id: usize) -> BoxedCommand {
         Dummy::new(&[], &[id]).boxed()

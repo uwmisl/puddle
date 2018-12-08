@@ -57,10 +57,10 @@ pub mod vision;
 #[cfg(feature = "pi")]
 pub mod pi;
 
-pub use exec::Executor;
-pub use grid::parse;
-pub use grid::{Blob, DropletId, DropletInfo, Grid, Location};
-pub use process::*;
+pub use crate::exec::Executor;
+pub use crate::grid::parse;
+pub use crate::grid::{Blob, DropletId, DropletInfo, Grid, Location};
+pub use crate::process::*;
 
 #[cfg(test)]
 mod tests {

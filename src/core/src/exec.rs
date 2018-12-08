@@ -1,10 +1,10 @@
-use command::RunStatus;
-use grid::{DropletId, Grid, GridView};
-use plan::{
+use crate::command::RunStatus;
+use crate::grid::{DropletId, Grid, GridView};
+use crate::plan::{
     graph::{CmdIndex, Graph},
     Path, PlanPhase, PlannedCommand,
 };
-use util::collections::Map;
+use crate::util::collections::Map;
 
 pub struct Executor {
     pub gridview: GridView,

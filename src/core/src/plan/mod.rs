@@ -12,8 +12,8 @@ use self::sched::{SchedRequest, Scheduler};
 
 pub use self::route::Path;
 
-use grid::{droplet::DropletId, GridView};
-use util::collections::Map;
+use crate::grid::{droplet::DropletId, GridView};
+use crate::util::collections::Map;
 
 #[derive(Debug)]
 pub enum PlanError {
@@ -159,11 +159,11 @@ impl Planner {
 mod tests {
     use env_logger;
     use std::fs::File;
-    use tests::project_path;
+    use crate::tests::project_path;
 
     use super::*;
 
-    use grid::Grid;
+    use crate::grid::Grid;
 
     fn mk_gv(path: &str) -> GridView {
         let _ = env_logger::try_init();

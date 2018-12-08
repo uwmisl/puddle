@@ -1,12 +1,12 @@
 use std::collections::HashSet;
 use std::time::Instant;
 
-use grid::{Droplet, DropletId, Grid, GridView, Location};
+use crate::grid::{Droplet, DropletId, Grid, GridView, Location};
 
-use util::collections::Entry::*;
-use util::collections::{Map, Set};
-use util::minheap::MinHeap;
-use util::mk_rng;
+use crate::util::collections::Entry::*;
+use crate::util::collections::{Map, Set};
+use crate::util::minheap::MinHeap;
+use crate::util::mk_rng;
 
 use rand::Rng;
 

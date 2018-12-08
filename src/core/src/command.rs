@@ -2,17 +2,17 @@ use std::fmt;
 use std::sync::mpsc::Sender;
 use std::time::Duration;
 
-use plan::PlanError;
+use crate::plan::PlanError;
 
 #[cfg(feature = "pi")]
 use pi::RaspberryPi;
 
-use grid::{
+use crate::grid::{
     gridview::{GridSubView, GridView},
     Blob, Droplet, DropletId, DropletInfo, Grid, Location, Peripheral, SimpleBlob,
 };
 
-use process::{ProcessId, PuddleResult};
+use crate::process::{ProcessId, PuddleResult};
 
 #[derive(Debug)]
 pub struct CommandRequest {
@@ -44,14 +44,14 @@ pub trait Command: fmt::Debug + Send {
     // FIXME this is definitely a hack for combining droplets
     // run before the final routing tick that
     // this better not tick!!!
-    fn pre_run(&self, &mut GridSubView) {}
+    fn pre_run(&self, _: &mut GridSubView) {}
 
-    fn run(&mut self, &mut GridSubView) -> RunStatus;
+    fn run(&mut self, _: &mut GridSubView) -> RunStatus;
 
     #[cfg(not(feature = "pi"))]
-    fn finalize(&mut self, &GridSubView) {}
+    fn finalize(&mut self, _: &GridSubView) {}
     #[cfg(feature = "pi")]
-    fn finalize(&mut self, &Snapshot, Option<&mut RaspberryPi>) {}
+    fn finalize(&mut self, _: &Snapshot, _: Option<&mut RaspberryPi>) {}
 
     fn abort(&mut self, err: PlanError) {
         error!("Aborting command {:?} with {:#?}", self, err);

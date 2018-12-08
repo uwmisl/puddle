@@ -3,15 +3,15 @@ use std::sync::atomic::Ordering::Relaxed;
 use std::sync::mpsc::channel;
 use std::sync::{Arc, Mutex};
 
-use util::seconds_duration;
+use crate::util::seconds_duration;
 
-use grid::{DropletId, DropletInfo, Location};
-use system::System;
+use crate::grid::{DropletId, DropletInfo, Location};
+use crate::system::System;
 
-use command;
-use command::BoxedCommand;
+use crate::command;
+use crate::command::BoxedCommand;
 
-use plan::PlanError;
+use crate::plan::PlanError;
 
 #[derive(Debug)]
 pub enum PuddleError {
@@ -20,7 +20,7 @@ pub enum PuddleError {
     NonExistentProcess(ProcessId),
 }
 
-use PuddleError::*;
+use crate::PuddleError::*;
 
 pub type PuddleResult<T> = Result<T, PuddleError>;
 

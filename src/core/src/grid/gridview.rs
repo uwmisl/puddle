@@ -1,7 +1,7 @@
-use grid::{Droplet, DropletId, DropletInfo, Electrode, Grid, Location};
-use plan::place::Placement;
-use process::ProcessId;
-use util::collections::{Map, Set};
+use crate::grid::{Droplet, DropletId, DropletInfo, Electrode, Grid, Location};
+use crate::plan::place::Placement;
+use crate::process::ProcessId;
+use crate::util::collections::{Map, Set};
 
 #[derive(Default, Clone)]
 pub struct GridView {
@@ -197,8 +197,8 @@ impl<'a> GridSubView<'a> {
 #[cfg(test)]
 pub mod tests {
     use super::*;
-    use grid::droplet::Blob;
-    use grid::parse::tests::parse_strings;
+    use crate::grid::droplet::Blob;
+    use crate::grid::parse::tests::parse_strings;
 
     pub fn id2c(id: &DropletId) -> char {
         assert!(id.id < 255);

@@ -1,6 +1,6 @@
-use util::collections::Map;
+use crate::util::collections::Map;
 
-use grid::grid::*;
+use crate::grid::grid::*;
 
 #[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Mark {
@@ -80,19 +80,19 @@ impl ParsedGrid {
 pub mod tests {
 
     use super::*;
-    use tests::project_path;
+    use crate::tests::project_path;
 
     use glob::glob;
     use std::fs::File;
 
     use serde_json as sj;
 
-    use grid::{droplet::SimpleBlob, Grid, Location};
+    use crate::grid::{droplet::SimpleBlob, Grid, Location};
     use std::collections::{BTreeMap, BTreeSet};
     use std::env;
 
     pub fn parse_strings(rows: &[&str]) -> (Grid, BTreeMap<char, SimpleBlob>) {
-        use grid::location::tests::connected_components;
+        use crate::grid::location::tests::connected_components;
 
         let mut droplet_map = BTreeMap::new();
         let mut cell_locs = BTreeSet::new();

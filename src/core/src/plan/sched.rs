@@ -6,9 +6,9 @@ use petgraph::{
     visit::{IntoEdgeReferences, IntoNeighbors, Reversed},
 };
 
-use grid::DropletId;
-use plan::graph::{CmdIndex, Graph};
-use util::collections::Map;
+use crate::grid::DropletId;
+use crate::plan::graph::{CmdIndex, Graph};
+use crate::util::collections::Map;
 
 type Schedule = usize;
 
@@ -202,7 +202,7 @@ fn critical_paths(graph: &Graph) -> Map<CmdIndex, usize> {
 mod tests {
 
     use super::*;
-    use command::{tests::Dummy, BoxedCommand};
+    use crate::command::{tests::Dummy, BoxedCommand};
 
     fn input(id: usize) -> BoxedCommand {
         Dummy::new(&[], &[id]).boxed()

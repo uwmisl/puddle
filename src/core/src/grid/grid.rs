@@ -5,9 +5,9 @@ use std::collections::HashSet;
 use std::io::Read;
 
 use super::Location;
-use util::collections::Map;
+use crate::util::collections::Map;
 
-use grid::parse::{Mark, ParsedElectrode, ParsedGrid};
+use crate::grid::parse::{Mark, ParsedElectrode, ParsedGrid};
 
 #[derive(Debug, PartialEq, Eq, Hash, Serialize, Deserialize, Clone)]
 pub struct Electrode {
@@ -250,7 +250,7 @@ impl Grid {
 #[cfg(test)]
 impl Grid {
     pub fn is_connected(&self) -> bool {
-        use grid::location::tests::connected_components;
+        use crate::grid::location::tests::connected_components;
         let locs = self.locations().map(|(loc, _cell)| loc);
         let label_map = connected_components(locs);
         label_map.values().all(|v| *v == 0)

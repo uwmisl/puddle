@@ -5,8 +5,8 @@ use hashbrown::{
     HashSet,
 };
 
-use grid::{grid::NEIGHBORS_5, Droplet, DropletId, Grid, GridView, Location, Rectangle};
-use util::minheap::MinHeap;
+use crate::grid::{grid::NEIGHBORS_5, Droplet, DropletId, Grid, GridView, Location, Rectangle};
+use crate::util::minheap::MinHeap;
 
 pub type Path = Vec<Location>;
 
@@ -383,7 +383,7 @@ fn build_path(mut came_from: HashMap<Node, Node>, end_node: Node) -> Vec<Path> {
 mod tests {
 
     use super::*;
-    use grid::gridview::tests::{c2id, parse_gridview};
+    use crate::grid::gridview::tests::{c2id, parse_gridview};
 
     fn draw_path(path: &[Location], ch: char, gridview: &GridView) -> Vec<String> {
         let strs = gridview.grid.to_strs();

@@ -1,8 +1,8 @@
 use std::collections::HashSet;
 
-use command::CommandRequest;
-use grid::{DropletId, Grid, GridView, Location};
-use util::collections::Map;
+use crate::command::CommandRequest;
+use crate::grid::{DropletId, Grid, GridView, Location};
+use crate::util::collections::Map;
 
 #[derive(Debug, Clone)]
 pub struct Placement {
@@ -184,7 +184,7 @@ fn is_compatible(
 mod tests {
 
     use super::*;
-    use grid::Peripheral;
+    use crate::grid::Peripheral;
 
     #[test]
     fn grid_self_compatible() {

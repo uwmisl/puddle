@@ -1,10 +1,10 @@
-use command::BoxedCommand;
-use exec::Executor;
-use grid::{DropletId, Grid, GridView};
-use PuddleResult;
+use crate::command::BoxedCommand;
+use crate::exec::Executor;
+use crate::grid::{DropletId, Grid, GridView};
+use crate::PuddleResult;
 
-use plan::graph::Graph;
-use plan::{sched::SchedError, PlanError, Planner};
+use crate::plan::graph::Graph;
+use crate::plan::{sched::SchedError, PlanError, Planner};
 use std::sync::{Arc, Mutex};
 
 pub struct System {

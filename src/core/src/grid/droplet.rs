@@ -4,7 +4,7 @@ use std::sync::atomic::AtomicUsize;
 use std::sync::atomic::Ordering::Relaxed;
 
 use super::{Location, Rectangle};
-use process::ProcessId;
+use crate::process::ProcessId;
 
 static NEXT_COLLISION_GROUP: AtomicUsize = AtomicUsize::new(0);
 
