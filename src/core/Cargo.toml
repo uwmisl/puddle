@@ -12,8 +12,9 @@ vision = []
 [profile.release]
 debug = true
 
-[[bin]]
-name = "puddle-server"
+# FIXME put this back
+# [[bin]]
+# name = "puddle-server"
 
 [[bin]]
 name = "pi-test"
