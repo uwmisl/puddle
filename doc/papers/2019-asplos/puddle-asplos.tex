@@ -1,6 +1,13 @@
-\documentclass{jpaper}
-%replace XXX with the submission number you are given from the ASPLOS submission site.
-\newcommand{\asplossubmissionnumber}{147}
+\documentclass[sigconf, screen]{acmart}
+
+\citestyle{acmnumeric}
+\acmConference[ASPLOS '19]{
+  The 24th ACM International Conference on Architectural Support for Programming Languages and Operating Systems
+}{
+  April 13--17, 2019
+}{
+  Providence, RI, USA
+}
 
 \usepackage{caption}
 \usepackage{subcaption}
@@ -38,11 +45,6 @@
   >={Latex[width=1.5mm,length=1.5mm]},
 }
 
-% % choose pretty fonts
-% \usepackage{mathpazo} % palatino rm and math
-% \usepackage[scaled]{helvet} % sf
-% \usepackage{sourcecodepro} % tt
-
 \setlength{\marginparwidth}{1.5cm}
 \usepackage[
   disable,
@@ -71,13 +73,6 @@
 \def\subsectionautorefname{Section}
 \def\subsubsectionautorefname{Section}
 
-\usepackage[
-	backend=biber,
-  maxbibnames=10000,
-  sortcites=true,
-]{biblatex}
-\bibliography{references}
-
 % define purple drop colors
 \definecolor{pd_purple}{RGB}{90,65,130}
 \definecolor{pd_gold}{RGB}{250,230,70}
@@ -86,29 +81,33 @@
 \def\puddleurl{http://misl.cs.washington.edu/projects/puddle.html}
 
 \title{\mytitle}
-\author{
-  Max Willsey$^1$ \hspace{1em}
-  Ashley P. Stephenson$^1$  \hspace{1em}
-  Chris Takahashi$^1$  \hspace{1em}
-  Pranav Vaid$^1$
-  \\
-  Bichlien H. Nguyen$^2$  \hspace{1em}
-  Michal Piszczek$^1$  \hspace{1em}
-  Christine Betts$^1$
-  \\
-  Sharon Newman$^3$  \hspace{1em}
-  Sarang Joshi$^1$ \hspace{1em}
-  Karin Strauss$^{1,2}$  \hspace{1em}
-  Luis Ceze$^1$
-}
-\date{
-  \normalsize
-  $^1$University of Washington
-  \hspace{2em}
-  $^2$Microsoft
-  \hspace{2em}
-  $^3$Stanford
-}
+\subtitle{Preprint draft, last edited \today}
+
+\author{Max Willsey}
+\orcid{0000-0001-8066-4218}
+\affiliation{University of Washington}
+\email{mwillsey@cs.washington.edu}
+\author{Ashley P. Stephenson}
+\affiliation{University of Washington}
+\author{Chris Takahashi}
+\affiliation{University of Washington}
+\author{Pranav Vaid}
+\affiliation{University of Washington}
+\author{Bichlien H. Nguyen}
+\affiliation{Microsoft}
+\author{Michal Piszczek}
+\affiliation{University of Washington}
+\author{Christine Betts}
+\affiliation{University of Washington}
+\author{Sharon Newman}
+\affiliation{Stanford University}
+\author{Sarang Joshi}
+\affiliation{University of Washington}
+\author{Karin Strauss}
+\affiliation{Microsoft \\ University of Washington}
+\author{Luis Ceze}
+\affiliation{University of Washington}
+
 
 \hypersetup{
   pdftitle = {\mytitle},
@@ -129,8 +128,6 @@
 
 \begin{document}
 
-\maketitle
-
 \begin{abstract}
 
   % These barriers will prevent the development of complex heterogeneous systems that combine computation and microfluidics to enable new applications.
@@ -148,6 +145,8 @@
   These protocols demonstrate high-level programs that combine computational and fluidic operations such as input/output of reagents, heating of samples, and data analysis.
   We also evaluate the impact of automatic error correction on our system's reliability.
 \end{abstract}
+
+\maketitle
 
 \section{Introduction}
 
@@ -1367,5 +1366,7 @@ With further advances in DMF hardware, a larger DMF system combined with Puddle 
 % jared
 % philip
 
-\printbibliography
+\bibliographystyle{ACM-Reference-Format}
+\bibliography{references}
+
 \end{document}
