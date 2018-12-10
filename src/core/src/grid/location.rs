@@ -109,6 +109,7 @@ impl FromStr for Location {
     }
 }
 
+#[derive(Clone)]
 pub struct Rectangle {
     pub location: Location,
     pub dimensions: Location,
