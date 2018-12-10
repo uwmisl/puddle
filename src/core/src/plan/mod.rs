@@ -2,7 +2,6 @@
 pub mod graph;
 pub mod place;
 mod route;
-mod route2;
 pub mod sched;
 
 use self::graph::{CmdIndex, Graph};
@@ -96,13 +95,14 @@ impl Planner {
         };
 
         let route_resp = {
-            let mut droplets: Vec<_> = sched_resp
+            let mut agents: Vec<_> = sched_resp
                 .droplets_to_store
                 .iter()
                 .zip(place_resp.stored_droplets)
-                .map(|(&id, loc)| self::route::DropletRouteRequest {
+                .map(|(&id, loc)| self::route::Agent {
                     id,
-                    location: self.gridview.droplets[&id].location,
+                    source: self.gridview.droplets[&id].location,
+                    dimensions: self.gridview.droplets[&id].dimensions,
                     destination: loc,
                 }).collect();
 
@@ -117,18 +117,19 @@ impl Planner {
                 let in_ids = cmd.input_droplets();
                 let ins = in_ids.iter().zip(req.input_locations);
                 for (&droplet_id, location) in ins {
-                    droplets.push(self::route::DropletRouteRequest {
+                    agents.push(self::route::Agent {
                         id: droplet_id,
-                        location: self.gridview.droplets[&droplet_id].location,
+                        source: self.gridview.droplets[&droplet_id].location,
+                        dimensions: self.gridview.droplets[&droplet_id].dimensions,
                         destination: placement.mapping[&location],
                     });
                 }
             }
 
             let req = RoutingRequest {
+                agents,
                 gridview: &self.gridview,
                 blockages: vec![],
-                droplets: droplets,
             };
             // debug!("{:?}", req);
             let resp = self.router.route(&req).map_err(PlanError::RouteError)?;
