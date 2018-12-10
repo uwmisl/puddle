@@ -23,12 +23,15 @@
 }
 \lstset{
   style=puddle,
+  columns=flexible,
   showstringspaces=false,
   numbers=left,
   xleftmargin=2em,
   numberstyle=\tiny,
   escapechar=|,
 }
+% hide the underlines in codeinline code
+\def\codeinline{\lstinline[emphstyle=]}
 
 \usepackage{tikz}
 \usetikzlibrary{
@@ -108,7 +111,6 @@
 \author{Luis Ceze}
 \affiliation{University of Washington}
 
-
 \hypersetup{
   pdftitle = {\mytitle},
   pdfauthor = {
@@ -147,6 +149,9 @@
 \end{abstract}
 
 \maketitle
+
+% we can't fit everyone's names in the header
+\renewcommand\shortauthors{Willsey et. al.}
 
 \section{Introduction}
 
@@ -508,7 +513,7 @@ If a system can statically determine whether a protocol is feasible, it cannot s
 \begin{figure}
   \hfill
   \begin{minipage}{0.5\linewidth}
-    \begin{lstlisting}[numbers=none, xleftmargin=0mm]
+    \begin{lstlisting}[emphstyle=\underline, numbers=none, xleftmargin=0mm]
 a = input(substance_A)
 b = input(substance_B)
 ab = mix(a, b)
@@ -587,12 +592,14 @@ Python snippets shown throughout the paper will have calls into Puddle underline
 \begin{figure}
   \centering
   % \mw{check volumes here, make heat mutate}
-\begin{lstlisting}[deletekeywords={temperature}, basicstyle=\footnotesize\ttfamily]
+\begin{lstlisting}[emphstyle=\underline, deletekeywords={temperature}]
 # reduce is a functional fold over lists
 from functools import reduce
 
 def mix_n_heat(droplets):
-    vol_before = sum(d.volume for d in droplets)|\label{line:volume1}|
+    vol_before = sum(|\label{line:volume1}|
+        d.volume for d in droplets
+    )
     stuff = reduce(mix, droplets)
     stuff.heat(temp=90, seconds=60)
     if stuff.volume < vol_before: |\label{line:volume2}|
@@ -615,23 +622,23 @@ abc = mix_n_heat([a, b, c])
 
 Starting at line \ref{line:start}, the user inputs three samples.
 These inputs take the substance name and requested volume of the sample.
-The \lstinline{input}s return opaque handles to the new droplets called \emph{droplet id}s.
-The user then calls \lstinline{mix_n_heat} with the a list containing the three droplet ids as an argument.
-Note that \lstinline{mix_n_heat} is regular Python function and thus completely transparent to the Puddle system; it could be recursive, exported or imported from a library, or passed around as a first-class value.
+The \codeinline{input}s return opaque handles to the new droplets called \emph{droplet id}s.
+The user then calls \codeinline{mix_n_heat} with the a list containing the three droplet ids as an argument.
+Note that \codeinline{mix_n_heat} is regular Python function and thus completely transparent to the Puddle system; it could be recursive, exported or imported from a library, or passed around as a first-class value.
 
-Inside \lstinline{mix_n_heat}, the user calculates the expected volume of mixing all the droplets together by adding their individual volumes.
-The droplets are then all mixed together by reducing the list with \lstinline{mix}, resulting in a new droplet id \lstinline{stuff}.
-The call to \lstinline{heat} then mutates \lstinline{stuff}.
+Inside \codeinline{mix_n_heat}, the user calculates the expected volume of mixing all the droplets together by adding their individual volumes.
+The droplets are then all mixed together by reducing the list with \codeinline{mix}, resulting in a new droplet id \codeinline{stuff}.
+The call to \codeinline{heat} then mutates \codeinline{stuff}.
 The user then compares the droplet's new volume (which may have shrank due to evaporation) to the expected one, conditionally prints something, and then returns a handle to the mixed, heated droplet.
 
-The API calls to \lstinline{input}, \lstinline{mix}, and \lstinline{heat} were \emph{non-blocking}.
+The API calls to \codeinline{input}, \codeinline{mix}, and \codeinline{heat} were \emph{non-blocking}.
 They immediately returned new droplet ids without actually manifesting the droplets that those ids represent, which might take several seconds.
 All manipulations and actuations are non-blocking in Puddle, because the user has no way to inspect their progress except through other API calls.
 Non-blocking calls give the runtime system more flexibility in how to implement operations on the microfluidic device.
-For example, even though \lstinline{mix} is binary in the API, the runtime system can see that the user intends to mix many droplets together, which could lead to more efficient execution.
+For example, even though \codeinline{mix} is binary in the API, the runtime system can see that the user intends to mix many droplets together, which could lead to more efficient execution.
 
-In contrast, the accesses to \lstinline{volume} on lines \ref{line:volume1} and \ref{line:volume2} are blocking; they are also the only points at which something happens on the microfluidic device.
-The volume of a droplet is a dynamic property: it cannot (in general) be known statically, as precision errors in \lstinline{input} and actuations like \lstinline{heat} might change it.
+In contrast, the accesses to \codeinline{volume} on lines \ref{line:volume1} and \ref{line:volume2} are blocking; they are also the only points at which something happens on the microfluidic device.
+The volume of a droplet is a dynamic property: it cannot (in general) be known statically, as precision errors in \codeinline{input} and actuations like \codeinline{heat} might change it.
 These calls must block and wait for the system to produce the relevant droplets and take the sensor reading, because the return value is just a number which the user's program (which Puddle knows nothing about) can manipulate and branch on.
 \pavel{mention error correction here}
 
@@ -650,23 +657,23 @@ This opacity also allows Puddle to provide automatic error correction and proces
   % destroy($d$) \\
   \begin{minipage}[t]{.55\linewidth}
     {\bf Fluidic I/O} \\
-    \lstinline{input}(name, volume) $\to d$ \\
-    \lstinline{output}(name, $d$) \\
+    \codeinline{input}(name, volume) $\to d$ \\
+    \codeinline{output}(name, $d$) \\
 
     {\bf Sensing} \\
-    \lstinline{volume}($d$) $\to$ volume of $d$ \\
-    \lstinline{temperature}($d$) $\to$ temp.\ of $d$
+    \codeinline{volume}($d$) $\to$ volume of $d$ \\
+    \codeinline{temperature}($d$) $\to$ temp.\ of $d$
   \end{minipage}
   \begin{minipage}[t]{.42\linewidth}
     {\bf Fluidic Manipulation} \\
-    \lstinline{mix}($d_1$, $d_2$) $\to d$ \\
-    % \lstinline{combine_into}($d_1$, $d_2$) $\to d$ \\
-    \lstinline{split}($d$) $\to$ ($d_1$, $d_2$) \\
-    % \lstinline{move}($d$, location) $\to d'$ \\
-    \lstinline{heat}($d$, temp, time) $\to d'$ \\
+    \codeinline{mix}($d_1$, $d_2$) $\to d$ \\
+    % \codeinline{combine_into}($d_1$, $d_2$) $\to d$ \\
+    \codeinline{split}($d$) $\to$ ($d_1$, $d_2$) \\
+    % \codeinline{move}($d$, location) $\to d'$ \\
+    \codeinline{heat}($d$, temp, time) $\to d'$ \\
 
     {\bf Other} \\
-    \lstinline{flush}()
+    \codeinline{flush}()
   \end{minipage}
   \caption{
     The Puddle API.
@@ -682,18 +689,18 @@ The fluidic I/O calls are indexed by a name, which refers to an input pump based
 The fluidic manipulation functions are self-explanatory.
 Note that they are functional, consuming their droplet id arguments and returning new ones.
 The frontend, however, is free to wrap the API calls to provide an idiomatic interface:
-for example, \lstinline{heat} was used imperatively in \autoref{fig:code-mix-heat}.
+for example, \codeinline{heat} was used imperatively in \autoref{fig:code-mix-heat}.
 \pavel{call out to linearity earlier}
 
-% except for \lstinline{combine_into}, which is similar to \lstinline{mix} but guarantees that $d_1$ will not be moved until combined with $d_2$.
+% except for \codeinline{combine_into}, which is similar to \codeinline{mix} but guarantees that $d_1$ will not be moved until combined with $d_2$.
 % This is useful for ``rescuing'' droplets that have become too small to move\footnotemark; see \autoref{sec:thermocycle} for an extended example.
 % \footnotetext{On DMF devices, a droplet that is too small will be too far from its neighboring electrodes for the electrowetting force to move it.}
 
 The sensing API calls force the system to ``flush the queue'' by performing the operations necessary to make the input droplet.
-The \lstinline{volume} operation reads the volume using the camera (see \autoref{sec:vision}).
-The \lstinline{temperature} operation measures the temperature using an onboard sensor.
-The \lstinline{flush} operation allows the user to manually force all pending operations to complete, which is useful in interactive programming.
-In our Python frontend, \lstinline{volume} and \lstinline{temperature} are getters.
+The \codeinline{volume} operation reads the volume using the camera (see \autoref{sec:vision}).
+The \codeinline{temperature} operation measures the temperature using an onboard sensor.
+The \codeinline{flush} operation allows the user to manually force all pending operations to complete, which is useful in interactive programming.
+In our Python frontend, \codeinline{volume} and \codeinline{temperature} are getters.
 
 Users can easily extend the Puddle API with their own actuation and sensing primitives.
 The mechanism for allocating space on the device (\autoref{sec:planning-planning}) is sufficiently general to implement any primitive that the hardware might support.
@@ -704,23 +711,25 @@ API calls can fail instantaneously for two reasons: invalid arguments or using a
 These failures happen as soon as the API call is made and are recoverable; the error propagates back to the user (in the form of an exception in the Python frontend).
 Consider the following code snippets:
 
-\begin{minipage}{.4\linewidth}
-  \lstinline{input("water", 1e-10)}
-\end{minipage}
-\begin{minipage}{.4\linewidth}
+\begin{minipage}{.49\linewidth}
 \begin{lstlisting}[numbers=none]
-  ab = mix(a, b)
-  mix(ab, a)
+input("water", 1e-10)
+\end{lstlisting}
+\end{minipage}
+\begin{minipage}{.49\linewidth}
+\begin{lstlisting}[numbers=none]
+ab = mix(a, b)
+mix(ab, a)
 \end{lstlisting}
 \end{minipage}
 
-The left snippet demonstrates a bad argument by trying to \lstinline{input} too small a volume of fluid; the pumps do not have that level of precision.
-The right snippet reuses droplet id \lstinline{a} after it has been consumed on the first line.
+The left snippet demonstrates a bad argument by trying to \codeinline{input} too small a volume of fluid; the pumps do not have that level of precision.
+The right snippet reuses droplet id \codeinline{a} after it has been consumed on the first line.
 Droplets are physical resources that can only be consumed once.
 All API calls under ``I/O'' and ``manipulation'' consume their droplet arguments.
 It is the programmer's responsibility to not reuse droplets ids that have been consumed.
 % \karin{Is there a way to test dynamically if a droplet has been consumed or not? Also, if one wants to merge droplets in a loop, what does the droplet naming convention look like? Is the name reused within the loop inner scope?}
-An imperative interface (like \lstinline{heat} in \autoref{fig:code-mix-heat}) can help prevent this problem by changing the droplet id that the wrapper object refers to.
+An imperative interface (like \codeinline{heat} in \autoref{fig:code-mix-heat}) can help prevent this problem by changing the droplet id that the wrapper object refers to.
 The Rust frontend statically prevents droplet reuse through its ownership-based type system.
 
 Additionally, non-blocking API calls can fail after they successfully return.
@@ -734,7 +743,7 @@ In this case, unrecoverable hardware failure results in an exception from the la
 % A more subtle case occurs when a droplet leaves the safe volume range, perhaps due to evaporation from heating.
 % Droplets that are too small cannot move on DMF devices, so Puddle sends an exception back to the user.
 % This exception differs from those in the previous paragraph because it originates from a non-blocking call, so the user may have to handle it anywhere.
-% The \lstinline{flush} operation gives the user control over when execution occurs on the DMF device, so it provides a single point from which these exceptions can be handled.
+% The \codeinline{flush} operation gives the user control over when execution occurs on the DMF device, so it provides a single point from which these exceptions can be handled.
 % \autoref{sec:thermocycle} demonstrates an example of this kind of error handling.
 
 % Internally, these ids are associated with various physical properties of the droplets needed for routing: the location of the droplet, its dimensions, and its volume.
@@ -971,13 +980,13 @@ For simplicity, however, we store them in a queue and place and route them seria
 \label{sec:planning-planning}
 
 Each command makes an \emph{allocation request} for space on the microfluidic board.
-For example, \lstinline{mix} requests a rectangle slightly larger than the resulting combined droplet so it has space to move the droplet in a circle, agitating the mixture.
-The allocation request can also place constraints on the features of the space, e.g. \lstinline{heat} requests a space with a heater.
+For example, \codeinline{mix} requests a rectangle slightly larger than the resulting combined droplet so it has space to move the droplet in a circle, agitating the mixture.
+The allocation request can also place constraints on the features of the space, e.g. \codeinline{heat} requests a space with a heater.
 Our simple placement algorithm directly checks for the best of all possible ways to satisfy a location.
 This is linear in the size of the hardware, and the hardware is small, so practically we can still do this in real-time.
 
 The allocation request also specifies the (relative) desired locations of the input droplets.
-In the case of mixing two $1 \times 1$ droplets, \lstinline{mix} will request a $3 \times 2$ rectangle and ask that the input droplets start at coordinates $(0,0)$ and $(1,0)$.
+In the case of mixing two $1 \times 1$ droplets, \codeinline{mix} will request a $3 \times 2$ rectangle and ask that the input droplets start at coordinates $(0,0)$ and $(1,0)$.
 The adjacent droplets will combine, leaving a $2 \times 1$ droplet inside the $3 \times 2$ rectangle.
 After the allocation request is placed, the system routes the input droplets to their specified locations using a modified A* algorithm \cite{a-star, bohringer2006parallel}.
 Both placement and routing ensure that droplets stay at least 1 space apart to avoid collisions.
@@ -1000,7 +1009,7 @@ Simulation does, however, record when actuations occur, so execution can perform
 The record allows multiple commands to be planned ahead-of-time without executing any of them.
 Consider the following program snippet:
 
-\begin{lstlisting}[numbers=none, xleftmargin=15mm]
+\begin{lstlisting}[emphstyle=\underline, numbers=none, xleftmargin=15mm]
 for i in range(1000000):
     input("water", volume=3.0)
 \end{lstlisting}
@@ -1008,7 +1017,7 @@ for i in range(1000000):
 This program clearly cannot run on our microfluidic hardware; it requires more space than any DMF device available today.
 And since Puddle knows nothing about the program structure, it will begin to accept these operations as they are submitted.
 However, commands are planned with respect to the latest state in the record, i.e. commands are planned under the assumption that all previous commands execute exactly as planned.
-Eventually, one of the \lstinline{input}s in the above program will be infeasible, since the DMF device will be full of the previous droplets.
+Eventually, one of the \codeinline{input}s in the above program will be infeasible, since the DMF device will be full of the previous droplets.
 Puddle will reject the command as infeasible, returning an error to the user even though none of the commands have been executed yet.
 \philip{how much is simulated at one time?}
 
@@ -1093,7 +1102,6 @@ We then demonstrate Puddle's ability to write high-level programs and interface 
 
 \begin{table}
   \centering
-  \small
   \begin{tabular}{lr}
     \bf Image Segmentation Metrics \\
     Mean Precision & 0.9851 \\
@@ -1192,27 +1200,27 @@ The next section demonstrates how automatic replenishment can deal with evaporat
 % thermocycle code
 \begin{figure}
   \centering
-\begin{lstlisting}[basicstyle=\footnotesize\ttfamily]
+\begin{lstlisting}
 min_volume = 10 * microliters
 
 def thermocycle(droplet, temps_and_times):
-  for temp, time in temps_and_times:
-    heat(droplet, temp, time)
-    if droplet.volume < min_volume
-      # `+=' is a mutating mix
-      droplet += input("water", min_volume)
+    for temp, time in temps_and_times:
+        heat(droplet, temp, time)
+        if droplet.volume < min_volume
+            # '+=' is a mutating mix
+            droplet += input("water", min_volume)
 
 def pcr(droplet, n_iter):
-  thermocycle(droplet, n_iter * [
-    (95,  3 * minutes),
-    (62, 30 * seconds),
-    (72, 20 * seconds),
-  ])
+    thermocycle(droplet, n_iter * [
+        (95,  3 * minutes),
+        (62, 30 * seconds),
+        (72, 20 * seconds),
+    ])
 \end{lstlisting}
   \caption{
     Python code for polymerase chain reaction (PCR) and thermocycle.
     The heating in thermocycling can evaporate droplets, so the code replenishes with water if necessary.
-    Note that list multiplication in Python is concatenation, e.g. \lstinline{2 * [1] == [1, 1]}
+    Note that list multiplication in Python is concatenation, e.g. \codeinline{2 * [1] == [1, 1]}
   }
   \label{fig:thermocycle-code}
 \end{figure}
@@ -1228,7 +1236,7 @@ Ideally, we would write the code for thermocycling once, and its behavior would 
 \autoref{fig:thermocycle-code} shows our implementation of thermocycling in Puddle.
 The use of functions, data structures, and data-dependent control-flow put this implementation out of reach for any other high-level microfluidic programming system that we know of.
 
-We also implemented polymerase chain reaction (PCR) using \lstinline{thermocycle} as subroutine.
+We also implemented polymerase chain reaction (PCR) using \codeinline{thermocycle} as subroutine.
 PCR is an important protocol in synthetic biology that selectively amplifies DNA in a solution.
 We validated the experiment by using the Qubit system~\cite{qubit} to quantify the amount of DNA before and after amplification.
 We performed 8 cycles of PCR which required 2 replenishments to avoid evaporation.
@@ -1242,15 +1250,15 @@ To our knowledge, this is the first fully-automated execution of PCR with replen
 \label{sec:nanopore}
 
 \begin{figure}
-\begin{lstlisting}[basicstyle=\footnotesize\ttfamily]
+\begin{lstlisting}
 def sequence(droplet):
-  # actual prep protocol
-  droplet += input("buffer", 65 * microliters)
-  output("sequencer", droplet)
-  # pseudocode to get and process the data
-  data = get_data_from_device()
-  seq = process(data)
-  return seq
+    # actual prep protocol
+    droplet += input("buffer", 65 * microliters)
+    output("sequencer", droplet)
+    # pseudocode to get and process the data
+    data = get_data_from_device()
+    seq = process(data)
+    return seq
 \end{lstlisting}
   \caption{
     A Python function that takes in a droplet and returns the sequence of DNA contained in that droplet.
@@ -1266,13 +1274,13 @@ The Python code (including data processing) runs on the laptop, but the Puddle s
 The two sides communicate over the network using the same Puddle API, which is encoded in JSON format.
 
 The code for the sequencing protocol is listed in \autoref{fig:nanopore-code}.
-\lstinline{get_data_from_device} and \lstinline{process_data} are pseudocode Python functions that get and process the data from the MinION; the former returns the raw data and the latter returns the actual DNA sequence.
+\codeinline{get_data_from_device} and \codeinline{process_data} are pseudocode Python functions that get and process the data from the MinION; the former returns the raw data and the latter returns the actual DNA sequence.
 We use pseudocode because the actual process for sequencing and processing involves a closed-source GUI application.
 Given an API to perform these operations, automating the entire protocol including data acquisition and analysis is a matter of implementation.
 We validated the DNA sequencing results from the experiment by comparing the reported sequences with the known sequences used as input.
 
 The protocol is simple, but it still demonstrates the power of the Puddle programming model.
-In one sense, the function \lstinline{sequence} is no more exciting than one that reads the contents of a file from disk.
+In one sense, the function \codeinline{sequence} is no more exciting than one that reads the contents of a file from disk.
 However, existing microfluidic programming models cannot express both the fluidic and computational aspects of this protocol, nor can they export this functionality as an easy-to-use (and reuse) Python function. To our knowledge, this is the first time that computations and protocol execution are merged. We envision with will enable much more sophisticated applications of microfluidics and experiment automation. \karin{Max, pls check previous two sentences.}
 
 \section{Related Work}
