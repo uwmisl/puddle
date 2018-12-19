@@ -380,34 +380,25 @@ The full life cycle of the data, including encoding, writing (into molecules), o
 % different fluidic devices
 \begin{figure}
   \centering
-  \begin{subfigure}[b]{0.3\linewidth}
+  \captionsetup[subfigure]{font=small, justification=raggedright}
+  \begin{subfigure}[t]{0.3\linewidth}
     \centering
-    \includegraphics[width=\linewidth]{channel-based}
-    \caption{
-      \footnotesize
-      A channel-based microfluidic device \cite{channel-img}.
-    }
+    \includegraphics[height=18mm]{channel-based}
+    \caption{Channel-based microfluidic device. \cite{channel-img}}
     \label{fig:channel-based}
   \end{subfigure}
   \hfill
-  \begin{subfigure}[b]{0.3\linewidth}
+  \begin{subfigure}[t]{0.3\linewidth}
     \centering
-    \includegraphics[width=\linewidth]{robot}
-    \caption{
-      \footnotesize
-      A liquid handling robot.
-      \cite{robot-img}
-    }
+    \includegraphics[height=18mm]{robot}
+    \caption{Liquid handling robot. \cite{robot-img}}
     \label{fig:robot}
   \end{subfigure}
   \hfill
-  \begin{subfigure}[b]{0.3\linewidth}
+  \begin{subfigure}[t]{0.3\linewidth}
     \centering
     \includegraphics[height=18mm]{purpledrop-board}
-    \caption{
-      \footnotesize
-      PurpleDrop, our digital microfluidic device.
-    }
+    \caption{PurpleDrop, our digital microfluidic device.}
     \label{fig:purpledrop-dmf}
   \end{subfigure}
 
@@ -765,7 +756,7 @@ Specifically, any programming feature that allows for potentially unbounded flui
 
 General-purpose computation has taken the opposite tack.
 Nearly all of the abstractions that make up the modern computing stack (virtual memory, stack, heap, processes, file systems, etc.) provide the illusion of exclusive access and unlimited resources.
-The systems under these abstractions cannot statically promise that that enough resources exist, but their popularity indicates that a ``best effort'' policy of resource allocation suffices.
+The systems under these abstractions cannot statically promise that that enough resources exist, but their popularity indicates that valuing expressiveness .
 Barring the development and use of sufficiently complex static analyses, existing fluidic programming systems simply cannot coexist with general purpose computation: one side wants to make promises that the other has given up on.
 
 Puddle's design draws more inspiration from general purpose computer systems than synthesis tools for microfluidics.
