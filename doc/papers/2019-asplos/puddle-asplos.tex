@@ -50,7 +50,7 @@
 
 \setlength{\marginparwidth}{1.5cm}
 \usepackage[
-  disable,
+  % disable,
   textsize=tiny,
   textwidth=1.5cm,
 ]{todonotes}
@@ -65,6 +65,9 @@
 \newcommand\doug[1]{\todo[color=red!20]{\sf #1}}
 \newcommand\philip[1]{\todo[color=orange!40]{\sf #1}}
 \newcommand\pavel[1]{\todo[color=blue!60]{\sf #1}}
+% for camera ready
+\newcommand\camera[2][]{\todo[color=purple!20, #1]{\sf #2}}
+
 
 \usepackage[
   export, % also loads graphicx with the max width, max height keywords
@@ -182,11 +185,12 @@ If we instead view microfluidic devices as part of a heterogeneous computer syst
 Instead of executing a pre-determined list of operations and reporting the output, the heterogeneous system can use information from sensors to dynamically make decisions.
 This combination of fluidic manipulation and computation is critical for emerging applications which depend on biology ``in the loop'', e.g., molecular data storage \cite{nbt} or automated experimentation \cite{koksal2013}.
 
-We present a full-stack microfluidics system with a new high-level programming model that allows unrestricted combination of computation and fluidics.
-Instead of a new programming language, we introduce Puddle\footnotemark, a runtime system that provides microfluidic manipulations through an API.
+\camera[inline]{Puddle was called Splash in the submission. PurpleDrop was called Dash. Also added a link to open-source implementation.}
+We present a full-stack, open-source\footnotemark{} microfluidics system with a new high-level programming model that allows unrestricted combination of computation and fluidics.
+Instead of a new programming language, we introduce Puddle, a runtime system that provides microfluidic manipulations through an API.
 Puddle controls PurpleDrop, an affordable general-purpose microfluidic device with novel capabilities that executes the fluidic portions of programs.
 Users write programs against the Puddle API using Python (or the language of their choice), and Puddle dynamically manages the fluidic resources and provides transparent error correction using a computer vision system.
-\footnotetext{Available at \href{\puddleurl}{\puddleurl}}
+\footnotetext{Both the Puddle software and the PurpleDrop hardware are open-source and available at \href{\puddleurl}{\tt \puddleurl}}
 
 Puddle's key innovation is its dynamic approach to resource (i.e., fluidic) management, a fundamental problem in microfluidic programming.
 Existing work takes a more static approach, trading off programming expressiveness for the ability to statically plan microfluidic execution.
