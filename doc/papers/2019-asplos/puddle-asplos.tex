@@ -332,7 +332,8 @@ While the design of the runtime system is our main contribution, the full-stack 
 \autoref{sec:programming} details the design choices that led to Puddle and the tradeoffs incurred, and it also introduces the Puddle API through an example.
 \autoref{sec:impl} describes the implementation and our custom microfluidic device.
 In \autoref{sec:eval}, we evaluate the error correction component of our system in isolation, and we demonstrate the end-to-end system with the first fully-automated execution of two synthetic biology protocols on a digital microfluidic device.
-\autoref{sec:related-work} discusses related work, and \autoref{sec:conclusion} concludes with a discussion of future work.
+\autoref{sec:related-work} discusses related work.
+\autoref{sec:discussion} concludes with a discussion of the benefits and trade offs of our dynamic approach and finally a mention of future work.
 
 \section{Background}
 \label{sec:background}
@@ -723,7 +724,6 @@ The right snippet reuses droplet id \codeinline{a} after it has been consumed on
 Droplets are physical resources that can only be consumed once.
 All API calls under ``I/O'' and ``manipulation'' consume their droplet arguments.
 It is the programmer's responsibility to not reuse droplets ids that have been consumed.
-% \karin{Is there a way to test dynamically if a droplet has been consumed or not? Also, if one wants to merge droplets in a loop, what does the droplet naming convention look like? Is the name reused within the loop inner scope?}
 An imperative interface (like \codeinline{heat} in \autoref{fig:code-mix-heat}) can help prevent this problem by changing the droplet id that the wrapper object refers to.
 The Rust frontend statically prevents droplet reuse through its ownership-based type system.
 
@@ -745,57 +745,11 @@ In this case, unrecoverable hardware failure results in an exception from the la
 % All droplets are assumed to be rectangular for, or at least we only use rectangular actuation patterns.
 % The location and the dimensions of the droplets are given as integer (y,x) coordinates.
 
-\subsection{Implications of Dynamism}
-\label{sec:dynamism}
-
-\mw{this feels like a bit of a rant, maybe related work?}\karin{It has a bit of a discussion flavor to it. Perhaps create a discussion session between evaluation and related work?}
-
-Existing work has approached microfluidic programming from the perspective that fluidic resources should be statically managed.
-This provides guarantees that a program will ``fit'' on the microfluidic device, but limits the expressive power of the programming model.
-Specifically, any programming feature that allows for potentially unbounded fluidic resource usage must be either prohibited or restricted, as the tool cannot statically perform place and route.
-
-General-purpose computation has taken the opposite tack.
-Nearly all of the abstractions that make up the modern computing stack (virtual memory, stack, heap, processes, file systems, etc.) provide the illusion of exclusive access and unlimited resources.
-The systems under these abstractions cannot statically promise that that enough resources exist, but their popularity indicates that valuing expressiveness .
-Barring the development and use of sufficiently complex static analyses, existing fluidic programming systems simply cannot coexist with general purpose computation: one side wants to make promises that the other has given up on.
-
-Puddle's design draws more inspiration from general purpose computer systems than synthesis tools for microfluidics.
-Instead of trying to provide a monolithic solution, Puddle instead defines a small API that decouples fluidic management from the act of programming.
-This approach immediately leads to many benefits\karin{list them here again}; they seem obvious given the design, but no programming system for DMFs (to our knowledge) takes this approach.
-% Specifically, Puddle enables programmers to dynamically make decisions (or automatically makes decisions for them) at three distinct levels: the execution level, the protocol level, and the application level.
-
-Most importantly, Puddle abstracts away fluid management without restricting the programming model.
-This flexibility is important since our target domains (automated experimentation, molecular computer systems, etc.) are new and have not yet settled on abstractions.
-The separation of concerns in our approach allows the frontend(s) and the runtime system to advance independently.
-
-The notion of opaque handles (droplet ids) representing dynamically managed resources (droplets) lets Puddle provide many features familiar to computer systems with very little effort.
-Like the abstractions mentioned above, Puddle lets the user pretend they have unlimited resources (space on the microfluidic board) and exclusive access to it.
-Puddle achieves process-like isolation by simply name-spacing droplet ids in the same process with a UUID, so multiple programs can run on a single device concurrently.
-The Puddle API can also be used locally (on the Raspberry Pi) or remotely, useful for interactive programming or protocols that require heavy data analysis, respectively.
-
-\pavel{split here, move above to 3.2}
-
-These benefits come with a trade-off, of course: we give up all hope of statically reasoning about the program.
-One concern is that the lack of static analysis allows programs to run that will crash due to space constraints.
-This is technically true, but the problem can be mitigated by simulation.
-\autoref{sec:simulation} discusses the role of simulation in planning execution, but it can also be used at the user level.
-When running in simulation-only mode, Puddle plans execution (including place and route), returning dummy values for sensor readings if needed.
-This allows the user discover if their program is infeasible before executing on the DMF device, just like static approaches.
-% \karin{Can one explore all possible paths symbolically? It seems hard, given that any particular set of electrodes can fail at any time...}
-
-Error correction is also closely tied to our dynamic approach.
-Puddle implements error detection and correction using a computer vision system (details in \autoref{sec:vision}).
-Abstract droplet ids allow the runtime system to freely move droplets around to correct and avoid errors.
-Since the nature of a hardware failure cannot be known ahead of time, even static approaches to microfluidic programming that include this kind of error correction must resort to dynamic replanning, limiting the static promises that can be made in the face of errors.
-
-A final concern is that the dynamic approach leads to inefficient placement and routing.
-Our prototype implementation is simple, but taking advantage of more efficient solutions from the literature \cite{bohringer2006parallel, grissom2012scheduling, keszocze2015routing, roy2010routing}
-is a matter of implementation.
-Because the droplet manipulation API is functional and ``lazy'', unfinished operations can form a DAG.
-The operations themselves are the nodes and the droplet ids are the edges, connecting operations based on their data dependence.
-DAGs formed this way could contain even more information that those from static approaches, as dynamically constructed DAGs can easily capture inter-procedural droplet dependencies.
-These DAGs are analogous to those studied in the literature, so
-we could use all the same placement and routing algorithms developed by existing work without giving up the ability to write rich programs.
+\camera[inline]{
+  The subsection ``Implications of Dynamism'' has been moved and broken down
+  into the new discussion section to clarify the fact that the points made there
+  are intended for insight and discussion rather than contribution claims.
+}
 
 \section{Implementation}
 \label{sec:impl}
@@ -952,7 +906,7 @@ Droplet volume is computed by multiplying the area of the droplet in the image b
 Because all the complications of a programming language (loops, function calls, conditionals) are handled at the user level, the internals of Puddle are concerned only with the planning and execution of API calls.
 Note that we do not use any of the existing algorithms that might guarantee optimal routing or extract parallelism.
 This decision was made primarily to simplify implementation, but also because none of our microfluidic needs demand that level of efficiency.
-\autoref{sec:dynamism} discusses how we could incorporate this body of work into our system.
+\autoref{sec:future} discusses how we could incorporate this body of work into our system.
 
 \autoref{fig:planning} shows the entire lifetime of an API call.
 The first step is reification into a \emph{command}, the object used internally to represent a request from the user.
@@ -1296,7 +1250,7 @@ exploit parallelism \cite{bohringer2006parallel, grissom2012scheduling},
 reduce contamination \cite{yao2016contamination, zhao2012contamination, huang2010contamination},
 and minimize overall droplet travel \cite{keszocze2015routing, roy2010routing}.
 Our place and route algorithms in Puddle are very simple and do not provide these features.
-\autoref{sec:dynamism} discusses how these could be implemented within our system.
+\autoref{sec:future} discusses how these could be implemented within our system.
 
 \paragraph{Microfluidic Programming}
 Previous work has improved upon static DAG place and route with domain specific languages for protocol specification and execution.
@@ -1341,9 +1295,10 @@ An online solution has also been presented \cite{alistar2012online}, but it has 
 Previous work has also proposed error correction for DMF devices \cite{xu2008defect, xu2008defectplacement, hu2013fault, hsieh2014biochip, jaress2015online}, but these were implemented outside of a larger microfluidic programming solution, relied on more expensive sensors, or were only simulated.
 
 
-\section{Conclusion and Future Work}
-\label{sec:conclusion}
+\section{Discussion}
+\label{sec:discussion}
 \karin{This section is way longer than it needs to be. Just cutting a good part of this will get us back to 11 pages. Pls see suggestions below.}
+
 We have presented Puddle, a runtime system that provides a high-level API for microfluidic programming.
 By taking a more dynamic approach than past work, Puddle allows an unrestricted programming model in a general-purpose language, access to a variety of sensors, and real-time error correction.
 Puddle facilitates decisions at the execution, protocol, and application level, all of which are necessary for robust execution of protocols which combine computation and fluidic manipulation.
@@ -1354,15 +1309,72 @@ PurpleDrop's design is simple and cheap enough for labs to assemble their own.
 Together Puddle and PurpleDrop comprise the first full-stack microfluidics platform that is accessible and flexible enough to enable complex applications that require a combination of computation and fluidic manipulation.
 \karin{Shorten the hardware to one or two sentences; Add one sentence saying that our experiments demonstrate the system working at the three levels above.}
 
+\subsection{Benefits of Dynamism}
+\label{sec:benefits}
+
+\mw{this feels like a bit of a rant, maybe related work?}\karin{It has a bit of a discussion flavor to it. Perhaps create a discussion session between evaluation and related work?}
+\camera[inline]{This section has been overhauled, further highlighting the drawbacks of the purely dynamic approach.}
+
+Existing work has approached microfluidic programming from the perspective that fluidic resources should be statically managed.
+This provides guarantees that a program will ``fit'' on the microfluidic device, but limits the expressive power of the programming model.
+Specifically, any programming feature that allows for potentially unbounded fluidic resource usage must be either prohibited or restricted, as the tool cannot statically perform place and route.
+
+General-purpose computation has taken the opposite tack.
+Nearly all of the abstractions that make up the modern computing stack (virtual memory, stack, heap, processes, file systems, etc.) provide the illusion of exclusive access and unlimited resources.
+The systems under these abstractions cannot statically promise that that enough resources exist, but their popularity demonstrates the value of favoring expressiveness over static safety.
+\camera{Removed the claim about ``best effort'' policy of resource allocation}
+Barring the development and use of sufficiently complex static analyses, existing fluidic programming systems cannot coexist with general purpose computation: one side wants to make promises that the other has given up on.
+
+Puddle's design draws more inspiration from general purpose computer systems than synthesis tools for microfluidics.
+Instead of trying to provide a monolithic solution, Puddle instead defines a small API that decouples fluidic management from the act of programming.
+This design leads to many benefits that, to our knowledge, no other DMF programming system has.
+
+Most importantly, Puddle abstracts away fluid management without restricting the programming model.
+This flexibility is important since our target domains (automated experimentation, molecular computer systems, etc.) are new and have not yet settled on abstractions.
+The separation of concerns in our approach allows the frontend(s) and the runtime system to advance independently.
+
+The notion of opaque handles (droplet ids) representing dynamically managed resources (droplets) lets Puddle provide many features familiar to computer systems with very little effort.
+Like the abstractions mentioned above, Puddle lets the user pretend they have unlimited resources (space on the microfluidic board) and exclusive access to it.
+Puddle can provide process-like isolation by simply name-spacing droplet ids with a UUID, so multiple programs can run on a single device concurrently.
+The Puddle API can also be used locally (on the Raspberry Pi) or remotely, useful for interactive programming or protocols that require heavy data analysis, respectively.
+
+\subsection{Drawbacks of Dynamism}
+\label{sec:drawbacks}
+
+These benefits come with a trade-off, of course: we give up all hope of statically reasoning about the program.
+One concern is that the lack of static analysis allows programs to run that will crash due to space constraints.
+This is technically true, but the problem can be mitigated by simulation.
+\autoref{sec:simulation} discusses the role of simulation in planning execution, but it can also be used at the user level.
+When running in simulation-only mode, Puddle plans execution (including place and route), returning dummy values for sensor readings if needed.
+This allows the user discover if their program is infeasible before executing on the DMF device, just like static approaches.
+% \karin{Can one explore all possible paths symbolically? It seems hard, given that any particular set of electrodes can fail at any time...}
+
+Error correction is also closely tied to our dynamic approach.
+Puddle implements error detection and correction using a computer vision system (details in \autoref{sec:vision}).
+Abstract droplet ids allow the runtime system to freely move droplets around to correct and avoid errors.
+Since the nature of a hardware failure cannot be known ahead of time, even static approaches to microfluidic programming that include this kind of error correction must resort to dynamic replanning, limiting the static promises that can be made in the face of errors.
+
+A final concern is that the dynamic approach leads to inefficient placement and routing.
+Our prototype implementation is simple, but taking advantage of more efficient solutions from the literature \cite{bohringer2006parallel, grissom2012scheduling, keszocze2015routing, roy2010routing}
+is a matter of implementation.
+Because the droplet manipulation API is functional and ``lazy'', unfinished operations can form a DAG.
+The operations themselves are the nodes and the droplet ids are the edges, connecting operations based on their data dependence.
+DAGs formed this way could contain even more information that those from static approaches, as dynamically constructed DAGs can easily capture inter-procedural droplet dependencies.
+These DAGs are analogous to those studied in the literature, so
+we could use all the same placement and routing algorithms developed by existing work without giving up the ability to write rich programs.
+
+\subsection{Future Work}
+\label{sec:future}
+
 The complexity of new applications provides challenges for future work at all levels of the stack: programming model, runtime system, and hardware.
 Our dynamic approach maximizes expressiveness, trading off the ability to statically determine if a given program is feasible on some DMF device.
 While simulation suffices for now, future, more complex protocols would benefit from a static guarantee, but only if it does not compromise the programming model.
 The rich domains in which fluidic systems are used also pose a challenge to programming languages: can we statically reason about the contents of the fluids?
-Recent work has approached this from a chemical safety perspective, preventing users from accidentally performing dangerous reactions \cite{ott2018bioscript}. \karin{The last two sentences do not belong here. If you end up doing a discussion section between evaluation and related work, this could move there. Or move it to related work.}
+Recent work has approached this from a chemical safety perspective, preventing users from accidentally performing dangerous reactions \cite{ott2018bioscript}.
 
 At the runtime system level, we hope to incorporate more advanced place and route techniques from the literature into Puddle.
 As Puddle already provides process-like concurrency, algorithms that extract parallelism and prevent contamination (by keeping certain paths separate) are especially promising.
-With further advances in DMF hardware, a larger DMF system combined with Puddle could enable a multi-user system where many protocols are running on ``virtualized'' DMFs that share common resources like fluidic input/output, heaters, etc. \karin{Consider also moving this paragraph to related work or discussion.}
+With further advances in DMF hardware, a larger DMF system combined with Puddle could enable a multi-user system where many protocols are running on ``virtualized'' DMFs that share common resources like fluidic input/output, heaters, etc.
 
 \begin{acks}
   We would like to thank Philip Brisk, Pavel Panchekha, Doug Woos, Jared Roesch, and the anonymous reviewers for their comments and suggestions.
