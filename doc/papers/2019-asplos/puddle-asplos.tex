@@ -56,7 +56,7 @@
 ]{todonotes}
 
 % define shorter, named todo commands
-\newcommand\mw[1]{\todo[color=blue!20]{\sf #1}}
+\newcommand\mw[2][]{\todo[color=blue!20, #1]{\sf #2}}
 \newcommand\luis[1]{\todo[color=yellow!80]{\sf #1}}
 \newcommand\karin[1]{\todo[color=green!80]{\sf #1}}
 \newcommand\ashley[1]{\todo[color=green!80]{\sf #1}}
@@ -562,6 +562,8 @@ heat(ab)
 \section{Dynamic Microfluidic Programming}
 \label{sec:programming}
 
+\mw{say something about working with large droplets}
+
 The vision proposed in the introduction calls for a microfluidics platform that can combine computation and fluidic manipulation in an unrestricted, high-level programming model.
 Our microfluidic programming system, Puddle, fulfills this vision by making a different tradeoff than previous work in microfluidics and doing everything dynamically.
 This decision is based on the following key insight: when it comes to resource management, expressiveness comes from dynamism.
@@ -640,6 +642,8 @@ These calls must block and wait for the system to produce the relevant droplets 
 
 \subsection{Programming Interface}
 \label{sec:api}
+
+\mw[inline]{make this longer, describe the semantics, add multi droplet flush}
 
 The API's most important feature is that it deals in opaque handles to droplets called \emph{droplet ids}.
 The user cannot introspect on these ids (they are just numbers), so all queries and manipulations of droplets must go through the API.
@@ -756,7 +760,6 @@ In this case, unrecoverable hardware failure results in an exception from the la
 
 Our implementation spans three levels of the stack shown in \autoref{fig:stack}: a frontend that facilitates high-level microfluidic programming against the Puddle API, the Puddle runtime system which implements the API detailed in \autoref{sec:api}, and PurpleDrop, the DMF device which Puddle controls.
 The interface and programming model were covered in the previous section; here we detail the implementation of the hardware and runtime system.
-\pavel{reorder to go top-down}
 
 % The Puddle API deals principally with opaque handles to droplets called \emph{droplet id}s.
 % Much like file descriptors discussed above, the opacity of droplet ids abstracts away low-level details like the droplet's location, and forces all interaction through the API.
@@ -808,7 +811,6 @@ The interface and programming model were covered in the previous section; here w
 
 We designed our DMF device, PurpleDrop, with simplicity and accessibility in mind.
 All together, the components cost on the order of \$300, orders of magnitude less than most other microfluidic systems.
-\philip{cite some numbers, what does opendrop cost?}
 Futhermore, the design uses commodity components and does not require a clean room, so anyone with electronics experience could assemble PurpleDrop on their own or have it assembled by a PCB assembly service.
 \autoref{fig:purpledrop} shows the device and enumerates its components.
 
@@ -820,7 +822,7 @@ Both mother and daughterboard are PCBs.
 The daughterboard is removable, allowing different configurations of electrodes with the same motherboard.
 The modularity is also useful for durability, as the daughterboard is the most prone to wear.
 
-PurpleDrop's design is based on OpenDrop \cite{opendrop}, an existing open-source DMF platform.
+PurpleDrop's design was inspired by OpenDrop \cite{opendrop}, an existing open-source DMF platform.
 Unlike OpenDrop, PurpleDrop runs without an oil medium for easier setup.
 \autoref{fig:board-side} shows a side view of the PurpleDrop daughterboard.
 
@@ -983,7 +985,8 @@ Replanning is identical to planning, except that failure to \emph{re}plan is unr
 Non-blocking API calls may have already returned with a droplet id that essentially promises that new droplet.
 Since Puddle had no knowledge of the program, we have no choice but to terminate.
 
-During the rollback, Puddle can also mark any electrodes that failed to move a droplet as dead\karin{or schedule to perform testing routines on those electrodes later to determine if the failure was permanent}.
+During the rollback, Puddle can also mark any electrodes that failed to move a droplet as dead.
+% \karin{or schedule to perform testing routines on those electrodes later to determine if the failure was permanent}
 Otherwise, the rollback would replan the same route over the same electrode, and the error would occur again.
 \autoref{sec:endurance} demonstrates how this allows execution on a DMF with faulty electrodes.
 The user can tune this behavior, forcing Puddle to retry an electrode a certain number of times before marking it as dead.
@@ -998,7 +1001,7 @@ The record also keeps track of which states commands are completed in.
 When execution reaches such a state, the command is finalized.
 For most commands, this does nothing, but for blocking commands, this sends the result back to the user.
 
-\subsection{Computer Vision}
+\subsection{Error Detection via Computer Vision}
 \label{sec:vision}
 
 \begin{figure}
@@ -1064,7 +1067,7 @@ We then demonstrate Puddle's ability to write high-level programs and interface 
     Droplet occupation underestimates & 0 / 56 \\
   \end{tabular}
   \caption{
-    Results from evaluating our computer vision system on 57 manually labeled image of the DMF device.
+    Results from evaluating our computer vision system on 57 manually labeled images of the DMF device.
     The first set of metrics come from image segmentation, and the second set is specific to droplet recognition.
     Droplet occupation is explained in \autoref{sec:vision-eval}.
   }
@@ -1230,7 +1233,9 @@ We validated the DNA sequencing results from the experiment by comparing the rep
 
 The protocol is simple, but it still demonstrates the power of the Puddle programming model.
 In one sense, the function \codeinline{sequence} is no more exciting than one that reads the contents of a file from disk.
-However, existing microfluidic programming models cannot express both the fluidic and computational aspects of this protocol, nor can they export this functionality as an easy-to-use (and reuse) Python function. To our knowledge, this is the first time that computations and protocol execution are merged. We envision with will enable much more sophisticated applications of microfluidics and experiment automation. \karin{Max, pls check previous two sentences.}
+However, existing microfluidic programming models cannot express both the fluidic and computational aspects of this protocol, nor can they export this functionality as an easy-to-use (and reuse) Python function.
+To our knowledge, this is the first time that computation and protocol execution are merged in this way.
+We envision this make it easier to use microfluidics for complex experiment automation.
 
 \section{Related Work}
 \label{sec:related-work}
