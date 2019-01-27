@@ -1,13 +1,21 @@
 \documentclass[sigconf, screen]{acmart}
 
-\citestyle{acmnumeric}
-\acmConference[ASPLOS '19]{
-  The 24th ACM International Conference on Architectural Support for Programming Languages and Operating Systems
-}{
-  April 13--17, 2019
-}{
+\copyrightyear{2019}
+\acmYear{2019}
+\setcopyright{rightsretained}
+\acmConference[ASPLOS '19]
+  {2019 Architectural Support for Programming Languages and Operating Systems}
+  {April 13--17, 2019}
+  {Providence, RI, USA}
+\acmBooktitle{
+  2019 Architectural Support for Programming Languages and Operating Systems
+  (ASPLOS '19),
+  April 13--17, 2019,
   Providence, RI, USA
 }
+\acmDOI{10.1145/3297858.3304027}
+\acmISBN{978-1-4503-6240-5/19/04}
+
 
 \usepackage{caption}
 \usepackage{subcaption}
@@ -86,13 +94,12 @@
 \def\mytitle{Puddle: A Dynamic, Error-Correcting, Full-Stack Microfluidics Platform}
 \def\puddleurl{http://misl.cs.washington.edu/projects/puddle.html}
 
-\title{\mytitle}
-\subtitle{Preprint draft, last edited \today}
+\title[Puddle: A Full-Stack Microfluidics Platform]{\mytitle}
 
 \author{Max Willsey}
 \orcid{0000-0001-8066-4218}
 \affiliation{University of Washington}
-\email{mwillsey@cs.washington.edu}
+% \email{mwillsey@cs.washington.edu}
 \author{Ashley P. Stephenson}
 \affiliation{University of Washington}
 \author{Chris Takahashi}
@@ -110,28 +117,29 @@
 \author{Sarang Joshi}
 \affiliation{University of Washington}
 \author{Karin Strauss}
-\affiliation{Microsoft \\ University of Washington}
+\affiliation{Microsoft}
 \author{Luis Ceze}
 \affiliation{University of Washington}
 
-\hypersetup{
-  pdftitle = {\mytitle},
-  pdfauthor = {
-    Max Willsey,
-    Ashley P. Stephenson,
-    Chris Takahashi,
-    Pranav Vaid,
-    Bichlien H. Nguyen,
-    Michal Piszczek,
-    Christine Betts,
-    Sharon Newman,
-    Sarang Joshi,
-    Karin Strauss,
-    Luis Ceze
-  }
-}
+% \hypersetup{
+%   pdftitle = {\mytitle},
+%   pdfauthor = {
+%     Max Willsey,
+%     Ashley P. Stephenson,
+%     Chris Takahashi,
+%     Pranav Vaid,
+%     Bichlien H. Nguyen,
+%     Michal Piszczek,
+%     Christine Betts,
+%     Sharon Newman,
+%     Sarang Joshi,
+%     Karin Strauss,
+%     Luis Ceze
+%   }
+% }
 
 \begin{document}
+
 
 \begin{abstract}
 
@@ -249,7 +257,7 @@ We demonstrate all three types of decisions in our evaluation.
         \footnotesize heating
       };
       \node[rr, below=of act, draw=none] (board) {
-        \includegraphics[height=1cm]{purpledrop-board}
+        \includegraphics[height=1cm]{purpledrop-board.jpg}
       };
       \node[rr, two, below=of board] (sens) {Sensing
         \nodepart{two}
@@ -643,7 +651,7 @@ These calls must block and wait for the system to produce the relevant droplets 
 \subsection{Programming Interface}
 \label{sec:api}
 
-\mw[inline]{make this longer, describe the semantics, add multi droplet flush}
+\mw[inline]{make this longer, further describe the semantics}
 
 The API's most important feature is that it deals in opaque handles to droplets called \emph{droplet ids}.
 The user cannot introspect on these ids (they are just numbers), so all queries and manipulations of droplets must go through the API.
@@ -673,7 +681,7 @@ This opacity also allows Puddle to provide automatic error correction and proces
     \codeinline{heat}($d$, temp, time) $\to d'$ \\
 
     {\bf Other} \\
-    \codeinline{flush}()
+    \codeinline{flush}($d_1, d_2, ...$)
   \end{minipage}
   \caption{
     The Puddle API.
@@ -690,7 +698,6 @@ The fluidic manipulation functions are self-explanatory.
 Note that they are functional, consuming their droplet id arguments and returning new ones.
 The frontend, however, is free to wrap the API calls to provide an idiomatic interface:
 for example, \codeinline{heat} was used imperatively in \autoref{fig:code-mix-heat}.
-\pavel{call out to linearity earlier}
 
 % except for \codeinline{combine_into}, which is similar to \codeinline{mix} but guarantees that $d_1$ will not be moved until combined with $d_2$.
 % This is useful for ``rescuing'' droplets that have become too small to move\footnotemark; see \autoref{sec:thermocycle} for an extended example.
@@ -699,8 +706,11 @@ for example, \codeinline{heat} was used imperatively in \autoref{fig:code-mix-he
 The sensing API calls force the system to ``flush the queue'' by performing the operations necessary to make the input droplet.
 The \codeinline{volume} operation reads the volume using the camera (see \autoref{sec:vision}).
 The \codeinline{temperature} operation measures the temperature using an onboard sensor.
-The \codeinline{flush} operation allows the user to manually force all pending operations to complete, which is useful in interactive programming.
 In our Python frontend, \codeinline{volume} and \codeinline{temperature} are getters.
+
+\camera{Add explanation of flushing multiple droplets.}
+The \codeinline{flush} operation allows the user to manually force to realize the specified droplets (or all of them, if none are given), which is useful in interactive programming.
+This can also be useful to inform Puddle of parallelism it would otherwise not see, as seen at the end of \autoref{sec:drawbacks}.
 
 Users can easily extend the Puddle API with their own actuation and sensing primitives.
 The mechanism for allocating space on the device (\autoref{sec:planning-planning}) is sufficiently general to implement any primitive that the hardware might support.
@@ -1308,7 +1318,8 @@ Both allow the user to build up sets of operations in a general-purpose host lan
 
 \section{Discussion}
 \label{sec:discussion}
-\karin{This section is way longer than it needs to be. Just cutting a good part of this will get us back to 11 pages. Pls see suggestions below.}
+
+\camera[inline]{This section has been moved to discussion, further highlighting the drawbacks of the purely dynamic approach.}
 
 We have presented Puddle, a runtime system that provides a high-level API for microfluidic programming.
 By taking a more dynamic approach than past work, Puddle allows an unrestricted programming model in a general-purpose language, access to a variety of sensors, and real-time error correction.
@@ -1318,13 +1329,12 @@ Puddle allows scientists to develop protocols (even interactively) in a familiar
 We have also presented PurpleDrop, an accessible DMF hardware platform with features like fluidic input/output necessary for hands-off automation of many protocols.
 PurpleDrop's design is simple and cheap enough for labs to assemble their own.
 Together Puddle and PurpleDrop comprise the first full-stack microfluidics platform that is accessible and flexible enough to enable complex applications that require a combination of computation and fluidic manipulation.
-\karin{Shorten the hardware to one or two sentences; Add one sentence saying that our experiments demonstrate the system working at the three levels above.}
+
+Our main contribution is the notion of a microfluidic runtime system that dynamically manages fluidic resources.
+Below we further detail the benefits of and reasons for this approach, discuss the drawbacks, and propose future work based on this key idea.
 
 \subsection{Benefits of Dynamism}
 \label{sec:benefits}
-
-\mw{this feels like a bit of a rant, maybe related work?}\karin{It has a bit of a discussion flavor to it. Perhaps create a discussion session between evaluation and related work?}
-\camera[inline]{This section has been overhauled, further highlighting the drawbacks of the purely dynamic approach.}
 
 Existing work has approached microfluidic programming from the perspective that fluidic resources should be statically managed.
 This provides guarantees that a program will ``fit'' on the microfluidic device, but limits the expressive power of the programming model.
@@ -1349,6 +1359,12 @@ Like the abstractions mentioned above, Puddle lets the user pretend they have un
 Puddle can provide process-like isolation by simply name-spacing droplet ids with a UUID, so multiple programs can run on a single device concurrently.
 The Puddle API can also be used locally (on the Raspberry Pi) or remotely, useful for interactive programming or protocols that require heavy data analysis, respectively.
 
+Error correction is also closely tied to our dynamic approach.
+Puddle implements error detection and correction using a computer vision system (details in \autoref{sec:vision}).
+Abstract droplet ids allow the runtime system to freely move droplets around to correct and avoid errors.
+Since the nature of a hardware failure cannot be known ahead of time, even static approaches to microfluidic programming that include this kind of error correction must resort to dynamic replanning, limiting the static promises that can be made in the face of errors.
+
+
 \subsection{Drawbacks of Dynamism}
 \label{sec:drawbacks}
 
@@ -1357,13 +1373,19 @@ One concern is that the lack of static analysis allows programs to run that will
 This is technically true, but the problem can be mitigated by simulation.
 \autoref{sec:simulation} discusses the role of simulation in planning execution, but it can also be used at the user level.
 When running in simulation-only mode, Puddle plans execution (including place and route), returning dummy values for sensor readings if needed.
-This allows the user discover if their program is infeasible before executing on the DMF device, just like static approaches.
-% \karin{Can one explore all possible paths symbolically? It seems hard, given that any particular set of electrodes can fail at any time...}
+\camera{Mention the weakness of simulation w.r.t. discovering resource usage bugs.}
+If the fluidics portion of the program is ``straight-line'' code (i.e. with no branches), then the simulation will tell the user if their program is infeasible before executing on the DMF device, just like static approaches.
 
-Error correction is also closely tied to our dynamic approach.
-Puddle implements error detection and correction using a computer vision system (details in \autoref{sec:vision}).
-Abstract droplet ids allow the runtime system to freely move droplets around to correct and avoid errors.
-Since the nature of a hardware failure cannot be known ahead of time, even static approaches to microfluidic programming that include this kind of error correction must resort to dynamic replanning, limiting the static promises that can be made in the face of errors.
+\camera[inline]{Add an example of an unsafe but useful program.}
+For more complex programs, it is not possible to explore all the possible sequences of fluidic operations in simulation.
+Since Puddle has no knowledge of the client's program, it is entirely possible get to a state where resource requests cannot be met, forcing Puddle to crash.
+We view this as a goal for future work, but also as part of the expressiveness trade-off.
+Consider the \codeinline{thermocycle} code in \autoref{fig:thermocycle-code}: it loops over a data structure of potentially unbounded size and potentially \codeinline{input}s a new droplet each time.
+Even though this program is practical and useful, an ahead-of-time compiler would see it as requiring unbounded\footnotemark{} resources and fail to generate a static plan.
+\footnotetext{
+  Assuming the static compiler is not smart enough to reason about the volume comparison.
+  In reality, the droplet should not grow too far beyond that \codeinline{min_volume}.
+}
 
 A final concern is that the dynamic approach leads to inefficient placement and routing.
 Our prototype implementation is simple, but taking advantage of more efficient solutions from the literature \cite{bohringer2006parallel, grissom2012scheduling, keszocze2015routing, roy2010routing}
@@ -1374,8 +1396,25 @@ DAGs formed this way could contain even more information that those from static 
 These DAGs are analogous to those studied in the literature, so
 we could use all the same placement and routing algorithms developed by existing work without giving up the ability to write rich programs.
 
+\camera{Add an explanation of how to address the example from RevC.}
+Despite the laziness of the API, it is still possible for users to write programs that Puddle would fundamentally not be able to optimize, even assuming the unimplemented ability to do parallel planning.
+Consider the following snippet where \codeinline{prep} does a lot of manipulation and \codeinline{sense} takes some kind of sensor reading:
+
+\begin{lstlisting}[xleftmargin=4.2em, numbers=none]
+prep(a); prep(b); sense(a); sense(b);
+\end{lstlisting}
+
+When droplet \codeinline{a} is sensed, Puddle will execute the planned work from \codeinline{prep(a)}, and likewise for when \codeinline{a} is sensed.
+Even though the two calls to \codeinline{prep} are independent, Puddle would not exploit this fact.
+This is necessary because when \codeinline{sense(a)} is called, Puddle still thinks that \codeinline{b} might be manipulated further, and Puddle aims to perform dependent operations with minimal delay between them.
+One solution for this problem would be to insert \codeinline{flush(a, b)} before the calls to \codeinline{sense}.
+Another approach would be to \codeinline{sense} the independent droplets concurrently on the client side, so one does not block the other.
+On the server side, Puddle could coalesce the two requests and possibly plan them in parallel.
+
 \subsection{Future Work}
 \label{sec:future}
+
+\mw[inline]{Add some more future work}
 
 The complexity of new applications provides challenges for future work at all levels of the stack: programming model, runtime system, and hardware.
 Our dynamic approach maximizes expressiveness, trading off the ability to statically determine if a given program is feasible on some DMF device.
@@ -1388,8 +1427,12 @@ As Puddle already provides process-like concurrency, algorithms that extract par
 With further advances in DMF hardware, a larger DMF system combined with Puddle could enable a multi-user system where many protocols are running on ``virtualized'' DMFs that share common resources like fluidic input/output, heaters, etc.
 
 \begin{acks}
-  We would like to thank Philip Brisk, Pavel Panchekha, Doug Woos, Jared Roesch, and the anonymous reviewers for their comments and suggestions.
-  This work is supported by some grants \todo{grant numbers}.
+  We thank the anonymous reviewers for their feedback and our shepherd Hank Hoffman for his guidance during the revision.
+  We also thank Philip Brisk for helpful discussions about this work, as well as Pavel Panchekha, Doug Woos, and Jared Roesch.
+  This work supported in part by a grant from DARPA under the Molecular Informatics program,
+  \grantsponsor{nsf}{National Science Foundation}{https://www.nsf.gov/}
+  EAGER grant
+  \grantnum{nsf}{1841188}, and a sponsored research agreement and gifts from Microsoft.
 \end{acks}
 
 \bibliographystyle{ACM-Reference-Format}
