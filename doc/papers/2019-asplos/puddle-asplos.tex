@@ -58,7 +58,7 @@
 
 \setlength{\marginparwidth}{1.5cm}
 \usepackage[
-  % disable,
+  disable,
   textsize=tiny,
   textwidth=1.5cm,
 ]{todonotes}
@@ -1256,6 +1256,8 @@ Grissom et al. propose a dynamic interpretation approach that allows control flo
 Dynamic interpretation also suffers from sub-optimal place and route, as the system only considers one basic block at a time.
 Others have proposed static compilers capable of handling control flow, e.g., Curtis et al.~\cite{curtis2018compiler} and Ott et al.~\cite{ott2018bioscript}.
 These approaches offer a static guarantee that the program (ignoring errors) can be successfully routed, but they are all less expressive than Puddle.
+In particular, programs cannot (in general) use recursion, manipulate data structures, or allocate in loops.
+The example given in \autoref{fig:thermocycle-code} exhibits the latter two of these characteristics.
 
 Previous approaches using general purpose languages either offer little abstraction, requiring the user to manually address droplet locations~\cite{opendrop, dropbot}, or require re-expression in a restricted embedded DSL or manual DAG construction~\cite{curtis2018compiler, biocoder}.
 
@@ -1306,6 +1308,7 @@ Both allow the user to build up sets of operations in a general-purpose host lan
 \camera[inline]{This section has been moved to discussion, further highlighting the drawbacks of the purely dynamic approach.}
 
 Our main contribution is the notion of a microfluidic runtime system that dynamically manages fluidic resources.
+This advances upon previous work by allowing unrestricted flexibility and expressiveness, at the cost of some static guarantees.
 Below we further detail the benefits of and reasons for this approach, discuss the drawbacks, and propose future work based on this key idea.
 
 \subsection{Benefits of Dynamism}
@@ -1317,7 +1320,7 @@ Specifically, any programming feature that allows for potentially unbounded flui
 
 General-purpose computation has taken the opposite tack.
 Nearly all of the abstractions that make up the modern computing stack (virtual memory, stack, heap, processes, file systems, etc.) provide the illusion of exclusive access and unlimited resources.
-The systems under these abstractions cannot statically promise that that enough resources exist, but their popularity demonstrates the value of favoring expressiveness over static safety.
+The systems under these abstractions cannot statically promise that enough resources exist, but their popularity demonstrates the value of favoring expressiveness over static safety.
 \camera{Removed the claim about ``best effort'' policy of resource allocation}
 Barring the development and use of sufficiently complex static analyses, existing fluidic programming systems cannot coexist with general purpose computation: one side wants to make promises that the other has given up on.
 
@@ -1333,6 +1336,9 @@ The notion of opaque handles (droplet ids) representing dynamically managed reso
 Like the abstractions mentioned above, Puddle lets the user pretend they have unlimited resources (space on the microfluidic board) and exclusive access to it.
 Puddle can provide process-like isolation by simply name-spacing droplet ids with a UUID, so multiple programs can run on a single device concurrently.
 The Puddle API can also be used locally (on the Raspberry Pi) or remotely, useful for interactive programming or protocols that require heavy data analysis, respectively.
+
+Unlike static approaches to digital microfluidic programming \cite{grissom2014interpreting, ott2018bioscript, curtis2018compiler}, dynamism also allows for metaprogramming.
+Users can use features of their favorite languages (reflection, macros, first-class functions, etc.) to programmatically construct protocols.
 
 Error correction is also closely tied to our dynamic approach.
 Puddle implements error detection and correction using a computer vision system (details in \autoref{sec:vision}).
@@ -1412,7 +1418,7 @@ PurpleDrop's design is simple and cheap enough for labs to assemble their own.
 Together Puddle and PurpleDrop comprise the first full-stack microfluidics platform that is accessible and flexible enough to enable complex applications that require a combination of computation and fluidic manipulation.
 
 \begin{acks}
-  We thank the anonymous reviewers for their feedback and our shepherd Hank Hoffman for his guidance during the revision.
+  We thank the anonymous reviewers for their feedback and our shepherd Hank Hoffmann for his guidance during the revision.
   We also thank Philip Brisk for helpful discussions about this work, as well as Pavel Panchekha, Doug Woos, and Jared Roesch.
   This work supported in part by a grant from DARPA under the Molecular Informatics program,
   \grantsponsor{nsf}{National Science Foundation}{https://www.nsf.gov/}
