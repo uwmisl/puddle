@@ -3,6 +3,8 @@ use std::num::ParseIntError;
 use std::ops::{Add, Sub};
 use std::str::FromStr;
 
+use serde_derive::{Serialize, Deserialize};
+
 #[derive(PartialEq, Eq, PartialOrd, Ord, Hash, Clone, Copy, Serialize, Deserialize)]
 pub struct Location {
     pub y: i32,

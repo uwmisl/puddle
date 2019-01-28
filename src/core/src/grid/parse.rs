@@ -1,6 +1,7 @@
 use crate::util::collections::Map;
 
 use crate::grid::grid::*;
+use serde_derive::{Deserialize, Serialize};
 
 #[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Mark {

@@ -2,45 +2,13 @@
 #![cfg_attr(feature = "cargo-clippy", allow(redundant_field_names))]
 #![deny(bare_trait_objects)]
 
-extern crate rand;
-
-extern crate serde;
-#[macro_use]
-extern crate serde_derive;
-
-extern crate serde_json;
-
-#[cfg(test)]
-extern crate glob;
-
-extern crate jsonrpc_core;
-#[macro_use]
-extern crate jsonrpc_macros;
-
-#[cfg(test)]
-extern crate env_logger;
+// we use log macros everywhere, so just save the import
 #[macro_use]
 extern crate log;
 
-extern crate crossbeam;
-
-extern crate ena;
-
-extern crate pathfinding;
-
-extern crate float_ord;
-
-#[cfg(feature = "vision")]
-extern crate nalgebra;
-#[cfg(feature = "vision")]
-extern crate ncollide2d;
-
+// use matches::assert_matches doesn't work for some reason
 #[macro_use]
 extern crate matches;
-
-extern crate petgraph;
-
-extern crate hashbrown;
 
 // these need to be pub until we have an api
 mod command;

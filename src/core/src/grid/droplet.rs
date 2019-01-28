@@ -3,6 +3,8 @@ use std::fmt;
 use std::sync::atomic::AtomicUsize;
 use std::sync::atomic::Ordering::Relaxed;
 
+use serde_derive::{Serialize, Deserialize};
+
 use super::{Location, Rectangle};
 use crate::process::ProcessId;
 
