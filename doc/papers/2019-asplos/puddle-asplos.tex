@@ -121,23 +121,6 @@
 \author{Luis Ceze}
 \affiliation{University of Washington}
 
-% \hypersetup{
-%   pdftitle = {\mytitle},
-%   pdfauthor = {
-%     Max Willsey,
-%     Ashley P. Stephenson,
-%     Chris Takahashi,
-%     Pranav Vaid,
-%     Bichlien H. Nguyen,
-%     Michal Piszczek,
-%     Christine Betts,
-%     Sharon Newman,
-%     Sarang Joshi,
-%     Karin Strauss,
-%     Luis Ceze
-%   }
-% }
-
 \begin{document}
 
 
@@ -154,7 +137,7 @@
   It also provides real-time error correction through a computer vision system, allowing robust execution on cheaper microfluidic hardware.
   We implement our stack on top of a low-cost droplet microfluidic device that we have developed.
 
-  We evaluate our system with the fully-automated execution of polymerase chain reaction (PCR) and a DNA sequencing prep protocol.
+  We evaluate our system with the fully-automated execution of polymerase chain reaction (PCR) and a DNA sequencing preparation protocol.
   These protocols demonstrate high-level programs that combine computational and fluidic operations such as input/output of reagents, heating of samples, and data analysis.
   We also evaluate the impact of automatic error correction on our system's reliability.
 \end{abstract}
@@ -331,8 +314,8 @@ While the design of the runtime system is our main contribution, the full-stack 
 % The platform will allow others to explore the rich interplay between computation and fluidics; we touch on some aspects of this in the discussion (\autoref{sec:conclusion}).
 % The full system is backed by the following concrete contributions:
 \begin{itemize}
-  \item We present Puddle, a runtime system that provides a high-level microfluidic APIs. Puddle allows for more expressive programs than previous work, including the unrestricted combination of fluidic manipulation and computation.
-\item We present PurpleDrop, a simple and affordable digital microfluidic device. Together with peripherals for heating, fluidic input/output, and volume measurement, PurpleDrop more capable than comparable designs from the literature.
+  \item We present Puddle, a runtime system that provides a high-level microfluidic API. Puddle allows for more expressive programs than previous work, including the unrestricted combination of fluidic manipulation and computation.
+\item We present PurpleDrop, a simple and affordable digital microfluidic device. Together with peripherals for heating, fluidic input/output, and volume measurement, PurpleDrop more is capable than comparable designs from the literature.
 \item We implement and evaluate a computer vision system for error-correction that is more flexible than previous work.
 \item We demonstrate fully automated, closed-loop execution of two important protocols in synthetic biology.
   These include protocol-level conditional action and application-level decisions.
@@ -343,7 +326,7 @@ While the design of the runtime system is our main contribution, the full-stack 
 \autoref{sec:impl} describes the implementation and our custom microfluidic device.
 In \autoref{sec:eval}, we evaluate the error correction component of our system in isolation, and we demonstrate the end-to-end system with the first fully-automated execution of two synthetic biology protocols on a digital microfluidic device.
 \autoref{sec:related-work} discusses related work.
-\autoref{sec:discussion} concludes with a discussion of the benefits and trade offs of our dynamic approach and finally a mention of future work.
+\autoref{sec:discussion} concludes with a discussion of the benefits and trade-offs of our dynamic approach and finally a mention of future work.
 
 \section{Background}
 \label{sec:background}
@@ -354,12 +337,12 @@ Instead of breadth of applications, we want to highlight the different levels of
 
 \paragraph{Protocol automation}
 As mentioned in the introduction, the primary (and most obvious) use for microfluidic devices is to automate well-specified chemical or biological protocols.
-These protocols are typically specified in natural language, but they are precise enough to be executed by technicians other than the authors.
+These protocols are typically specified in natural language, but they are precise enough to be executed by technicians other than the authors \cite{aquarium}.
 In fact, many of these protocols are distributed with the supplies (e.g., here are the steps to prepare sample X for process Y).
 
 These encapsulated, well-specified protocols are ripe for expression as programs.
 Others have noted that automation offers not only convenience and savings, but it can prevent human error stemming from lack of precision and natural language ambiguity \cite{antha-qbd}.
-Most existing work on microfluidic software (see \autoref{sec:dmf-software}) focuses on this level of application complexity.
+Most existing work on microfluidic software focuses on this level of application complexity (see \autoref{sec:dmf-software}).
 
 % \paragraph{Protocol composition}
 % Automation invites abstraction.
@@ -382,7 +365,7 @@ Current microfluidic programming systems (covered in \autoref{sec:dmf-software})
 \paragraph{Molecular data storage and computing}
 
 The field of computer science has taken notice of synthetic biology as a future substrate for data storage and computation.
-By interpreting molecules as data, molecular operations promise massive storage density~\cite{nbt, goldman2013towards} or parallel computation \cite{stewart18, qian2011scaling}.
+By interpreting molecules as data, molecular operations promise massive storage density~\cite{nbt, goldman2013towards, church2012} or parallel computation \cite{stewart18, qian2011scaling, zhang_dynamic_2011}.
 
 \mw{Add more detailed hybrid systems shout out}
 Integrating these molecular components into heterogeneous computer systems requires microfluidics.
@@ -393,23 +376,23 @@ The full life cycle of the data, including encoding, writing (into molecules), o
 \begin{figure}
   \centering
   \captionsetup[subfigure]{font=small, justification=raggedright}
-  \begin{subfigure}[t]{0.3\linewidth}
+  \begin{subfigure}[t]{0.32\linewidth}
     \centering
-    \includegraphics[height=18mm]{channel-based}
+    \includegraphics[height=19mm]{channel-based}
     \caption{Channel-based microfluidic device. \cite{channel-img}}
     \label{fig:channel-based}
   \end{subfigure}
-  \hfill
-  \begin{subfigure}[t]{0.3\linewidth}
+  % \hfill
+  \begin{subfigure}[t]{0.32\linewidth}
     \centering
-    \includegraphics[height=18mm]{robot}
+    \includegraphics[height=19mm]{robot}
     \caption{Liquid handling robot. \cite{robot-img}}
     \label{fig:robot}
   \end{subfigure}
-  \hfill
-  \begin{subfigure}[t]{0.3\linewidth}
+  % \hfill
+  \begin{subfigure}[t]{0.32\linewidth}
     \centering
-    \includegraphics[height=18mm]{purpledrop-board}
+    \includegraphics[height=19mm]{purpledrop-board}
     \caption{PurpleDrop, our digital microfluidic device.}
     \label{fig:purpledrop-dmf}
   \end{subfigure}
@@ -422,15 +405,15 @@ The full life cycle of the data, including encoding, writing (into molecules), o
 
 \subsection{Microfluidic Hardware}
 
-Microfluidic technologies all center around the manipulation of small fluid volumes, but different approaches offer different tradeoffs between cost, flexibility, and reliability.
+Microfluidic technologies all center around the manipulation of small fluid volumes, but different approaches offer different trade-offs between cost, flexibility, and reliability.
 
 On one end of the spectrum, channel-based devices (\autoref{fig:channel-based}) offer high precision and low cost at scale.
 These devices move liquids through a fixed set of channels, so they are single-purpose by nature.
 Similar to ASICs in computer systems, channel-based devices are used in situations where the application is static enough to overcome the initial design and manufacturing cost.
-Some channel-based devices incorporate configurable valves for some degree of flexibility \cite{amin2007aquacore}.
+Some channel-based devices incorporate configurable valves for some degree of flexibility \cite{amin2007aquacore, urbanski2006}.
 
 Liquid handling robots (\autoref{fig:robot}) are more general, aiming to emulate a lab technician anthropomorphically with robotic arms controlling pipettes.
-In theory, these systems can be programmed to do anything a human can, but their flexibility comes at a size and monetary cost (thousands or tens of thousands of dollars).
+In theory, these systems can be programmed to do anything a human can, but their flexibility comes at a size and monetary cost (thousands up to hundreds of thousands of dollars).
 
 Digital microfluidic (DMF) technology (\autoref{fig:purpledrop-dmf}) offers flexibility at small size and potentially at low cost.
 DMF devices manipulate individual droplets of liquids on a grid of electrodes, taking advantage of a phenomenon called \emph{electrowetting on dielectric} \cite{pollack2000electrowetting}.
@@ -508,16 +491,16 @@ Importantly, this is all done \emph{ahead of time}:
 the tool statically determines if executing a given DAG on a given chip is possible.
 However, DAGs do not naturally express constructs found in programming like conditionals, loops, or functions.
 
-Other approaches have proposed domain specific languages (DSLs) to increase expressiveness~\cite{grissom2015open, grissom2014interpreting, curtis2018compiler, ott2018bioscript}.
+Other approaches have proposed domain specific languages (DSLs) to increase expressiveness~\cite{grissom2015open, grissom2014interpreting, curtis2018compiler, ott2018bioscript, biocoder}.
 A DSL can support features like data-dependent control flow, which is necessary if a fluidic program is expected to act on the value of a sensor reading.
-However, compiling or interpreting microfluidic programs in these languages introduces a fundamental tradeoff between the flexibility of available programming constructs and the ability to statically reason about the program.
+However, compiling or interpreting microfluidic programs in these languages introduces a fundamental trade-off between the flexibility of available programming constructs and the ability to statically reason about the program.
 In order to statically place and route a protocol, a system must be able to prove the protocol only uses resources that the hardware can supply.
 To meet this requirement, existing work has limited or eliminated programming features that allow potentially unbounded resource usage (e.g., loops, data structures, recursive functions, and error detection and recovery).
 
 % dag figure
 \begin{figure}
   \hfill
-  \begin{minipage}{0.5\linewidth}
+  \begin{minipage}{0.45\linewidth}
     \begin{lstlisting}[emphstyle=\underline, numbers=none, xleftmargin=0mm]
 a = input(substance_A)
 b = input(substance_B)
@@ -527,28 +510,28 @@ heat(ab)
     \end{lstlisting}
   \end{minipage}
   \hfill
-  \begin{minipage}{0.35\linewidth}
+  \begin{minipage}{0.45\linewidth}
     \begin{tikzpicture}[
         every node/.style={draw, align=center, rounded corners},
       ]
-      \tiny \sf
+      \footnotesize \sf
       \node[draw=none] (mid) {};
-      \node (A) [left = 5mm of mid, fill=cyan] {
+      \node (A) [left = 5mm of mid, fill=cyan!50] {
         \textbf{INPUT A} \\
         time 0--2 \\
         port (0,2)
       };
-      \node (B) [right = 5mm of mid, fill=cyan] {
+      \node (B) [right = 5mm of mid, fill=cyan!50] {
         \textbf{INPUT B} \\
         time 0--2 \\
         port (0,4)
       };
-      \node (mix) [below = 5mm of mid, fill=green] {
+      \node (mix) [below = 7mm of mid, fill=green!50] {
         \textbf{MIX} \\
         time 2--5 \\
         cell (2,4)
       };
-      \node (heat) [below = 3mm of mix, fill=yellow] {
+      \node (heat) [below = 3mm of mix, fill=yellow!50] {
         \textbf{HEAT} \\
         time 5--9 \\
         cell (5,6)
@@ -559,7 +542,6 @@ heat(ab)
       \draw[->] (mix) -- (heat);
     \end{tikzpicture}
   \end{minipage}
-  \hfill
 
   \caption{
     Pseudocode for fluidic a program fragment and the corresponding DAG where the operations have been
@@ -573,15 +555,15 @@ heat(ab)
 
 \mw{say something about working with large droplets}
 
-The vision proposed in the introduction calls for a microfluidics platform that can combine computation and fluidic manipulation in an unrestricted, high-level programming model.
-Our microfluidic programming system, Puddle, realizes this vision by making a different tradeoff than previous work in microfluidics and doing everything dynamically.
+The vision put forward in this paper calls for a microfluidics platform that can combine computation and fluidic manipulation in an unrestricted, high-level programming model.
+Our microfluidic programming system, Puddle, realizes this vision by making a different trade-off than previous work in microfluidics and doing everything dynamically.
 This decision is based on the following key insight: when it comes to resource management, expressiveness comes from dynamism.
 As a result, Puddle is not a programming language but a runtime system that provides a high-level API for microfluidic manipulations.
 The runtime system dynamically manages the fluidic resources (droplets), imposing no restrictions on the user's programming model.
 
-This section serves as an introduction to Puddle API, detailing what it provides to the programmer and the runtime system implementer.
+This section serves as an introduction to the Puddle API, detailing what it provides to the programmer and the runtime system implementer.
 \autoref{sec:impl} explains the implementation,
-and \autoref{sec:discussion} discusses the benefits and tradeoffs of our approach.
+and \autoref{sec:discussion} discusses the benefits and trade-offs of our approach.
 
 \subsection{Example}
 
@@ -646,7 +628,7 @@ For example, even though \codeinline{mix} is binary in the API, the runtime syst
 
 In contrast, the accesses to \codeinline{volume} on lines \ref{line:volume1} and \ref{line:volume2} are blocking; they are also the only points at which something happens on the microfluidic device.
 The volume of a droplet is a dynamic property: it cannot (in general) be known statically, as precision errors in \codeinline{input} and actuations like \codeinline{heat} might change it.
-These calls must block and wait for the system to produce the relevant droplets and take the sensor reading, because the return value is just a number which the user's program (which Puddle knows nothing about) can manipulate and branch on.
+These calls must block and wait for the system to produce the relevant droplets and take the sensor reading, because the return value is just a number that the user's program (which Puddle knows nothing about) can manipulate and branch on.
 
 \subsection{Programming Interface}
 \label{sec:api}
@@ -746,7 +728,7 @@ Additionally, hardware failures may occur during execution, making droplets not 
 Most of these are automatically detected and corrected by Puddle's error correction system (described in \autoref{sec:vision}).
 In rare cases, however, an error can result in a situation that is unrecoverable (e.g. the number of failed electrodes prevents routing).
 Because actuation API calls are non-blocking, the program may have progressed with the assumption that the promised droplets will be actually produced.
-Therefore, Puddle treats this case as unrecoverable and aborts.
+Therefore, Puddle treats this case as unrecoverable and throws an exception to the user.
 
 % A more subtle case occurs when a droplet leaves the safe volume range, perhaps due to evaporation from heating.
 % Droplets that are too small cannot move on DMF devices, so Puddle sends an exception back to the user.
@@ -808,25 +790,25 @@ The interface and programming model were covered in the previous section; here w
   \end{tikzpicture}
   \caption{
     PurpleDrop, our digital microfluidic device.
-    The motherboard PCB ({\sf A}) contains the electrical components, and the daughterboard ({\sf B}) contains the electrodes and the hydrophobic surface detailed \autoref{fig:board-side}.
+    The motherboard PCB ({\sf A}) contains the electronic components, and the daughterboard ({\sf B}) contains the electrodes and the hydrophobic surface detailed in \autoref{fig:board-side}.
     The device supports heaters on the bottom three electrodes ({\sf C}).
-    We can drive up to three pumps ({\sf D}) which can be configured to input or output fluids anywhere on the device ({\sf E}).
+    We can drive up to three pumps ({\sf D}) that can input or output fluids on the edge of the device ({\sf E}).
     PurpleDrop is controlled by a Raspberry Pi over the 40-pin connector ({\sf F}).
-    The Pi also connects to a camera on a 3d-printed mount (\sf G).
+    The Raspberry Pi connects to a camera on a 3D-printed mount (\sf G).
   }
   \label{fig:purpledrop}
 
 \end{figure}
 
-We designed our DMF device, PurpleDrop, with simplicity and accessibility in mind.
+We designed our digital microfluidic device, PurpleDrop, with simplicity and accessibility in mind.
 All together, the components cost on the order of \$300, orders of magnitude less than most other microfluidic systems.
-Futhermore, the design uses commodity components and does not require a clean room, so anyone with electronics experience could assemble PurpleDrop on their own or have it assembled by a PCB assembly service.
+Furthermore, the design uses commodity components and does not require a clean room, so anyone with electronics experience could assemble PurpleDrop on their own or have it assembled by a PCB assembly service.
 \autoref{fig:purpledrop} shows the device and enumerates its components.
 
 \paragraph{DMF hardware}
 
 The DMF portion of PurpleDrop is responsible for holding and manipulating the droplets.
-The daughterboard contains the electrodes which hold the droplets, and the motherboard contains the electrical components such as high-voltage controllers, shift registers, etc.
+The daughterboard contains the electrodes that hold the droplets, and the motherboard contains the electrical components such as high-voltage controllers, shift registers, etc.
 Both mother and daughterboard are PCBs.
 The daughterboard is removable, allowing different configurations of electrodes with the same motherboard.
 The modularity is also useful for durability, as the daughterboard is the most prone to wear.
@@ -838,7 +820,7 @@ Unlike OpenDrop, PurpleDrop runs without an oil medium for easier setup.
 \paragraph{Electronic control}
 
 Instead of using a microcontroller to drive the electronics needed for electrowetting, we use a Raspberry Pi 3B \cite{raspberry-pi-3b} single-board computer.
-The Pi runs Linux and sports a quad-core 1.2 GHz ARMv7 processor as well as GPIO pins, allowing PurpleDrop to be a self-sufficient microfluidics platform.
+The Raspberry Pi runs Linux and sports a quad-core 1.2 GHz ARMv7 processor as well as GPIO pins, allowing PurpleDrop to be a self-sufficient microfluidics platform.
 The control software actuates the electrodes on the daughterboard with the GPIO pins through some shift registers on the motherboard.
 The execution planning (\autoref{sec:planning}) and computer vision for error correction (\autoref{sec:vision}) also run on-device, so no host machine is needed.
 
@@ -906,8 +888,8 @@ Droplet volume is computed by multiplying the area of the droplet in the image b
     \end{tikzpicture}
   }
   \caption{
-    The lifetime of a command.
-    PurpleDroped edges end the flow immediately.
+    The life of a command.
+    Dashed edges end the flow immediately.
     Commands may be rejected if the API call was malformed or a feasible execution plan cannot be found.
     The user can recover from rejected commands, but not from failures to replan accepted ones.
   }
@@ -963,7 +945,7 @@ Each time step in the simulation is recorded, resulting in a \emph{record} of wh
 The record provides a view into the future state of the microfluidic device assuming that no hardware errors occur during execution.
 
 \camera[inline]{Clarified some aspects of simulation.}
-Puddle only simulates droplet movement to check for errors determine the presence and location of droplets on the DMF device at each timestep.
+Puddle only simulates droplet movement to check for errors and determine the presence and location of droplets on the DMF device at each timestep.
 Chemical results of actuations on the droplets or mixing them are not simulated.
 Simulation does, however, record when actuations occur, so execution can perform them when it ``replays'' the record.
 
@@ -1007,7 +989,7 @@ The second case is also unlikely in the face of few errors: the main constraints
 However, as errors accumulate, Puddle avoids more and more regions of the board.
 If enough errors build up, routing can become impossible, and replanning will fail.
 
-The record also keeps track of which states commands are completed in.
+The record also keeps track of the states that commands were completed in.
 When execution reaches such a state, the command is finalized.
 For most commands, this does nothing, but for blocking commands, this sends the result back to the user.
 
@@ -1085,7 +1067,7 @@ We then demonstrate Puddle's ability to write high-level programs and interface 
 \end{table}
 
 We evaluated our computer vision system on a dataset of 57 images taken from the Raspberry Pi camera at 320x240 pixels, the resolution we use for real time tracking.
-We manually labeled the droplets in the image and also specified which electrodes it occupies.
+We manually labeled the droplets in the image and also specified which electrodes they occupied.
 The images cover a wide variety of droplet counts, droplet locations, and droplet areas on the microfluidic board, and are thus representative of the microfluidic setup, and the variability expected to arise within the setup during normal operation of the device.
 We used a single piece of white paper mounted above the device to reduce the glare off the PCB, otherwise the lighting was uncontrolled and varies throughout the images.
 
@@ -1094,7 +1076,7 @@ Since droplet recognition is similar to image segmentation, we first calculate s
 Notably, the precision is higher than recall, indicating that our recognition system is relatively conservative.
 This comes from the fact that our system uses more erosion than dilation to remove noise from the image.
 Erosion results in slightly smaller recognized areas in the image, whereas too much dilation would combine nearby droplets.
-The area underestimate is consistent and thus easily calibrated out.
+The area underestimate is consistent and thus could be calibrated out.
 
 We also compute a number of metrics specific to droplet recognition.
 Droplet count is the most important metric for error correction.
@@ -1214,9 +1196,11 @@ To our knowledge, this is the first fully-automated execution of PCR with replen
 \begin{figure}
 \begin{lstlisting}
 def sequence(droplet):
+
     # actual prep protocol
     droplet += input("buffer", 65 * microliters)
     output("sequencer", droplet)
+
     # pseudocode to get and process the data
     data = get_data_from_device()
     seq = process(data)
@@ -1244,13 +1228,13 @@ The protocol is simple, but it still demonstrates the power of the Puddle progra
 In one sense, the function \codeinline{sequence} is no more exciting than one that reads the contents of a file from disk.
 However, existing microfluidic programming models cannot express both the fluidic and computational aspects of this protocol, nor can they export this functionality as an easy-to-use (and reuse) Python function.
 To our knowledge, this is the first time that computation and protocol execution are merged in this way.
-We envision this make it easier to use microfluidics for complex experiment automation.
+We envision encouraging the use microfluidics for complex experiment automation.
 
 \section{Related Work}
 \label{sec:related-work}
 
 \paragraph{DMF hardware}
-DMF devices can be built on different substrates including, silicon, or on a printed circuit board (PCB).
+DMF devices can be built on different substrates including silicon, or on a printed circuit board (PCB).
 While the former two technologies offer great control over the surface topology (an important property for electrowetting), PCBs are much more flexible and accessible, as they are cheaper and offer multi-layer wire routing \cite{gong2008direct}.
 We chose a PCB substrate and operate in air because it makes the device easier to manufacture and use.
 Our error correction system compensates for faults which may occur due to the more affordable substrate.
@@ -1263,8 +1247,8 @@ Extensive work in this area has led to algorithms that can
 exploit parallelism \cite{bohringer2006parallel, grissom2012scheduling},
 reduce contamination \cite{yao2016contamination, zhao2012contamination, huang2010contamination},
 and minimize overall droplet travel \cite{keszocze2015routing, roy2010routing}.
-Our place and route algorithms in Puddle are very simple and do not provide these features.
-\autoref{sec:future} discusses how these could be implemented within our system.
+Our place and route algorithms in Puddle are intentionally very simple and do not provide these features, as these are outside the scope of this work.
+\autoref{sec:future} discusses how such features could be implemented within our system.
 
 \paragraph{Microfluidic Programming}
 Previous work has improved upon static DAG place and route with domain specific languages for protocol specification and execution.
@@ -1302,7 +1286,7 @@ In principle, Puddle could be used as a backend for these frameworks to allow ex
 \autoref{sec:vision} mentioned that previous work on optical error detection is not as flexible as our approach in terms of droplet size/shape \cite{luo2013error} or lighting conditions \cite{shin2010vision, vo2017image-dmf}.
 We do require that droplets are dyed green.
 We are working to lift this restriction, as it limits the use of the camera as a colormetric sensor in the visible light spectrum.
-Other works have proposed impedence sensing as a means of detecting droplets~ \cite{hadwen2012impedence}.
+Other work has proposed impedence sensing as a means of detecting droplets~ \cite{hadwen2012impedence}.
 
 Alistar et al.\ \cite{alistar2010variability} present an ahead-of-time solution for operations that take variable time, accounting for some classes of precision errors.
 An online solution has also been presented \cite{alistar2012online}, but it has an offline component and only works for programs represented as DAGs.
@@ -1320,15 +1304,6 @@ Both allow the user to build up sets of operations in a general-purpose host lan
 \label{sec:discussion}
 
 \camera[inline]{This section has been moved to discussion, further highlighting the drawbacks of the purely dynamic approach.}
-
-We have presented Puddle, a runtime system that provides a high-level API for microfluidic programming.
-By taking a more dynamic approach than past work, Puddle allows an unrestricted programming model in a general-purpose language, access to a variety of sensors, and real-time error correction.
-Puddle facilitates decisions at the execution, protocol, and application level, all of which are necessary for robust execution of protocols which combine computation and fluidic manipulation.
-Puddle allows scientists to develop protocols (even interactively) in a familiar language.
-
-We have also presented PurpleDrop, an accessible DMF hardware platform with features like fluidic input/output necessary for hands-off automation of many protocols.
-PurpleDrop's design is simple and cheap enough for labs to assemble their own.
-Together Puddle and PurpleDrop comprise the first full-stack microfluidics platform that is accessible and flexible enough to enable complex applications that require a combination of computation and fluidic manipulation.
 
 Our main contribution is the notion of a microfluidic runtime system that dynamically manages fluidic resources.
 Below we further detail the benefits of and reasons for this approach, discuss the drawbacks, and propose future work based on this key idea.
@@ -1374,18 +1349,17 @@ This is technically true, but the problem can be mitigated by simulation.
 \autoref{sec:simulation} discusses the role of simulation in planning execution, but it can also be used at the user level.
 When running in simulation-only mode, Puddle plans execution (including place and route), returning dummy values for sensor readings if needed.
 \camera{Mention the weakness of simulation w.r.t. discovering resource usage bugs.}
-If the fluidics portion of the program is ``straight-line'' code (i.e. with no branches), then the simulation will tell the user if their program is infeasible before executing on the DMF device, just like static approaches.
+If the fluidics portion of the program is ``straight-line'' code (i.e., with no branches), then the simulation will tell the user if their program is infeasible before executing on the DMF device, just like static approaches.
 
 \camera[inline]{Add an example of an unsafe but useful program.}
-For more complex programs, it is not possible to explore all the possible sequences of fluidic operations in simulation.
-Since Puddle has no knowledge of the client's program, it is entirely possible get to a state where resource requests cannot be met, forcing Puddle to crash.
-We view this as a goal for future work, but also as part of the expressiveness trade-off.
+For more complex programs, it is intractable to explore all the possible sequences of fluidic operations in simulation.
+Since Puddle has no knowledge of the client's program, it is entirely possible to get to a state where resource requests cannot be met, forcing Puddle to crash.
+We hope to address this in future work, but we also view it as part of the expressiveness trade-off.
 Consider the \codeinline{thermocycle} code in \autoref{fig:thermocycle-code}: it loops over a data structure of potentially unbounded size and potentially \codeinline{input}s a new droplet each time.
-Even though this program is practical and useful, an ahead-of-time compiler would see it as requiring unbounded\footnotemark{} resources and fail to generate a static plan.
-\footnotetext{
+Even though this program is practical and useful, an ahead-of-time compiler would see it as requiring unbounded resources and fail to generate a static plan\footnote{
   Assuming the static compiler is not smart enough to reason about the volume comparison.
   In reality, the droplet should not grow too far beyond that \codeinline{min_volume}.
-}
+}.
 
 A final concern is that the dynamic approach leads to inefficient placement and routing.
 Our prototype implementation is simple, but taking advantage of more efficient solutions from the literature \cite{bohringer2006parallel, grissom2012scheduling, keszocze2015routing, roy2010routing}
@@ -1404,10 +1378,10 @@ Consider the following snippet where \codeinline{prep} does a lot of manipulatio
 prep(a); prep(b); sense(a); sense(b);
 \end{lstlisting}
 
-When droplet \codeinline{a} is sensed, Puddle will execute the planned work from \codeinline{prep(a)}, and likewise for when \codeinline{a} is sensed.
+When droplet \codeinline{a} is sensed, Puddle will execute the planned work from \codeinline{prep(a)}, and likewise for when \codeinline{b} is sensed.
 Even though the two calls to \codeinline{prep} are independent, Puddle would not exploit this fact.
 This is necessary because when \codeinline{sense(a)} is called, Puddle still thinks that \codeinline{b} might be manipulated further, and Puddle aims to perform dependent operations with minimal delay between them.
-One solution for this problem would be to insert \codeinline{flush(a, b)} before the calls to \codeinline{sense}.
+The programmer could solve this by inserting \codeinline{flush(a, b)} before the calls to \codeinline{sense}, telling Puddle to realize those droplet now.
 Another approach would be to \codeinline{sense} the independent droplets concurrently on the client side, so one does not block the other.
 On the server side, Puddle could coalesce the two requests and possibly plan them in parallel.
 
@@ -1417,7 +1391,7 @@ On the server side, Puddle could coalesce the two requests and possibly plan the
 \mw[inline]{Add some more future work}
 
 The complexity of new applications provides challenges for future work at all levels of the stack: programming model, runtime system, and hardware.
-Our dynamic approach maximizes expressiveness, trading off the ability to statically determine if a given program is feasible on some DMF device.
+Our dynamic approach maximizes expressiveness, trading off the ability to statically determine if a given program is feasible on a particular DMF device.
 While simulation suffices for now, future, more complex protocols would benefit from a static guarantee, but only if it does not compromise the programming model.
 The rich domains in which fluidic systems are used also pose a challenge to programming languages: can we statically reason about the contents of the fluids?
 Recent work has approached this from a chemical safety perspective, preventing users from accidentally performing dangerous reactions \cite{ott2018bioscript}.
@@ -1425,6 +1399,17 @@ Recent work has approached this from a chemical safety perspective, preventing u
 At the runtime system level, we hope to incorporate more advanced place and route techniques from the literature into Puddle.
 As Puddle already provides process-like concurrency, algorithms that extract parallelism and prevent contamination (by keeping certain paths separate) are especially promising.
 With further advances in DMF hardware, a larger DMF system combined with Puddle could enable a multi-user system where many protocols are running on ``virtualized'' DMFs that share common resources like fluidic input/output, heaters, etc.
+
+\subsection{Conclusion}
+
+We have presented Puddle, a runtime system that provides a high-level API for microfluidic programming.
+By taking a more dynamic approach than past work, Puddle allows an unrestricted programming model in a general-purpose language, access to a variety of sensors, and real-time error correction.
+Puddle facilitates decisions at the execution, protocol, and application level, all of which are necessary for robust execution of protocols which combine computation and fluidic manipulation.
+Puddle allows scientists to develop protocols (even interactively) in a familiar language.
+
+We have also presented PurpleDrop, an accessible DMF hardware platform with features like fluidic input/output necessary for hands-off automation of many protocols.
+PurpleDrop's design is simple and cheap enough for labs to assemble their own.
+Together Puddle and PurpleDrop comprise the first full-stack microfluidics platform that is accessible and flexible enough to enable complex applications that require a combination of computation and fluidic manipulation.
 
 \begin{acks}
   We thank the anonymous reviewers for their feedback and our shepherd Hank Hoffman for his guidance during the revision.
