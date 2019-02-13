@@ -377,7 +377,7 @@ fn combine_into() {
     let cd = p.combine_into(d, c).unwrap();
 
     let droplets = info_dict(&p);
-    let y1 = &Location { y: 1, x: 0 };
-    assert_eq!(droplets[&ab].location, &loc_a - y1);
-    assert_eq!(droplets[&cd].location, &loc_d - y1);
+    let y1 = Location { y: 1, x: 0 };
+    assert_eq!(droplets[&ab].location, loc_a - y1);
+    assert_eq!(droplets[&cd].location, loc_d - y1);
 }

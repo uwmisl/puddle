@@ -71,7 +71,7 @@ impl Placer {
             for y in -1..(droplet.dimensions.y + 1) {
                 for x in -1..(droplet.dimensions.x + 1) {
                     locations_initially_holding_droplets
-                        .insert(&droplet.location + &Location { x, y });
+                        .insert(droplet.location + Location { x, y });
                 }
             }
         }
@@ -114,7 +114,7 @@ impl Placer {
             let mapping = cmd_req
                 .shape
                 .locations()
-                .map(|(loc, _)| (loc, &loc + &offset))
+                .map(|(loc, _)| (loc, loc + offset))
                 .collect();
 
             let placement = Placement { mapping };
@@ -137,7 +137,7 @@ impl Placer {
                 .gridview
                 .grid
                 .locations()
-                .map(|(loc, _cell)| (loc.distance_to(&droplet.location), loc))
+                .map(|(loc, _cell)| (loc.distance_to(droplet.location), loc))
                 .collect();
             locations_by_distance.sort();
 
@@ -151,7 +151,7 @@ impl Placer {
                 .ok_or(PlacementError::Bad)?;
 
             // mark these spots as taken
-            bad_locs.extend(shape.locations().map(|(loc, _cell)| &offset + &loc));
+            bad_locs.extend(shape.locations().map(|(loc, _cell)| offset + loc));
 
             response.stored_droplets.push(offset)
         }
@@ -167,7 +167,7 @@ fn is_compatible(
     bad_locs: &HashSet<Location>,
 ) -> bool {
     smaller.locations().all(|(small_loc, small_cell)| {
-        let big_loc = &small_loc + &offset;
+        let big_loc = small_loc + offset;
         let nbrs = bigger.neighbors9(&big_loc);
         if nbrs.iter().any(|n| bad_locs.contains(n)) {
             return false;

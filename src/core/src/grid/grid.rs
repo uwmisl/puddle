@@ -216,7 +216,7 @@ impl Grid {
         I: Iterator<Item = &'a Location>,
     {
         offsets
-            .map(|off| loc + off)
+            .map(|off| *loc + *off)
             .filter(|loc| self.get_cell(loc).is_some())
             .collect()
     }
@@ -241,7 +241,7 @@ impl Grid {
         let mut dimensions_nbrhd: HashSet<Location> = HashSet::new();
         for y in 0..dimensions.y {
             for x in 0..dimensions.x {
-                let new_loc = loc + &Location { y, x };
+                let new_loc = *loc + Location { y, x };
                 dimensions_nbrhd.extend(self.neighbors9(&new_loc));
             }
         }

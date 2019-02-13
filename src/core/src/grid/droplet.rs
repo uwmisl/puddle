@@ -152,7 +152,7 @@ impl SimpleBlob {
             y: locs.iter().map(|l| l.y).max().unwrap_or(0) + 1,
             x: locs.iter().map(|l| l.x).max().unwrap_or(0) + 1,
         };
-        let dimensions = &far_corner - &location;
+        let dimensions = far_corner - location;
 
         let set1: HashSet<Location> = locs.iter().cloned().collect();
         let mut set2 = HashSet::new();
@@ -184,8 +184,8 @@ impl SimpleBlob {
 
 impl Blob for SimpleBlob {
     fn get_similarity(&self, droplet: &Droplet) -> i32 {
-        self.location.distance_to(&droplet.location) as i32
-            + self.dimensions.distance_to(&droplet.dimensions) as i32
+        self.location.distance_to(droplet.location) as i32
+            + self.dimensions.distance_to(droplet.dimensions) as i32
             + ((self.volume - droplet.volume) as i32).abs()
     }
 

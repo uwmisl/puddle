@@ -264,7 +264,7 @@ impl Combine {
             assert!(d0.location.y > d1.dimensions.y);
         }
         SimpleBlob {
-            location: &d0.location - &Location {
+            location: d0.location - Location {
                 y: d1.dimensions.y,
                 x: 0,
             },

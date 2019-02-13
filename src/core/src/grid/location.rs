@@ -1,46 +1,49 @@
 use std::fmt;
 use std::num::ParseIntError;
-use std::ops::{Add, Sub};
 use std::str::FromStr;
 
-use serde_derive::{Serialize, Deserialize};
+use derive_more::{Add, Display, From, Sub};
+use serde_derive::{Deserialize, Serialize};
 
-#[derive(PartialEq, Eq, PartialOrd, Ord, Hash, Clone, Copy, Serialize, Deserialize)]
+#[derive(PartialEq, Eq, PartialOrd, Ord, Hash, Clone, Copy)]
+#[derive(Serialize, Deserialize)] // from serde_derive
+#[derive(From, Display, Add, Sub)] // from derive_more
+#[display(fmt = "({}, {})", y, x)]
 pub struct Location {
     pub y: i32,
     pub x: i32,
 }
 
 impl Location {
-    pub fn distance_to(&self, other: &Self) -> u32 {
+    pub fn distance_to(self, other: Self) -> u32 {
         (self - other).norm()
     }
-    pub fn norm(&self) -> u32 {
+    pub fn norm(self) -> u32 {
         (self.y.abs() + self.x.abs()) as u32
     }
 
-    pub fn north(&self) -> Location {
+    pub fn north(self) -> Location {
         Location {
             y: self.y - 1,
             x: self.x,
         }
     }
 
-    pub fn west(&self) -> Location {
+    pub fn west(self) -> Location {
         Location {
             y: self.y,
             x: self.x - 1,
         }
     }
 
-    pub fn south(&self) -> Location {
+    pub fn south(self) -> Location {
         Location {
             y: self.y + 1,
             x: self.x,
         }
     }
 
-    pub fn east(&self) -> Location {
+    pub fn east(self) -> Location {
         Location {
             y: self.y,
             x: self.x + 1,
@@ -48,44 +51,9 @@ impl Location {
     }
 }
 
-impl<'a> Add for &'a Location {
-    type Output = Location;
-    fn add(self, other: &Location) -> Location {
-        Location {
-            y: self.y + other.y,
-            x: self.x + other.x,
-        }
-    }
-}
-
-impl<'a> Sub for &'a Location {
-    type Output = Location;
-    fn sub(self, other: &Location) -> Location {
-        Location {
-            y: self.y - other.y,
-            x: self.x - other.x,
-        }
-    }
-}
-
 impl fmt::Debug for Location {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "({}, {})", self.y, self.x)
-    }
-}
-
-impl fmt::Display for Location {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "({}, {})", self.y, self.x)
-    }
-}
-
-impl From<(i32, i32)> for Location {
-    fn from(tuple: (i32, i32)) -> Location {
-        Location {
-            y: tuple.0,
-            x: tuple.1,
-        }
+        write!(f, "{}", self)
     }
 }
 
@@ -142,6 +110,13 @@ impl Rectangle {
     }
 
     pub fn collision_distance(&self, other: &Rectangle) -> i32 {
+        fn signed_min(a: i32, b: i32) -> i32 {
+            if (a < 0) == (b < 0) {
+                i32::min(a.abs(), b.abs())
+            } else {
+                -i32::min(a.abs(), b.abs())
+            }
+        }
         let y_dist = signed_min(
             self.bottom_edge() - other.top_edge(),
             self.top_edge() - other.bottom_edge(),
@@ -159,18 +134,9 @@ impl Rectangle {
         ys.flat_map(move |y| {
             let xs = 0..(self.dimensions.x);
             let base = self.location;
-            xs.map(move |x| &base + &Location { y, x })
+            xs.map(move |x| base + Location { y, x })
         })
     }
-}
-
-fn signed_min(a: i32, b: i32) -> i32 {
-    let res = if (a < 0) == (b < 0) {
-        i32::min(a.abs(), b.abs())
-    } else {
-        -i32::min(a.abs(), b.abs())
-    };
-    res
 }
 
 #[cfg(test)]

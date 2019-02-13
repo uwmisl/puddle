@@ -148,7 +148,7 @@ impl Node {
     fn heuristic(&self, group: &Group) -> u32 {
         let n_steps: u32 = self
             .with_group(group)
-            .map(|(l, a)| l.distance_to(&a.destination))
+            .map(|(l, a)| l.distance_to(a.destination))
             .sum();
         MOVE_COST * n_steps
     }
@@ -198,7 +198,7 @@ impl Node {
             .locations
             .iter()
             .zip(offsets)
-            .map(|(agent, offset)| agent + offset)
+            .map(|(&agent, &offset)| agent + offset)
             .collect();
 
         let edge_cost = offsets.iter().map(step_cost).sum();

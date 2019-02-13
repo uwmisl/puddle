@@ -72,7 +72,7 @@ impl Executor {
             for (id, path) in paths.iter() {
                 if i < path.len() {
                     let droplet = self.gridview.droplets.get_mut(id).unwrap();
-                    assert!(droplet.location.distance_to(&path[i]) <= 1);
+                    assert!(droplet.location.distance_to(path[i]) <= 1);
                     droplet.location = path[i];
                 }
             }
