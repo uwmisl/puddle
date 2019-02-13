@@ -1,4 +1,4 @@
-\documentclass[sigconf, screen]{acmart}
+\documentclass[sigplan, screen]{acmart}
 
 \copyrightyear{2019}
 \acmYear{2019}
@@ -91,8 +91,8 @@
 \definecolor{pd_purple}{RGB}{90,65,130}
 \definecolor{pd_gold}{RGB}{250,230,70}
 
-\def\mytitle{Puddle: A Dynamic, Error-Correcting, Full-Stack Microfluidics Platform}
-\def\puddleurl{http://misl.cs.washington.edu/projects/puddle.html}
+\def\mytitle{Puddle: A Dynamic, Error-Correcting, \\ Full-Stack Microfluidics Platform}
+\def\puddleurl{http://puddle.bio}
 
 \title[Puddle: A Full-Stack Microfluidics Platform]{\mytitle}
 
@@ -146,6 +146,8 @@
 
 % we can't fit everyone's names in the header
 \renewcommand\shortauthors{Willsey et. al.}
+% remove headings
+\fancyhead{}
 
 \section{Introduction}
 
@@ -1144,7 +1146,7 @@ The next section demonstrates how automatic replenishment can deal with evaporat
 % thermocycle code
 \begin{figure}
   \centering
-\begin{lstlisting}
+\begin{lstlisting}[basicstyle=\ttfamily\small]
 min_volume = 10 * microliters
 
 def thermocycle(droplet, temps_and_times):
@@ -1194,13 +1196,11 @@ To our knowledge, this is the first fully-automated execution of PCR with replen
 \label{sec:nanopore}
 
 \begin{figure}
-\begin{lstlisting}
+\begin{lstlisting}[basicstyle=\ttfamily\small]
 def sequence(droplet):
-
     # actual prep protocol
     droplet += input("buffer", 65 * microliters)
     output("sequencer", droplet)
-
     # pseudocode to get and process the data
     data = get_data_from_device()
     seq = process(data)
@@ -1400,7 +1400,7 @@ The complexity of new applications provides challenges for future work at all le
 Our dynamic approach maximizes expressiveness, trading off the ability to statically determine if a given program is feasible on a particular DMF device.
 While simulation suffices for now, future, more complex protocols would benefit from a static guarantee, but only if it does not compromise the programming model.
 The rich domains in which fluidic systems are used also pose a challenge to programming languages: can we statically reason about the contents of the fluids?
-Recent work has approached this from a chemical safety perspective, preventing users from accidentally performing dangerous reactions \cite{ott2018bioscript}.
+Recent work has approached this from a chemical safety perspective, preventing accidental dangerous reactions \cite{ott2018bioscript}.
 
 At the runtime system level, we hope to incorporate more advanced place and route techniques from the literature into Puddle.
 As Puddle already provides process-like concurrency, algorithms that extract parallelism and prevent contamination (by keeping certain paths separate) are especially promising.
@@ -1409,13 +1409,13 @@ With further advances in DMF hardware, a larger DMF system combined with Puddle 
 \subsection{Conclusion}
 
 We have presented Puddle, a runtime system that provides a high-level API for microfluidic programming.
-By taking a more dynamic approach than past work, Puddle allows an unrestricted programming model in a general-purpose language, access to a variety of sensors, and real-time error correction.
-Puddle facilitates decisions at the execution, protocol, and application level, all of which are necessary for robust execution of protocols which combine computation and fluidic manipulation.
+By taking a more dynamic approach than past work, Puddle allows an unrestricted programming model in a general-purpose language as well as real-time error correction.
+Puddle facilitates decisions at the execution, protocol, and application level, all of which are necessary for robust execution of complex protocols.
 Puddle allows scientists to develop protocols (even interactively) in a familiar language.
 
 We have also presented PurpleDrop, an accessible DMF hardware platform with features like fluidic input/output necessary for hands-off automation of many protocols.
 PurpleDrop's design is simple and cheap enough for labs to assemble their own.
-Together Puddle and PurpleDrop comprise the first full-stack microfluidics platform that is accessible and flexible enough to enable complex applications that require a combination of computation and fluidic manipulation.
+Together, Puddle and PurpleDrop comprise the first full-stack microfluidics platform that is accessible and flexible enough to enable complex applications requiring a combination of computation and fluidic manipulation.
 
 \begin{acks}
   We thank the anonymous reviewers for their feedback and our shepherd Hank Hoffmann for his guidance during the revision.
