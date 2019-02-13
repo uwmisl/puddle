@@ -19,7 +19,6 @@ impl fmt::Debug for GridView {
     }
 }
 
-
 impl GridView {
     pub fn new(grid: Grid) -> GridView {
         GridView {

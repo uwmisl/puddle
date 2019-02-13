@@ -1,6 +1,6 @@
+use crate::util::duration_seconds;
 use std::f64::{INFINITY, NAN};
 use std::time::Duration;
-use crate::util::duration_seconds;
 
 pub struct PidController {
     pub p_gain: f64,

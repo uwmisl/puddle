@@ -100,7 +100,8 @@ impl Placer {
                     let would_require_move = locations_initially_holding_droplets.contains(&loc);
                     let i = if would_require_move { 1 } else { 0 };
                     (i, loc)
-                }).collect();
+                })
+                .collect();
 
             potential_offsets.sort();
 

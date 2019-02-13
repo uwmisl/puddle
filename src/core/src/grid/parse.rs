@@ -39,7 +39,8 @@ impl ParsedGrid {
             .filter_map(|ci| match ci {
                 Index(n) => Some(n + 1),
                 _ => None,
-            }).max()
+            })
+            .max()
             .unwrap_or(0);
 
         let mut f = |pe: &ParsedElectrode| match pe {
@@ -129,7 +130,8 @@ pub mod tests {
                 let labels = connected_components(locs.iter().cloned());
                 assert!(labels.values().all(|v| *v == 0));
                 (ch, SimpleBlob::from_locations(&locs).expect("not a blob!"))
-            }).collect();
+            })
+            .collect();
 
         let mut next_pin = 0;
         let to_cell = |loc: Location| {
@@ -161,7 +163,8 @@ pub mod tests {
                           ["a", "a", "a"]]
             }
         "#,
-        ).expect("parse failed");
+        )
+        .expect("parse failed");
     }
 
     fn check_round_trip(grid: Grid, desc: &str) {

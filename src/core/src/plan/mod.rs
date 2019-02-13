@@ -80,7 +80,8 @@ impl Planner {
                 //     self.droplets.insert(out.id, out);
                 // }
                 cmd_req
-            }).collect();
+            })
+            .collect();
 
         let place_resp = {
             let req = PlacementRequest {
@@ -104,7 +105,8 @@ impl Planner {
                     source: self.gridview.droplets[&id].location,
                     dimensions: self.gridview.droplets[&id].dimensions,
                     destination: loc,
-                }).collect();
+                })
+                .collect();
 
             // TODO getting these input droplets is pretty painful
             let placed = sched_resp
@@ -158,9 +160,9 @@ impl Planner {
 
 #[cfg(test)]
 mod tests {
+    use crate::tests::project_path;
     use env_logger;
     use std::fs::File;
-    use crate::tests::project_path;
 
     use super::*;
 

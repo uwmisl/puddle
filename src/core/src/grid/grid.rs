@@ -101,21 +101,22 @@ impl Grid {
                             }
                             ParsedElectrode::Index(e.pin)
                         }
-                    }).collect()
-            }).collect();
+                    })
+                    .collect()
+            })
+            .collect();
         ParsedGrid { board, peripherals }
     }
 
     pub fn to_strs(&self) -> Vec<String> {
-        self.vec.iter().map(|row| {
-            row.iter().map(|electrode| {
-                if let Some(_) = electrode {
-                    '.'
-                } else {
-                    ' '
-                }
-            }).collect()
-        }).collect()
+        self.vec
+            .iter()
+            .map(|row| {
+                row.iter()
+                    .map(|electrode| if let Some(_) = electrode { '.' } else { ' ' })
+                    .collect()
+            })
+            .collect()
     }
 
     pub fn rectangle(h: usize, w: usize) -> Self {
@@ -181,8 +182,10 @@ impl Grid {
                             y: i as i32,
                             x: j as i32,
                         })
-                    }).collect()
-            }).collect();
+                    })
+                    .collect()
+            })
+            .collect();
 
         Grid { vec }
     }

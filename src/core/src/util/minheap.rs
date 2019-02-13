@@ -70,8 +70,8 @@ impl<K: Ord, T: Eq> Ord for MinHeapElem<K, T> {
                 let ord = other.timestamp.cmp(&self.timestamp);
                 assert_ne!(ord, Ordering::Equal);
                 ord
-            },
-            ord => ord
+            }
+            ord => ord,
         }
     }
 }

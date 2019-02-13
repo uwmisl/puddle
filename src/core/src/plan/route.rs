@@ -41,7 +41,7 @@ impl Router {
         let max_time = 100;
         match ctx.route(max_time) {
             Some(paths) => Ok(RoutingResponse {
-                routes: paths.into_iter().collect()
+                routes: paths.into_iter().collect(),
             }),
             None => {
                 warn!("Failed to route agents: {:#?}", req.agents);
@@ -330,14 +330,12 @@ impl Context<'_> {
     }
 
     fn route(&mut self, max_time: u32) -> Option<PathMap> {
-
         // route everyone independently
         let mut paths = PathMap::new();
         // we assume that groups, agents are non-empty, so just return if there's nothing to plan
         if self.groups.is_empty() {
-            return Some(paths)
+            return Some(paths);
         }
-
 
         for group in self.groups.values() {
             let group_paths = self.route_group(group, max_time)?;
@@ -736,6 +734,5 @@ mod tests {
         println!("{:#?}", ctx.groups);
 
         check_groups(&ctx, &["abcd"]);
-
     }
 }

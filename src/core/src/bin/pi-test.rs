@@ -28,7 +28,8 @@ fn main() -> Result<(), Box<Error>> {
         .subcommand(
             SubCommand::with_name("dac")
                 .arg(Arg::with_name("value").takes_value(true).required(true)),
-        ).subcommand(
+        )
+        .subcommand(
             SubCommand::with_name("pwm")
                 .arg(Arg::with_name("channel").takes_value(true).required(true))
                 .arg(Arg::with_name("duty").takes_value(true).required(true))
@@ -38,12 +39,14 @@ fn main() -> Result<(), Box<Error>> {
                         .takes_value(true)
                         .default_value("1.0"),
                 ),
-        ).subcommand(
+        )
+        .subcommand(
             SubCommand::with_name("pi-pwm")
                 .arg(Arg::with_name("channel").takes_value(true).required(true))
                 .arg(Arg::with_name("frequency").takes_value(true).required(true))
                 .arg(Arg::with_name("duty").takes_value(true).required(true)),
-        ).subcommand(
+        )
+        .subcommand(
             SubCommand::with_name("set-loc")
                 .arg(Arg::with_name("grid").takes_value(true).required(true))
                 .arg(Arg::with_name("location").takes_value(true).required(true))
@@ -52,7 +55,8 @@ fn main() -> Result<(), Box<Error>> {
                         .takes_value(true)
                         .default_value("(1,1)"),
                 ),
-        ).subcommand(
+        )
+        .subcommand(
             SubCommand::with_name("circle")
                 .arg(Arg::with_name("grid").takes_value(true).required(true))
                 .arg(Arg::with_name("location").takes_value(true).required(true))
@@ -60,31 +64,37 @@ fn main() -> Result<(), Box<Error>> {
                     Arg::with_name("dimensions")
                         .takes_value(true)
                         .default_value("(1,1)"),
-                ).arg(
+                )
+                .arg(
                     Arg::with_name("circle")
                         .takes_value(true)
                         .default_value("(2,2)"),
-                ).arg(
+                )
+                .arg(
                     Arg::with_name("sleep")
                         .takes_value(true)
                         .default_value("1000"),
                 ),
-        ).subcommand(SubCommand::with_name("temp"))
+        )
+        .subcommand(SubCommand::with_name("temp"))
         .subcommand(
             SubCommand::with_name("heat")
                 .arg(Arg::with_name("grid").takes_value(true).required(true))
                 .arg(Arg::with_name("heater").takes_value(true).required(true))
                 .arg(Arg::with_name("temp").takes_value(true).required(true))
                 .arg(Arg::with_name("seconds").takes_value(true).required(true)),
-        ).subcommand(
+        )
+        .subcommand(
             SubCommand::with_name("pins")
                 .arg(Arg::with_name("grid").takes_value(true).required(true))
                 .arg(
                     Arg::with_name("millis")
                         .takes_value(true)
                         .default_value("0"),
-                ).help("Just don't specify millis and you'll block on keypress"),
-        ).get_matches();
+                )
+                .help("Just don't specify millis and you'll block on keypress"),
+        )
+        .get_matches();
 
     let mut pi = RaspberryPi::new()?;
     debug!("Pi started successfully!");
