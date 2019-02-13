@@ -67,12 +67,6 @@ impl Process {
     }
 }
 
-impl Drop for Process {
-    fn drop(&mut self) {
-        self.close()
-    }
-}
-
 impl Process {
     pub fn flush(&self) -> PuddleResult<Vec<DropletInfo>> {
         let (tx, rx) = channel();
@@ -153,18 +147,6 @@ impl Process {
         let heat_cmd = command::Heat::new(d, out, temperature, duration)?;
         self.plan(Box::new(heat_cmd))?;
         Ok(out)
-    }
-
-    pub fn close(&mut self) {
-        let _sys = match self.system.lock() {
-            Ok(sys) => sys,
-            Err(e) => {
-                error!("Error while closing! {:?}", e);
-                return;
-            }
-        };
-        // FIXME
-        // gv.close();
     }
 }
 
