@@ -2,8 +2,7 @@
 
 ## Cross compiling
 
-
-We use [`cross`][] for cross compilation.
+We use [nix][] for dependency management, including cross compilation.
 `cross` spins up a docker container with the necessary (cross-compiled!)
 dependencies and build it in there, dropping the result in the `target` folder
 on the host machine just like regular compiling. Here's how to install it and get cross-compiling:
@@ -29,4 +28,4 @@ Instead, you can add the line `bcm2835-v4l2` to `/etc/modules/`.
 You'll need to reboot once after you do this.
 
 
-[cross]: https://github.com/japaric/cross
+[nix]: https://nixos.org/

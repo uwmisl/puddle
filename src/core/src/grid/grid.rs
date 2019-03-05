@@ -1,13 +1,9 @@
-use serde::{Deserialize, Deserializer, Serialize, Serializer};
-use serde_json;
-
 use std::collections::HashSet;
-use std::io::Read;
 
 use super::{Location, Snapshot};
 use util::collections::{Map, Set};
 
-use grid::parse::{Mark, ParsedElectrode, ParsedGrid};
+use grid::parse::{PiConfig, Mark, ParsedElectrode, ParsedGrid};
 
 #[derive(Debug, PartialEq, Eq, Hash, Serialize, Deserialize, Clone)]
 pub struct Electrode {
@@ -92,7 +88,8 @@ impl Grid {
                         }
                     }).collect()
             }).collect();
-        ParsedGrid { board, peripherals }
+        let pi_config = PiConfig::default();
+        ParsedGrid { pi_config, board, peripherals }
     }
 
     pub fn rectangle(h: usize, w: usize) -> Self {
@@ -123,11 +120,6 @@ impl Grid {
             .map(|e| e.as_ref().map_or(0, |e| e.pin))
             .max()
             .unwrap_or(0)
-    }
-
-    pub fn from_reader<R: Read>(reader: R) -> Result<Grid, serde_json::Error> {
-        let parsed_grid: ParsedGrid = serde_json::from_reader(reader)?;
-        Ok(parsed_grid.to_grid())
     }
 
     pub fn locations<'a>(&'a self) -> impl Iterator<Item = (Location, Electrode)> + 'a {
@@ -313,23 +305,23 @@ impl Grid {
     }
 }
 
-impl Serialize for Grid {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        self.to_parsed_grid().serialize(serializer)
-    }
-}
+// impl Serialize for Grid {
+//     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+//     where
+//         S: Serializer,
+//     {
+//         self.to_parsed_grid().serialize(serializer)
+//     }
+// }
 
-impl<'de> Deserialize<'de> for Grid {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        ParsedGrid::deserialize(deserializer).map(|pg| pg.to_grid())
-    }
-}
+// impl<'de> Deserialize<'de> for Grid {
+//     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+//     where
+//         D: Deserializer<'de>,
+//     {
+//         ParsedGrid::deserialize(deserializer).map(|pg| pg.to_grid())
+//     }
+// }
 
 #[cfg(test)]
 pub mod tests {

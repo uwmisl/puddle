@@ -5,7 +5,7 @@ authors = ["Max Willsey <me@mwillsey.com>"]
 
 [features]
 # only works with --target armv7-unknown-linux-gnueabihf
-pi = []
+pi = ["rppal"]
 vision = []
 
 [[bin]]
@@ -50,6 +50,8 @@ nalgebra = "0.15"
 ncollide2d = "0.16"
 
 matches = "0.1"
+
+rppal = {version = "0.10.0", optional = true}
 
 [dev-dependencies]
 glob = "^0.2"

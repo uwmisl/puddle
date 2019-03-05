@@ -30,6 +30,9 @@ extern crate pathfinding;
 
 extern crate float_ord;
 
+#[cfg(feature = "pi")]
+extern crate rppal;
+
 #[cfg(feature = "vision")]
 extern crate nalgebra;
 #[cfg(feature = "vision")]

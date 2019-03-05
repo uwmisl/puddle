@@ -673,6 +673,7 @@ dependencies = [
  "ncollide2d 0.16.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "pathfinding 0.7.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "rand 0.6.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "rppal 0.10.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde 1.0.69 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde_derive 1.0.69 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde_json 1.0.22 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -810,6 +811,15 @@ version = "0.6.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "ucd-util 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
+name = "rppal"
+version = "0.10.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+dependencies = [
+ "lazy_static 1.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "libc 0.2.42 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -1334,6 +1344,7 @@ dependencies = [
 "checksum redox_termios 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)" = "7e891cfe48e9100a70a3b6eb652fef28920c117d366339687bd5576160db0f76"
 "checksum regex 1.0.6 (registry+https://github.com/rust-lang/crates.io-index)" = "ee84f70c8c08744ea9641a731c7fadb475bf2ecc52d7f627feb833e0b3990467"
 "checksum regex-syntax 0.6.3 (registry+https://github.com/rust-lang/crates.io-index)" = "fbc557aac2b708fe84121caf261346cc2eed71978024337e42eb46b8a252ac6e"
+"checksum rppal 0.10.0 (registry+https://github.com/rust-lang/crates.io-index)" = "d6989c9367909b1c8c94635ec3ef5036e938844e253327db0a861b8c7fee96ec"
 "checksum rustc_version 0.2.3 (registry+https://github.com/rust-lang/crates.io-index)" = "138e3e0acb6c9fb258b19b67cb8abd63c00679d2851805ea151465464fe9030a"
 "checksum scopeguard 0.3.3 (registry+https://github.com/rust-lang/crates.io-index)" = "94258f53601af11e6a49f722422f6e3425c52b06245a5cf9bc09908b174f5e27"
 "checksum semver 0.9.0 (registry+https://github.com/rust-lang/crates.io-index)" = "1d7eb9ef2c18661902cc47e535f9bc51b78acd254da71d375c2f6720d9a40403"
