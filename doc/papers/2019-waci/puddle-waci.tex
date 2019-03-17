@@ -1,0 +1,90 @@
+\documentclass[sigplan, screen, nonacm]{acmart}
+
+\usepackage{graphicx}
+\graphicspath{{figs/}}
+
+\usepackage{tikz}
+\usetikzlibrary{shapes.arrows}
+
+\title{Mega-Microfluidcs}
+\subtitle{Scaling Up Laboratory Automation using Commodity Devices}
+
+\author{Max Willsey}
+\affiliation{University of Washington}
+\author{Luis Ceze}
+\affiliation{University of Washington}
+
+
+\begin{document}
+
+\begin{teaserfigure}
+  \hfill
+\begin{tikzpicture}
+  \node at (2,0) {
+    \includegraphics[height=1in]{purpledrop.jpg}
+  };
+  \node[
+    single arrow,
+    thick, draw=black,fill=black!25,
+    minimum height=20mm
+  ] at (5.5,0) {};
+  \node at (10,0) {
+    \includegraphics[height=1in, trim={0 43mm 0 43mm}, clip]{big-dmf.pdf}
+  };
+\end{tikzpicture}
+  \hfill
+\vspace{1em}
+\end{teaserfigure}
+
+\maketitle
+
+Microfluidic automation promises to make biology and chemistry more precise and efficient.
+Wetlabs are already using various technologies to automate part of their workflows.
+
+To scale things even further, various companies offer cloud lab services.
+In this paradigm, the user submits a job (and perhaps mails in some reagents), and robots in a warehouse perform the necessary fluidic tasks.
+Finally, the result is mailed back to the user, or in some cases just the relevant data is sent.
+
+Our work in ASPLOS this year explores a more dynamic approach to microfluidic automation, raising the possibility of running more dynamic protocols that ``close the loop'' on automated experimentation. 
+But that work only looked at the hardware and software necessary to run protocols on one device, a device that is prohibitively small for many workloads.
+That said, those hardware design decisions have big benefits: the device is cheap, easy to use, and modular.
+Inspired by modern cloud-scale computer systems, this WACI presentation will propose 
+\emph{
+  cloud-scale, dynamic, multi-tenant microfluidic automation 
+  powered by small, cheap commodity components
+}.
+
+
+\paragraph{Scaling Up the Hardware}
+Digital microfluidic (DMF) platforms tend to be small, on the scale of hundreds of electrodes. 
+This is due to complications in manufacturing: typically every electrode requires independent control, and sourcing components that operate at the necessary voltage levels is difficult.
+If this technology catches on, mass production could change this, but it's still unlikely that single devices will satisfy large numbers of complex protocols at the same time.
+
+Instead, we propose cloud-scale microfluidic automation composed of many smaller, cheaper devices.
+% While the term \emph{commodity} doesn't yet apply to DMF technology, we will use it anticipating that its low cost will lead to popularity.
+This will require some kind of fluidic interconnect, the details of which remain very much unclear.
+In our ASPLOS paper, we used small peristaltic pumps to perform input/output between the DMF board and a test tube of reagents.
+We anticipate that the same technique can be used to facilitate board-to-board communication at the cost of one pump per connection.
+
+To minimize the number of needed connections, we picture a hierarchical topology, where clusters of DMF devices are densely connected to one another, and those clusters are more sparsely connected to one another.
+The top-level connection could use a different pumping technology, possibly including valves allowing it to operate more generally as a bus instead of a direct connection.
+All of this poses a challenge to current routing techniques, which focus on uniform topologies (like a grid of electrodes).
+
+\paragraph{Isolation \& Virtualization}
+We envision providing large-scale microfluidic automation as a \emph{dynamic} service to users.
+Instead of submitting static jobs as graphs, we want users to write rich, complex programs whose fluidic portions (which may not be known ahead of time) are executed on the microfluidic platform concurrently.
+
+Multi-tenant use calls for some mechanism of isolation.
+Our current ASPLOS paper begins to address this by handing out opaque droplet ids and abtracting away location.
+This prevents one user's program from clobbering another, but does not prevent one protocol from starving another.
+Cloud computing platforms approach this by providing virtual processors, and limiting dynamic resource usage to the preallocated number of processors.
+We picture something similar for microfluidics: we provide a virtual DMF device of a certain size\footnotemark, and the runtime system limits a user to using that much space (although it may not correspond 1:1 to any physical DMF device in the system).
+
+\paragraph{Fault Tolerance}
+Individual electrodes on a single DMF device are prone to failure, and we addressed this in our ASPLOS paper with a computer vision based error-correction system.
+However, this does nothing for you if many electrodes fail, essentially rendering a whole DMF device useless.
+In a setting with many devices though, we could attempt to migrate the protocol to a different physical DMF device(s) in a way that's transparent to the user.
+
+\footnotetext{And with a certain number of peripherals (DNA sequencers, heaters, etc.)}
+
+\end{document}
