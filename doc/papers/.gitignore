@@ -25,3 +25,9 @@ _minted*
 
 # also ignore pdfs in here
 *.pdf
+
+# track pdfs in figure directories
+!**/figs/*.pdf
+
+# auctex trash
+auto/
