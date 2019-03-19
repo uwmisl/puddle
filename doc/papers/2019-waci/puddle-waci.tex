@@ -1,5 +1,6 @@
 \documentclass[sigplan, screen, nonacm]{acmart}
 
+\usepackage{hyperref}
 \usepackage{graphicx}
 \graphicspath{{figs/}}
 
@@ -45,18 +46,18 @@ To scale things even further, various companies offer cloud lab services.
 In this paradigm, the user submits a job (and perhaps mails in some reagents), and robots in a warehouse perform the necessary fluidic tasks.
 Finally, the result is mailed back to the user, or in some cases just the relevant data is sent.
 
-Our work in ASPLOS this year explores a more dynamic approach to microfluidic automation, raising the possibility of running more dynamic protocols that ``close the loop'' on automated experimentation. 
+Our work \cite{willsey2019puddle} in ASPLOS this year explores a more dynamic approach to microfluidic automation, raising the possibility of running more dynamic protocols that ``close the loop'' on automated experimentation.
 But that work only looked at the hardware and software necessary to run protocols on one device, a device that is prohibitively small for many workloads.
 That said, those hardware design decisions have big benefits: the device is cheap, easy to use, and modular.
-Inspired by modern cloud-scale computer systems, this WACI presentation will propose 
+Inspired by modern cloud-scale computer systems, this WACI presentation will propose
 \emph{
-  cloud-scale, dynamic, multi-tenant microfluidic automation 
+  cloud-scale, dynamic, multi-tenant microfluidic automation
   powered by small, cheap commodity components
 }.
 
 
 \paragraph{Scaling Up the Hardware}
-Digital microfluidic (DMF) platforms tend to be small, on the scale of hundreds of electrodes. 
+Digital microfluidic (DMF) platforms tend to be small, on the scale of hundreds of electrodes.
 This is due to complications in manufacturing: typically every electrode requires independent control, and sourcing components that operate at the necessary voltage levels is difficult.
 If this technology catches on, mass production could change this, but it's still unlikely that single devices will satisfy large numbers of complex protocols at the same time.
 
@@ -86,5 +87,16 @@ However, this does nothing for you if many electrodes fail, essentially renderin
 In a setting with many devices though, we could attempt to migrate the protocol to a different physical DMF device(s) in a way that's transparent to the user.
 
 \footnotetext{And with a certain number of peripherals (DNA sequencers, heaters, etc.)}
+
+\newpage
+
+This WACI submission was accompanied by a \href{https://mwillsey.com/assets/2019-waci-droplets.m4v}{short video}.
+Below, we have included some references to works in microfluidics, especially those we think will be relevant to the ASPLOS community.
+More references and a more thorough discussion of related work can be found in \href{https://mwillsey.com/papers/2019-asplos-puddle.pdf}{our ASPLOS paper} about a programming system for a single microfluidic device.
+
+\nocite{*}
+
+\bibliographystyle{ACM-Reference-Format}
+\bibliography{references}
 
 \end{document}
