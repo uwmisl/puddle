@@ -2,6 +2,7 @@
 name = "puddle-core"
 version = "0.1.0"
 authors = ["Max Willsey <me@mwillsey.com>"]
+license = "MIT"
 
 [features]
 # only works with --target armv7-unknown-linux-gnueabihf
