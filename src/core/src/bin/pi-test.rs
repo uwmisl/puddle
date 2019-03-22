@@ -97,7 +97,7 @@ fn main() -> Result<(), Box<Error>> {
             thread::sleep(duration);
         }
         Circle {location, dimensions, circle_size, seconds} => {
-            
+
             let (id, mut snapshot) = mk_snapshot(location, dimensions);
 
             let duration = seconds_duration(seconds);
@@ -116,16 +116,16 @@ fn main() -> Result<(), Box<Error>> {
             };
 
             for xo in 0..circle_size.x {
-                set(xo, 0);
+                set(0, xo);
             }
             for yo in 0..circle_size.y {
-                set(circle_size.x - 1, yo);
+                set(yo, circle_size.x - 1);
             }
             for xo in 0..circle_size.x {
-                set(circle_size.x - 1 - xo, circle_size.y - 1);
+                set(circle_size.y - 1, circle_size.x - 1 - xo);
             }
             for yo in 0..circle_size.y {
-                set(0, circle_size.y - 1 - yo);
+                set(circle_size.y - 1 - yo, 0);
             }
         }
     }
