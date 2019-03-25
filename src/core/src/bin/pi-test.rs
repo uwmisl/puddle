@@ -1,22 +1,26 @@
 use std::error::Error;
 use std::fs::File;
-use std::path::Path;
 use std::io;
 use std::io::prelude::*;
+use std::path::Path;
 use std::thread;
 use std::time::Duration;
 
 extern crate log;
-use log::{info, debug};
+use log::{debug, info};
 
 extern crate puddle_core;
-use puddle_core::grid::{Droplet, DropletId, Grid, Location, Snapshot, parse::{ParsedGrid, PolarityConfig}};
-use puddle_core::pi::RaspberryPi;
-use puddle_core::util::{collections::Map, seconds_duration};
+use puddle_core::{
+    grid::droplet::{Blob, Droplet, DropletId, SimpleBlob},
+    grid::parse::{ParsedGrid, PolarityConfig},
+    grid::{Grid, Location, Snapshot},
+    pi::RaspberryPi,
+    util::{collections::Map, seconds_duration},
+};
 
 // TODO don't need to do this
 extern crate structopt;
-use structopt::{StructOpt};
+use structopt::StructOpt;
 
 #[derive(Debug, StructOpt)]
 enum SubCommand {
@@ -29,10 +33,7 @@ enum SubCommand {
         seconds: f64,
     },
     #[structopt(name = "set-gpio")]
-    SetGpio {
-        pin: usize,
-        seconds: f64,
-    },
+    SetGpio { pin: usize, seconds: f64 },
     #[structopt(name = "set-loc")]
     SetLoc {
         location: Location,
@@ -49,12 +50,25 @@ enum SubCommand {
         #[structopt(default_value = "1")]
         seconds: f64,
     },
-    // Circle,
+    #[structopt(name = "back-and-forth")]
+    BackAndForth {
+        #[structopt(short = "d", long = "dimensions", default_value = "2,2")]
+        dimensions: Location,
+        #[structopt(short = "x", long = "x-distance", default_value = "3")]
+        x_distance: u32,
+        #[structopt(long = "spacing", default_value = "1")]
+        spacing: u32,
+        #[structopt(long = "starting-location", default_value = "1,0")]
+        starting_location: Location,
+        #[structopt(short = "n", long = "n-droplets", default_value = "1")]
+        n_droplets: u32,
+        #[structopt(short = "s", long = "seconds", default_value = "1")]
+        seconds: f64,
+    },
     // Temp,
     // Heat,
     // Pins,
 }
-
 
 fn main() -> Result<(), Box<Error>> {
     // enable logging
@@ -69,7 +83,7 @@ fn main() -> Result<(), Box<Error>> {
         }
         Err(e) => {
             eprintln!("Please set environment variable PI_CONFIG");
-            return Err(e.into())
+            return Err(e.into());
         }
     };
     let grid = config.to_grid();
@@ -78,31 +92,93 @@ fn main() -> Result<(), Box<Error>> {
 
     use SubCommand::*;
     match sub {
-        SetPolarity {frequency, duty_cycle, seconds} => {
-            let polarity_config = PolarityConfig {frequency, duty_cycle};
+        SetPolarity {
+            frequency,
+            duty_cycle,
+            seconds,
+        } => {
+            let polarity_config = PolarityConfig {
+                frequency,
+                duty_cycle,
+            };
             pi.hv507.set_polarity(&polarity_config)?;
             let duration = seconds_duration(seconds);
             thread::sleep(duration);
         }
-        SetGpio {pin, seconds} => {
+        SetGpio { pin, seconds } => {
             pi.hv507.set_pin_hi(pin);
             pi.hv507.shift_and_latch();
             let duration = seconds_duration(seconds);
             thread::sleep(duration);
         }
-        SetLoc {location, dimensions, seconds} => {
-            let (_, snapshot) = mk_snapshot(location, dimensions);
+        SetLoc {
+            location,
+            dimensions,
+            seconds,
+        } => {
+            let (_, snapshot) = mk_snapshot(&[SimpleBlob {
+                location,
+                dimensions,
+                volume: 0.0,
+            }]);
             pi.output_pins(&grid, &snapshot);
             let duration = seconds_duration(seconds);
             thread::sleep(duration);
         }
-        Circle {location, dimensions, circle_size, seconds} => {
+        BackAndForth {
+            dimensions,
+            starting_location,
+            spacing,
+            n_droplets,
+            x_distance,
+            seconds,
+        } => {
+            let blobs: Vec<_> = (0..n_droplets)
+                .map(|i| {
+                    let y_offset = (dimensions.y + spacing as i32) * i as i32;
+                    let location = &starting_location + &Location { y: y_offset, x: 0 };
+                    let volume = 0.0;
+                    SimpleBlob {
+                        volume,
+                        dimensions,
+                        location,
+                    }
+                })
+                .collect();
 
-            let (id, mut snapshot) = mk_snapshot(location, dimensions);
+            let duration = seconds_duration(seconds);
+            let (ids, mut snapshot) = mk_snapshot(&blobs);
+
+            let xs = 0..=x_distance;
+            let xs = (xs.clone()).chain(xs.rev());
+
+            for x in xs {
+                for id in &ids {
+                    snapshot.droplets.get_mut(&id).unwrap().location.x = x as i32;
+                }
+                let locs: Vec<_> = snapshot.droplets.values().map(|d| d.location).collect();
+
+                pi.output_pins(&grid, &snapshot);
+                println!("Droplets at {:?}", locs);
+                thread::sleep(duration);
+            }
+        }
+        Circle {
+            location,
+            dimensions,
+            circle_size,
+            seconds,
+        } => {
+            let (ids, mut snapshot) = mk_snapshot(&[SimpleBlob {
+                location,
+                dimensions,
+                volume: 0.0,
+            }]);
+            let id = ids[0];
 
             let duration = seconds_duration(seconds);
 
-//     pi.output_pins(&grid, &snapshot);
+            //     pi.output_pins(&grid, &snapshot);
 
             let mut set = |yo, xo| {
                 let loc = Location {
@@ -141,26 +217,26 @@ fn mk_grid(path_str: &str) -> Result<ParsedGrid, Box<Error>> {
     Ok(grid)
 }
 
-fn mk_snapshot(location: Location, dimensions: Location) -> (DropletId, Snapshot) {
-    let mut droplets = Map::new();
-    // just use a dummy id
-    let id = DropletId {
-        id: 0,
-        process_id: 0,
-    };
-    let droplet = Droplet {
-        id: id,
-        location,
-        dimensions,
-        ..Droplet::default()
-    };
-    info!("Using {:#?}", droplet);
-    droplets.insert(id, droplet);
+fn mk_snapshot(blobs: &[SimpleBlob]) -> (Vec<DropletId>, Snapshot) {
+    let n = blobs.len();
+    let ids: Vec<_> = (0..n)
+        .map(|i| DropletId {
+            id: i,
+            process_id: 0,
+        })
+        .collect();
+
+    let droplets: Map<DropletId, Droplet> = ids
+        .iter()
+        .zip(blobs)
+        .map(|(&id, blob)| (id, blob.to_droplet(id)))
+        .collect();
+
     let snapshot = Snapshot {
-        droplets: droplets,
+        droplets,
         commands_to_finalize: vec![],
     };
-    (id, snapshot)
+    (ids, snapshot)
 }
 
 // fn set_loc(m: &ArgMatches, pi: &mut RaspberryPi) -> Result<(), Box<Error>> {
