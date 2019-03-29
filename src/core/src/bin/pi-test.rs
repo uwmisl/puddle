@@ -78,7 +78,10 @@ enum SubCommand {
         n_droplets: u32,
         #[structopt(short = "s", long = "seconds", default_value = "1")]
         seconds: MyDuration,
-        #[structopt(long = "stagger", help = "additional seconds to stagger the movement of droplets")]
+        #[structopt(
+            long = "stagger",
+            help = "additional seconds to stagger the movement of droplets"
+        )]
         stagger: Option<MyDuration>,
     },
     // Temp,
@@ -145,6 +148,7 @@ fn main() -> Result<(), Box<Error>> {
             n_droplets,
             x_distance,
             seconds,
+            stagger,
         } => {
             let blobs: Vec<_> = (0..n_droplets)
                 .map(|i| {
@@ -159,7 +163,6 @@ fn main() -> Result<(), Box<Error>> {
                 })
                 .collect();
 
-            let duration = seconds_duration(seconds);
             let (ids, mut snapshot) = mk_snapshot(&blobs);
 
             let xs = 0..=x_distance;
@@ -168,12 +171,16 @@ fn main() -> Result<(), Box<Error>> {
             for x in xs {
                 for id in &ids {
                     snapshot.droplets.get_mut(&id).unwrap().location.x = x as i32;
+                    if let Some(stagger) = &stagger {
+                        pi.output_pins(&grid, &snapshot);
+                        thread::sleep(stagger.0);
+                    }
                 }
                 let locs: Vec<_> = snapshot.droplets.values().map(|d| d.location).collect();
-
                 pi.output_pins(&grid, &snapshot);
                 println!("Droplets at {:?}", locs);
-                thread::sleep(duration);
+
+                thread::sleep(seconds.0);
             }
         }
         Circle {
