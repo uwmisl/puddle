@@ -4,7 +4,6 @@ use std::io;
 use std::io::prelude::*;
 use std::path::Path;
 use std::thread;
-use std::time::Duration;
 
 extern crate log;
 use log::{debug, info};
@@ -18,6 +17,21 @@ use puddle_core::{
     util::{collections::Map, seconds_duration},
 };
 
+#[derive(Debug)]
+struct MyDuration(std::time::Duration);
+
+impl std::str::FromStr for MyDuration {
+    type Err = std::num::ParseFloatError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let float: f64 = s.parse()?;
+        if float < 0.0 {
+            panic!("Float should be non-negative");
+        }
+        Ok(MyDuration(seconds_duration(float)))
+    }
+}
+
 // TODO don't need to do this
 extern crate structopt;
 use structopt::StructOpt;
@@ -30,17 +44,17 @@ enum SubCommand {
     SetPolarity {
         frequency: f64,
         duty_cycle: f64,
-        seconds: f64,
+        seconds: MyDuration,
     },
     #[structopt(name = "set-gpio")]
-    SetGpio { pin: usize, seconds: f64 },
+    SetGpio { pin: usize, seconds: MyDuration },
     #[structopt(name = "set-loc")]
     SetLoc {
         location: Location,
         #[structopt(default_value = "(1,1)")]
         dimensions: Location,
         #[structopt(default_value = "1")]
-        seconds: f64,
+        seconds: MyDuration,
     },
     #[structopt(name = "circle")]
     Circle {
@@ -48,7 +62,7 @@ enum SubCommand {
         dimensions: Location,
         circle_size: Location,
         #[structopt(default_value = "1")]
-        seconds: f64,
+        seconds: MyDuration,
     },
     #[structopt(name = "back-and-forth")]
     BackAndForth {
@@ -63,7 +77,9 @@ enum SubCommand {
         #[structopt(short = "n", long = "n-droplets", default_value = "1")]
         n_droplets: u32,
         #[structopt(short = "s", long = "seconds", default_value = "1")]
-        seconds: f64,
+        seconds: MyDuration,
+        #[structopt(long = "stagger", help = "additional seconds to stagger the movement of droplets")]
+        stagger: Option<MyDuration>,
     },
     // Temp,
     // Heat,
@@ -102,14 +118,12 @@ fn main() -> Result<(), Box<Error>> {
                 duty_cycle,
             };
             pi.hv507.set_polarity(&polarity_config)?;
-            let duration = seconds_duration(seconds);
-            thread::sleep(duration);
+            thread::sleep(seconds.0);
         }
         SetGpio { pin, seconds } => {
             pi.hv507.set_pin_hi(pin);
             pi.hv507.shift_and_latch();
-            let duration = seconds_duration(seconds);
-            thread::sleep(duration);
+            thread::sleep(seconds.0);
         }
         SetLoc {
             location,
@@ -122,8 +136,7 @@ fn main() -> Result<(), Box<Error>> {
                 volume: 0.0,
             }]);
             pi.output_pins(&grid, &snapshot);
-            let duration = seconds_duration(seconds);
-            thread::sleep(duration);
+            thread::sleep(seconds.0);
         }
         BackAndForth {
             dimensions,
@@ -176,8 +189,6 @@ fn main() -> Result<(), Box<Error>> {
             }]);
             let id = ids[0];
 
-            let duration = seconds_duration(seconds);
-
             //     pi.output_pins(&grid, &snapshot);
 
             let mut set = |yo, xo| {
@@ -188,7 +199,7 @@ fn main() -> Result<(), Box<Error>> {
                 snapshot.droplets.get_mut(&id).unwrap().location = loc;
                 pi.output_pins(&grid, &snapshot);
                 println!("Droplet at {}", loc);
-                thread::sleep(duration);
+                thread::sleep(seconds.0);
             };
 
             for xo in 0..circle_size.x {
