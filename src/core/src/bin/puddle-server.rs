@@ -12,7 +12,7 @@ use jsonrpc_core::{futures::Future, IoHandler};
 use jsonrpc_http_server::{hyper, RequestMiddlewareAction, Response, ServerBuilder};
 use structopt::StructOpt;
 
-use puddle_core::{Grid, Manager, Rpc};
+use puddle_core::{grid::parse::ParsedGrid, Grid, Manager, Rpc};
 
 #[derive(StructOpt)]
 struct PuddleServer {
@@ -50,8 +50,8 @@ impl PuddleServer {
 
         let should_sync = self.should_sync || env::var("PUDDLE_VIZ").is_ok();
 
-        let grid = Grid::from_reader(reader)?;
-        let manager = Manager::new(should_sync, grid);
+        let pg = ParsedGrid::from_reader(reader)?;
+        let manager = Manager::new(should_sync, pg.to_grid(), pg.pi_config);
         let arc = Arc::new(manager);
 
         #[cfg(feature = "pi")]

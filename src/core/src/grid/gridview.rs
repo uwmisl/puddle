@@ -6,7 +6,7 @@ use pathfinding::matrix::Matrix;
 
 use command::Command;
 use grid::droplet::{Blob, SimpleBlob};
-use grid::Electrode;
+use grid::{Electrode, parse::PiConfig};
 use plan::Path;
 use process::ProcessId;
 use util::collections::{Map, Set};
@@ -274,14 +274,14 @@ pub enum ExecResponse {
 }
 
 impl GridView {
-    pub fn new(grid: Grid) -> GridView {
+    pub fn new(grid: Grid, pi_config: PiConfig) -> GridView {
         let mut planned = VecDeque::new();
         planned.push_back(Snapshot::default());
 
         #[cfg(feature = "pi")]
         let pi = match ::std::env::var("PUDDLE_PI") {
             Ok(s) => if s == "1" {
-                let mut pi = RaspberryPi::new().unwrap();
+                let mut pi = RaspberryPi::new(pi_config).unwrap();
                 info!("Initialized the pi!");
                 Some(pi)
             } else {

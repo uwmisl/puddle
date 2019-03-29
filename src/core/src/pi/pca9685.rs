@@ -1,4 +1,5 @@
-use super::{I2cHandle, Result};
+// use super::{I2cHandle, Result};
+use rppal::spi;
 use std::thread::sleep;
 use std::time::Duration;
 

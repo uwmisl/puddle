@@ -1,3 +1,6 @@
+use serde_json;
+use std::io::Read;
+
 use util::collections::Map;
 
 use grid::grid::*;
@@ -20,15 +23,41 @@ pub enum ParsedElectrode {
 use self::Mark::*;
 use self::ParsedElectrode::*;
 
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct PiConfig {
+    pub polarity: PolarityConfig,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PolarityConfig {
+    pub frequency: f64,
+    pub duty_cycle: f64,
+}
+
+impl Default for PolarityConfig {
+    fn default() -> PolarityConfig {
+        PolarityConfig {
+            frequency: 500.0,
+            duty_cycle: 0.5,
+        }
+    }
+}
+
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct ParsedGrid {
+    #[serde(default)]
+    pub pi_config: PiConfig,
     pub board: Vec<Vec<ParsedElectrode>>,
     #[serde(default)]
     pub peripherals: Map<String, Peripheral>,
 }
 
 impl ParsedGrid {
+    pub fn from_reader<R: Read>(reader: R) -> Result<ParsedGrid, serde_json::Error> {
+        serde_json::from_reader(reader)
+    }
+
     pub fn to_grid(&self) -> Grid {
         // find a pin that higher than anything listed
         let mut next_auto_pin = self

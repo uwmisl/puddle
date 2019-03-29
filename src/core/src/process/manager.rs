@@ -3,7 +3,7 @@ use std::sync::{Arc, Mutex, MutexGuard};
 use std::thread;
 
 use exec::Executor;
-use grid::{DropletInfo, Grid, GridView};
+use grid::{DropletInfo, Grid, GridView, parse::PiConfig};
 use process::{Process, ProcessId, PuddleError, PuddleResult};
 
 use util::collections::Map;
@@ -51,10 +51,10 @@ pub struct Manager {
 }
 
 impl Manager {
-    pub fn new(blocking: bool, grid: Grid) -> Manager {
+    pub fn new(blocking: bool, grid: Grid, pi_config: PiConfig) -> Manager {
         let (mine, execs) = Endpoint::pair();
 
-        let gridview = GridView::new(grid);
+        let gridview = GridView::new(grid, pi_config);
         let gv_lock = Arc::new(Mutex::new(gridview));
         let mut executor = Executor::new(blocking, gv_lock.clone());
 
