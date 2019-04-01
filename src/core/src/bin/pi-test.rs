@@ -67,7 +67,7 @@ enum SubCommand {
         #[structopt(short = "d", long = "dimensions", default_value = "2,2")]
         dimensions: Location,
         #[structopt(short = "x", long = "x-distance", default_value = "3")]
-        x_distance: u32,
+        x_distance: i32,
         #[structopt(long = "spacing", default_value = "1")]
         spacing: u32,
         #[structopt(long = "starting-location", default_value = "1,0")]
@@ -165,8 +165,21 @@ fn main() -> Result<(), Box<Error>> {
 
             let (ids, mut snapshot) = mk_snapshot(&blobs);
 
-            let xs = 0..=x_distance;
-            let xs = (xs.clone()).chain(xs.rev());
+            let xs: Vec<i32> = {
+                let start = starting_location.x;
+                let end = start + x_distance;
+                assert!(end >= 0);
+
+                if start < end {
+                    let xs = start..end;
+                    (xs.clone()).chain(xs.rev()).collect()
+                } else {
+                    let xs = end..start;
+                    (xs.clone().rev()).chain(xs).collect()
+                }
+            };
+
+            println!("Moving to x's: {:?}", xs);
 
             for x in xs {
                 for id in &ids {
