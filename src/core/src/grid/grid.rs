@@ -3,7 +3,7 @@ use std::collections::HashSet;
 use super::{Location, Snapshot};
 use util::collections::{Map, Set};
 
-use grid::parse::{PiConfig, Mark, ParsedElectrode, ParsedGrid};
+use grid::parse::{Mark, ParsedElectrode, ParsedGrid, PiConfig};
 
 #[derive(Debug, PartialEq, Eq, Hash, Serialize, Deserialize, Clone)]
 pub struct Electrode {
@@ -86,10 +86,16 @@ impl Grid {
                             }
                             ParsedElectrode::Index(e.pin)
                         }
-                    }).collect()
-            }).collect();
+                    })
+                    .collect()
+            })
+            .collect();
         let pi_config = PiConfig::default();
-        ParsedGrid { pi_config, board, peripherals }
+        ParsedGrid {
+            pi_config,
+            board,
+            peripherals,
+        }
     }
 
     pub fn rectangle(h: usize, w: usize) -> Self {
@@ -196,7 +202,8 @@ impl Grid {
                     y: i as i32,
                     x: j as i32,
                 })
-            }).find(|&offset| smaller.is_compatible_within(offset, self, snapshot, bad_edges));
+            })
+            .find(|&offset| smaller.is_compatible_within(offset, self, snapshot, bad_edges));
 
         let result =
             offset_found.map(|offset| smaller.mapping_into_other_from_offset(offset, self));
@@ -227,8 +234,10 @@ impl Grid {
                             y: i as i32,
                             x: j as i32,
                         })
-                    }).collect()
-            }).collect();
+                    })
+                    .collect()
+            })
+            .collect();
 
         Grid { vec }
     }

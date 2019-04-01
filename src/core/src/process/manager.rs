@@ -3,7 +3,7 @@ use std::sync::{Arc, Mutex, MutexGuard};
 use std::thread;
 
 use exec::Executor;
-use grid::{DropletInfo, Grid, GridView, parse::PiConfig};
+use grid::{parse::PiConfig, DropletInfo, Grid, GridView};
 use process::{Process, ProcessId, PuddleError, PuddleResult};
 
 use util::collections::Map;

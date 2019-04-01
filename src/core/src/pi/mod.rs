@@ -8,10 +8,10 @@ use std::fmt;
 use std::thread;
 use std::time::{Duration, Instant};
 
-use rppal::pwm::Pwm;
 use rppal::gpio::Gpio;
+use rppal::pwm::Pwm;
 
-use grid::{Blob, Grid, Location, Peripheral, Snapshot, parse::PiConfig};
+use grid::{parse::PiConfig, Blob, Grid, Location, Peripheral, Snapshot};
 use util::{pid::PidController, seconds_duration, Timer};
 
 #[cfg(feature = "vision")]
@@ -23,7 +23,6 @@ use vision::Detector;
 use self::hv507::Hv507;
 
 // const PHYS_0: usize/
-
 
 // #[derive(Debug)]
 // pub struct PiError {
@@ -59,7 +58,7 @@ pub struct RaspberryPi {
     // pub mcp4725: Mcp4725,
     // pub pca9685: Pca9685,
     // pub max31865: Max31865,
-    // pwm: 
+    // pwm:
     // pwm: Pwm;
     config: PiConfig,
     gpio: Gpio,
@@ -74,9 +73,13 @@ impl RaspberryPi {
         trace!("Initializing pi hv507...");
         let mut hv507 = Hv507::new(&gpio)?;
         hv507.init(&config.polarity);
-        
+
         trace!("Initializing pi...");
-        let pi = RaspberryPi {config, gpio, hv507};
+        let pi = RaspberryPi {
+            config,
+            gpio,
+            hv507,
+        };
         trace!("Initialized pi!");
 
         // let i2c_bus = 1;
@@ -217,7 +220,6 @@ impl RaspberryPi {
 
     // // FIXME HACK
     pub fn bad_manual_output_pins(&mut self, pins: &[u8]) {
-
         // actually write the pins and cycle the clock
         for (i, pin) in pins.iter().enumerate() {
             if *pin == 0 {

@@ -96,7 +96,8 @@ impl AvoidanceSet {
                         sn.collision_groups
                             .iter()
                             .any(|&cg| cg != node.collision_group)
-                    }).map_or(false, |fin| node.time >= fin.time);
+                    })
+                    .map_or(false, |fin| node.time >= fin.time);
                 if collides {
                     return true;
                 }
@@ -133,7 +134,8 @@ impl AvoidanceSet {
                 .and_modify(|sn| {
                     sn.collision_groups.insert(droplet.collision_group);
                     sn.time = sn.time.min(last as Time)
-                }).or_insert_with(|| {
+                })
+                .or_insert_with(|| {
                     let mut cgs = Set::new();
                     cgs.insert(droplet.collision_group);
                     SuperNode {
@@ -158,7 +160,8 @@ impl AvoidanceSet {
                     .entry((loc, time as Time))
                     .and_modify(|sn| {
                         sn.collision_groups.insert(node.collision_group);
-                    }).or_insert_with(|| {
+                    })
+                    .or_insert_with(|| {
                         let mut cgs = Set::new();
                         cgs.insert(node.collision_group);
                         SuperNode {
@@ -190,7 +193,8 @@ impl Node {
                         dimensions: self.dimensions,
                     },
                 )
-            }).collect();
+            })
+            .collect();
 
         vec.push((
             STAY_COST,
@@ -274,15 +278,18 @@ fn route_many(
                         let l1 = node.location;
                         let l2 = n.location;
                         !av_set.should_avoid(n) && !bad_edges.contains(&(l1, l2))
-                    }).cloned()
+                    })
+                    .cloned()
                     .collect::<Vec<_>>()
             };
 
             let done_fn = |node: &Node| {
-                node.location == match droplet.destination {
-                    Some(x) => x,
-                    None => droplet.location,
-                } && !av_set.would_finally_collide(node)
+                node.location
+                    == match droplet.destination {
+                        Some(x) => x,
+                        None => droplet.location,
+                    }
+                    && !av_set.would_finally_collide(node)
             };
 
             route_one(&droplet, max_time, next_fn, done_fn)

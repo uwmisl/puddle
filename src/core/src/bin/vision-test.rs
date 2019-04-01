@@ -27,7 +27,8 @@ fn main() -> Result<(), Box<Error>> {
                 .arg(Arg::with_name("input").takes_value(true).required(true))
                 .arg(Arg::with_name("output").takes_value(true).required(true))
                 .arg(Arg::with_name("json").long("json")),
-        ).get_matches();
+        )
+        .get_matches();
 
     match matches.subcommand() {
         ("cam", Some(_m)) => {

@@ -1,8 +1,8 @@
 use std::thread;
 use std::time::Duration;
 
-use rppal::gpio::{Gpio, OutputPin, Level, IoPin, Mode};
-use rppal::pwm::{Pwm, Channel, Polarity};
+use rppal::gpio::{Gpio, IoPin, Level, Mode, OutputPin};
+use rppal::pwm::{Channel, Polarity, Pwm};
 
 use crate::util::seconds_duration;
 
@@ -12,7 +12,6 @@ use crate::grid::parse::PolarityConfig;
 const N_PINS: usize = 128;
 
 const ALL_ZEROS: &[Level] = &[Level::Low; N_PINS];
-
 
 // physical pin 11
 pub const BLANK_PIN: u8 = 17;
@@ -43,8 +42,8 @@ impl Hv507 {
             ($pin:expr) => {{
                 let pin = $pin;
                 trace!("initializing pin {}...", pin);
-                gpio.get(pin)?.into_output() 
-            }}
+                gpio.get(pin)?.into_output()
+            }};
         }
 
         // let mut blank = mk_output!(BLANK_PIN);
@@ -97,7 +96,8 @@ impl Hv507 {
     }
 
     pub fn set_polarity(&mut self, config: &PolarityConfig) -> Result<()> {
-        self.polarity.set_frequency(config.frequency, config.duty_cycle)?;
+        self.polarity
+            .set_frequency(config.frequency, config.duty_cycle)?;
         self.polarity.enable()?;
         Ok(())
     }

@@ -158,7 +158,7 @@ impl GridView {
                         },
                         droplets: self.snapshot().droplets.values().cloned().collect(),
                     },
-                ))
+                ));
             }
         };
         debug!("route for {:#?}: {:#?}", cmd, paths);

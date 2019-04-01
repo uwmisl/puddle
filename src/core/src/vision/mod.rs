@@ -153,7 +153,8 @@ impl Detector {
                     .collect();
                 let polygon = ConvexPolygon::try_from_points(&transformed_points).unwrap();
                 PolygonBlob { polygon }
-            }).collect();
+            })
+            .collect();
 
         trace!(
             "Found {} blobs: {:#?}",
@@ -164,7 +165,8 @@ impl Detector {
                     let ident = Isometry2::identity();
                     let bbox: AABB<f32> = b.polygon.bounding_volume(&ident);
                     bbox
-                }).collect::<Vec<_>>()
+                })
+                .collect::<Vec<_>>()
         );
         debug!("Blobs represent these droplets with fake ids: {:#?}", {
             let id = DropletId {
@@ -176,7 +178,8 @@ impl Detector {
                 .map(|b| {
                     // NOTE: to_droplet will panic if location or dimensions are negative
                     ::std::panic::catch_unwind(|| b.to_droplet(id))
-                }).collect::<Vec<_>>()
+                })
+                .collect::<Vec<_>>()
         });
 
         if should_quit {
@@ -363,7 +366,8 @@ fn points_in_area(
             let dy = y;
             y += delta;
             dy
-        }).flat_map(move |dy| {
+        })
+        .flat_map(move |dy| {
             (0..x_steps).map(move |_| {
                 let dx = x;
                 x += delta;

@@ -6,7 +6,7 @@ use pathfinding::matrix::Matrix;
 
 use command::Command;
 use grid::droplet::{Blob, SimpleBlob};
-use grid::{Electrode, parse::PiConfig};
+use grid::{parse::PiConfig, Electrode};
 use plan::Path;
 use process::ProcessId;
 use util::collections::{Map, Set};
@@ -196,7 +196,8 @@ impl Snapshot {
                 }
                 d.volume = d_new.volume;
                 (id, d_new)
-            }).collect();
+            })
+            .collect();
 
         if was_error {
             let mut new_snapshot = Snapshot {
@@ -262,7 +263,8 @@ impl Snapshot {
                     }
                     _ => None,
                 }
-            }).collect()
+            })
+            .collect()
     }
 }
 
@@ -280,14 +282,16 @@ impl GridView {
 
         #[cfg(feature = "pi")]
         let pi = match ::std::env::var("PUDDLE_PI") {
-            Ok(s) => if s == "1" {
-                let mut pi = RaspberryPi::new(pi_config).unwrap();
-                info!("Initialized the pi!");
-                Some(pi)
-            } else {
-                warn!("Couldn't read PUDDLE_PI={}", s);
-                None
-            },
+            Ok(s) => {
+                if s == "1" {
+                    let mut pi = RaspberryPi::new(pi_config).unwrap();
+                    info!("Initialized the pi!");
+                    Some(pi)
+                } else {
+                    warn!("Couldn't read PUDDLE_PI={}", s);
+                    None
+                }
+            }
             Err(_) => {
                 info!("Did not start the pi!");
                 None

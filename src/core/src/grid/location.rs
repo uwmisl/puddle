@@ -169,7 +169,8 @@ pub mod tests {
             .map(|(k, v)| {
                 let vv = equivs.find(*v).index();
                 (*k, vv)
-            }).collect()
+            })
+            .collect()
     }
 
     type Pt = (i32, i32);

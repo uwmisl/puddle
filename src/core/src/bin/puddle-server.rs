@@ -80,7 +80,8 @@ impl PuddleServer {
                         }
                     }
                 },
-            ).start_http(&self.addr)
+            )
+            .start_http(&self.addr)
             .expect("Couldn't start server");
 
         server.wait();

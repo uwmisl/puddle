@@ -15,7 +15,8 @@ pub fn mk_rng() -> impl Rng {
             .map(|seed| {
                 seed.parse()
                     .expect("Couldn't parse the seed into a number!")
-            }).unwrap_or(0),
+            })
+            .unwrap_or(0),
     )
 }
 
