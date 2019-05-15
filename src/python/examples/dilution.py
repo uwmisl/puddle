@@ -97,7 +97,6 @@ class VolConcDroplet(Droplet):
     def __init__(self, *args, **kwargs):
         self.volume = kwargs.pop('volume', 1)
         self.concentration = kwargs.pop('concentration', 0)
-        print(kwargs)
         super().__init__(*args, **kwargs)
 
     def mix(self, other):

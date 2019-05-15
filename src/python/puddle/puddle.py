@@ -212,7 +212,7 @@ def project_path(path):
 @contextmanager
 def mk_session(
         arch_file,
-        host = 'localhost',
+        host = '127.0.0.1',
         port = '3000',
         profile = '--release',
 ):
@@ -228,7 +228,7 @@ def mk_session(
     command = os.environ.get('PUDDLE_SERVER', default_command)
 
     # build the server command and run it
-    flags = ' --static {static_dir} --host {host} --port {port} {arch_file}'
+    flags = ' --static {static_dir} --addr {host}:{port} --arch {arch_file}'
     cmd = (command + flags).format(
         cargo_toml = project_path('/src/core/Cargo.toml'),
         profile = profile,
@@ -249,3 +249,4 @@ def mk_session(
     session.close()
     popen.terminate()
     popen.wait()
+    log_file.close()
