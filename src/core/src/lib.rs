@@ -5,7 +5,6 @@
 extern crate rand;
 
 extern crate serde;
-#[macro_use]
 extern crate serde_derive;
 
 extern crate serde_json;
@@ -14,7 +13,6 @@ extern crate serde_json;
 extern crate glob;
 
 extern crate jsonrpc_core;
-#[macro_use]
 extern crate jsonrpc_macros;
 
 #[cfg(test)]
@@ -38,7 +36,6 @@ extern crate nalgebra;
 #[cfg(feature = "vision")]
 extern crate ncollide2d;
 
-#[macro_use]
 extern crate matches;
 
 // these need to be pub until we have an api
@@ -48,6 +45,8 @@ pub mod grid;
 pub mod plan;
 mod process;
 pub mod util;
+
+mod system;
 
 #[cfg(feature = "vision")]
 pub mod vision;

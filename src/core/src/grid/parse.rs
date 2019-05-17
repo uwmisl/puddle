@@ -1,9 +1,7 @@
-use serde_json;
-use std::io::Read;
+use crate::util::collections::Map;
 
-use util::collections::Map;
-
-use grid::grid::*;
+use crate::grid::grid::*;
+use serde_derive::{Deserialize, Serialize};
 
 #[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Mark {
@@ -23,41 +21,15 @@ pub enum ParsedElectrode {
 use self::Mark::*;
 use self::ParsedElectrode::*;
 
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
-pub struct PiConfig {
-    pub polarity: PolarityConfig,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct PolarityConfig {
-    pub frequency: f64,
-    pub duty_cycle: f64,
-}
-
-impl Default for PolarityConfig {
-    fn default() -> PolarityConfig {
-        PolarityConfig {
-            frequency: 500.0,
-            duty_cycle: 0.5,
-        }
-    }
-}
-
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct ParsedGrid {
-    #[serde(default)]
-    pub pi_config: PiConfig,
     pub board: Vec<Vec<ParsedElectrode>>,
     #[serde(default)]
     pub peripherals: Map<String, Peripheral>,
 }
 
 impl ParsedGrid {
-    pub fn from_reader<R: Read>(reader: R) -> Result<ParsedGrid, serde_json::Error> {
-        serde_json::from_reader(reader)
-    }
-
     pub fn to_grid(&self) -> Grid {
         // find a pin that higher than anything listed
         let mut next_auto_pin = self
@@ -110,22 +82,22 @@ impl ParsedGrid {
 pub mod tests {
 
     use super::*;
-    use tests::project_path;
+    use crate::tests::project_path;
 
     use glob::glob;
     use std::fs::File;
 
     use serde_json as sj;
 
-    use grid::{droplet::SimpleBlob, Grid, Location};
-    use std::collections::{HashMap, HashSet};
+    use crate::grid::{droplet::SimpleBlob, Grid, Location};
+    use std::collections::{BTreeMap, BTreeSet};
     use std::env;
 
-    pub fn parse_strings(rows: &[&str]) -> (Grid, HashMap<char, SimpleBlob>) {
-        use grid::location::tests::connected_components;
+    pub fn parse_strings(rows: &[&str]) -> (Grid, BTreeMap<char, SimpleBlob>) {
+        use crate::grid::location::tests::connected_components;
 
-        let mut droplet_map = HashMap::new();
-        let mut cell_locs = HashSet::new();
+        let mut droplet_map = BTreeMap::new();
+        let mut cell_locs = BTreeSet::new();
 
         for (i, row) in rows.iter().enumerate() {
             for (j, ch) in row.chars().enumerate() {
@@ -151,7 +123,7 @@ pub mod tests {
             }
         }
 
-        let blob_map: HashMap<_, _> = droplet_map
+        let blob_map: BTreeMap<_, _> = droplet_map
             .iter()
             .map(|(&ch, locs)| {
                 // make sure it only has one connected component

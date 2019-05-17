@@ -3,14 +3,19 @@ name = "puddle-core"
 version = "0.1.0"
 authors = ["Max Willsey <me@mwillsey.com>"]
 license = "MIT"
+edition = "2018"
 
 [features]
 # only works with --target armv7-unknown-linux-gnueabihf
 pi = ["rppal"]
 vision = []
 
-[[bin]]
-name = "puddle-server"
+[profile.release]
+debug = true
+
+# FIXME put this back
+# [[bin]]
+# name = "puddle-server"
 
 [[bin]]
 name = "pi-test"
@@ -34,13 +39,15 @@ jsonrpc-macros = "9"
 hyper-staticfile = "0.3.0"
 
 structopt = "0.2"
+derive_more = "0.14"
+
 log = "^0.4.1"
 
 crossbeam = "0.3.2"
 env_logger = "^0.5.3"
 
 # union-find
-ena = "^0.9.2"
+ena = "0.11"
 
 # kuhn-munkres
 pathfinding = "0.7"
@@ -51,6 +58,10 @@ nalgebra = "0.15"
 ncollide2d = "0.16"
 
 matches = "0.1"
+petgraph = "0.4"
+
+# faster hashtables
+hashbrown = "0.1"
 
 rppal = {version = "0.10.0", optional = true}
 

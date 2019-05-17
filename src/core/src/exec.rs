@@ -1,161 +1,105 @@
-use std::env;
-use std::sync::{Arc, Mutex};
-use std::thread::sleep;
-use std::time::Duration;
-
-use rand::Rng;
-
-use grid::{DropletInfo, ExecResponse, GridView};
-use util::endpoint::Endpoint;
-use util::mk_rng;
-
-/// delay between steps in milliseconds
-#[cfg(feature = "pi")]
-static STEP_DELAY: u64 = 100;
-#[cfg(not(feature = "pi"))]
-static STEP_DELAY: u64 = 1;
+use crate::command::RunStatus;
+use crate::grid::{DropletId, Grid, GridView};
+use crate::plan::{
+    graph::{CmdIndex, Graph},
+    Path, PlanPhase, PlannedCommand,
+};
+use crate::util::collections::Map;
 
 pub struct Executor {
-    blocking: bool,
-    gridview: Arc<Mutex<GridView>>,
+    pub gridview: GridView,
+    running_commands: Map<CmdIndex, PlannedCommand>,
+}
+
+pub enum ExecResponse {
+    Ok,
 }
 
 impl Executor {
-    pub fn new(blocking: bool, gridview: Arc<Mutex<GridView>>) -> Self {
-        Executor { blocking, gridview }
+    pub fn new(grid: Grid) -> Executor {
+        info!("Creating an Executor");
+        Executor {
+            gridview: GridView::new(grid),
+            running_commands: Map::new(),
+        }
     }
 
-    pub fn run(&mut self, endpoint: Endpoint<Vec<DropletInfo>, ()>) {
-        let sleep_ms = env::var("PUDDLE_STEP_DELAY_MS")
-            .ok()
-            .map(|s| u64::from_str_radix(&s, 10).expect("Couldn't parse!"))
-            .unwrap_or(STEP_DELAY);
-        let sleep_time = Duration::from_millis(sleep_ms);
+    fn run_all_commands(&mut self, graph: &mut Graph) {
+        let mut done = Vec::new();
 
-        let mut rng = mk_rng();
+        debug!("Run step, {} active commands", self.running_commands.len());
 
-        #[cfg(feature = "vision")]
-        #[allow(unused_variables)]
-        let blobs = {
-            use std::thread;
-            use vision::Detector;
-            let blobs = Arc::default();
-            let blob_ref = Arc::clone(&blobs);
-            let trackbars = false;
-            let should_draw = true;
-            let det_thread = thread::Builder::new()
-                .name("detector".into())
-                .spawn(move || {
-                    let mut detector = Detector::new(trackbars);
-                    detector.run(should_draw, blob_ref)
-                });
-            blobs
-        };
+        // run each of the running commands one step
+        for (&cmd_id, planned_cmd) in self.running_commands.iter() {
+            let cmd = graph
+                .graph
+                .node_weight_mut(cmd_id)
+                .expect("node not in graph")
+                .as_mut()
+                .expect("node unbound");
+            let mut subview = &mut self.gridview.subview(&planned_cmd.placement);
 
-        let err_rate = env::var("PUDDLE_SIMULATE_ERROR")
-            .map(|s| s.parse::<f64>().unwrap())
-            .unwrap_or(0.0);
-
-        let should_correct = {
-            let n = env::var("PUDDLE_CORRECT_ERRORS")
-                .map(|s| s.parse::<i32>().unwrap())
-                .unwrap_or(1);
-            match n {
-                0 => false,
-                1 => true,
-                _ => panic!("couldn't parse PUDDLE_CORRECT_ERRORS"),
-            }
-        };
-
-        let should_add_edges = {
-            let n = env::var("PUDDLE_BAD_EDGES")
-                .map(|s| s.parse::<i32>().unwrap())
-                .unwrap_or(1);
-            match n {
-                0 => false,
-                1 => true,
-                _ => panic!("couldn't parse PUDDLE_BAD_EDGES"),
-            }
-        };
-
-        loop {
-            if self.blocking {
-                // wait on the visualizer
-                trace!("Receiving from visualizer...");
-                match endpoint.recv() {
-                    Ok(()) => trace!("Got the go ahead from the visualizer!"),
-                    Err(_) => break,
+            // write down if they are done
+            debug!("Running command: {:?}", cmd);
+            match cmd.run(subview) {
+                RunStatus::Done => {
+                    info!("Finalizing a command");
+                    cmd.finalize(subview);
+                    done.push(planned_cmd.cmd_id);
                 }
-            }
-
-            // if the lock was poisoned, the planner probably just died before we did
-            sleep(sleep_time);
-            let mut gv = match self.gridview.lock() {
-                Ok(gv) => gv,
-                Err(_) => break,
-            };
-
-            use self::ExecResponse::*;
-            match gv.execute() {
-                Step(mut snapshot) => {
-                    if self.blocking {
-                        endpoint.send(snapshot.droplet_info(None)).unwrap()
-                    }
-
-                    #[cfg(feature = "pi")]
-                    {
-                        // must `take` the pi out of the gv temporarily so we
-                        // can use &gv.grid immutably
-                        if let Some(mut pi) = gv.pi.take() {
-                            pi.output_pins(&gv.grid, &snapshot);
-                            gv.pi = Some(pi);
-                        }
-
-                        sleep(sleep_time);
-
-                        #[cfg(feature = "vision")]
-                        {
-                            let correction = snapshot.correct(&blobs.lock().unwrap());
-                            if should_correct {
-                                if let Some(new_snapshot) = correction {
-                                    info!("old snapshot: {:#?}", snapshot);
-                                    info!("new snapshot: {:#?}", new_snapshot);
-                                    if should_add_edges {
-                                        gv.add_error_edges(&snapshot, &new_snapshot);
-                                    }
-                                    gv.rollback(&new_snapshot);
-                                    snapshot = new_snapshot;
-                                };
-                            }
-                        }
-                    }
-
-                    let should_perturb = rng.gen_bool(err_rate);
-                    if should_perturb {
-                        let blobs = gv
-                            .perturb(&mut rng, &snapshot)
-                            .map(|perturbed_snapshot| perturbed_snapshot.to_blobs());
-
-                        if let Some(blobs) = blobs {
-                            info!("Simulating an error...");
-                            if let Some(new_snapshot) = snapshot.correct(&blobs) {
-                                info!("old snapshot: {:#?}", snapshot);
-                                info!("new snapshot: {:#?}", new_snapshot);
-                                if should_add_edges {
-                                    gv.add_error_edges(&snapshot, &new_snapshot);
-                                }
-                                gv.rollback(&new_snapshot);
-                                snapshot = new_snapshot;
-                            };
-                        }
-                    }
-                    gv.commit_pending(snapshot);
-                }
-                NotReady => {}
-                Done => break,
+                RunStatus::KeepGoing => (),
             }
         }
-        info!("Executor is terminating!");
-        ::std::mem::drop(endpoint);
+
+        // clean up all the done ones
+        for cmd_id in done {
+            self.running_commands.remove(&cmd_id).unwrap();
+        }
+    }
+
+    fn commit(&mut self) {}
+
+    fn take_routes(&mut self, paths: &Map<DropletId, Path>, graph: &mut Graph) {
+        let max_len = paths.values().map(|path| path.len()).max().unwrap_or(0);
+
+        // make sure that all droplets start where they are at this time step
+        for (id, path) in paths.iter() {
+            let droplet = &self.gridview.droplets[&id];
+            assert_eq!(droplet.location, path[0]);
+        }
+
+        for i in 1..max_len {
+            for (id, path) in paths.iter() {
+                if i < path.len() {
+                    let droplet = self.gridview.droplets.get_mut(id).unwrap();
+                    assert!(droplet.location.distance_to(path[i]) <= 1);
+                    droplet.location = path[i];
+                }
+            }
+            self.run_all_commands(graph);
+            self.commit();
+        }
+    }
+
+    pub fn run(&mut self, phase: PlanPhase, graph: &mut Graph) -> ExecResponse {
+        info!("Run step");
+
+        // this could be inefficient if one route is much much longer than another
+        self.take_routes(&phase.routes, graph);
+
+        // add all the planned commands
+        for planned_cmd in phase.planned_commands {
+            let was_there = self
+                .running_commands
+                .insert(planned_cmd.cmd_id, planned_cmd);
+            assert!(was_there.is_none());
+        }
+
+        // just drive all commands to completion for now
+        while self.running_commands.len() > 0 {
+            self.run_all_commands(graph);
+        }
+
+        ExecResponse::Ok
     }
 }

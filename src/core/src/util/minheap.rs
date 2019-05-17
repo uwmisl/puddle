@@ -4,7 +4,6 @@
 use std::cmp::Ordering;
 use std::collections::BinaryHeap;
 
-/// MinHeap<K, T>
 pub struct MinHeap<K: Ord, T: Eq> {
     heap: BinaryHeap<MinHeapElem<K, T>>,
     timestamp: u32,
@@ -16,6 +15,14 @@ impl<K: Ord, T: Eq> MinHeap<K, T> {
             heap: BinaryHeap::new(),
             timestamp: 0,
         }
+    }
+
+    pub fn len(&self) -> usize {
+        self.heap.len()
+    }
+
+    pub fn timestamp(&self) -> u32 {
+        self.timestamp
     }
 
     pub fn push(&mut self, cost: K, elem: T) {
@@ -46,7 +53,7 @@ impl<K: Ord, T: Eq> MinHeap<K, T> {
 ///
 /// **Note:** `MinHeapElem` implements a total order (`Ord`), so that it is
 /// possible to use float types as scores.
-#[derive(PartialEq, Eq, Copy, Clone, Debug)]
+#[derive(PartialEq, Eq, Debug)]
 struct MinHeapElem<K: Ord, T: Eq> {
     cost: K,
     timestamp: u32,
@@ -54,26 +61,17 @@ struct MinHeapElem<K: Ord, T: Eq> {
 }
 
 impl<K: Ord, T: Eq> Ord for MinHeapElem<K, T> {
-    #[cfg_attr(feature = "cargo-clippy", allow(eq_op))]
     #[inline]
     fn cmp(&self, other: &Self) -> Ordering {
-        let a = &self.cost;
-        let b = &other.cost;
-        if a == b {
-            // use timestamp to resolve cost ties to ensure a LIFO behavior of the Heap
-            other.timestamp.cmp(&self.timestamp)
-        } else if a < b {
-            Ordering::Greater
-        } else if a > b {
-            Ordering::Less
-        } else if a != a && b != b {
-            // these are the NaN cases
-            Ordering::Equal
-        } else if a != a {
-            // Order NaN less, so that it is last in the MinScore order
-            Ordering::Less
-        } else {
-            Ordering::Greater
+        // NOTE the order is flipped here
+        match other.cost.cmp(&self.cost) {
+            Ordering::Equal => {
+                // use timestamp to resolve cost ties to ensure a LIFO behavior of the Heap
+                let ord = other.timestamp.cmp(&self.timestamp);
+                assert_ne!(ord, Ordering::Equal);
+                ord
+            }
+            ord => ord,
         }
     }
 }

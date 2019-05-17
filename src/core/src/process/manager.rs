@@ -1,13 +1,11 @@
 use std::ops::{Deref, DerefMut, Drop};
-use std::sync::{Arc, Mutex, MutexGuard};
-use std::thread;
+use std::sync::{Arc, Mutex};
 
-use exec::Executor;
-use grid::{parse::PiConfig, DropletInfo, Grid, GridView};
-use process::{Process, ProcessId, PuddleError, PuddleResult};
+use crate::grid::{DropletInfo, Grid};
+use crate::process::{Process, ProcessId, PuddleError, PuddleResult};
+use crate::system::System;
 
-use util::collections::Map;
-use util::endpoint::Endpoint;
+use crate::util::collections::Map;
 
 pub struct ProcessHandle<'a> {
     process: Option<Process>,
@@ -43,38 +41,25 @@ impl<'a> DerefMut for ProcessHandle<'a> {
 
 #[allow(dead_code)]
 pub struct Manager {
-    gridview: Arc<Mutex<GridView>>,
+    system: Arc<Mutex<System>>,
     processes: Mutex<Map<ProcessId, Process>>,
-    exec_endpoint: Mutex<Endpoint<(), Vec<DropletInfo>>>,
-    exec_thread: thread::JoinHandle<()>,
     blocking: bool,
 }
 
 impl Manager {
-    pub fn new(blocking: bool, grid: Grid, pi_config: PiConfig) -> Manager {
-        let (mine, execs) = Endpoint::pair();
-
-        let gridview = GridView::new(grid, pi_config);
-        let gv_lock = Arc::new(Mutex::new(gridview));
-        let mut executor = Executor::new(blocking, gv_lock.clone());
-
-        let exec_thread = thread::Builder::new()
-            .name("exec".into())
-            .spawn(move || executor.run(execs))
-            .expect("Execution thread failed to start!");
+    pub fn new(blocking: bool, grid: Grid) -> Manager {
+        let system = Arc::new(Mutex::new(System::new(grid)));
 
         Manager {
-            exec_thread: exec_thread,
+            system,
+            blocking,
             processes: Mutex::new(Map::new()),
-            exec_endpoint: Mutex::new(mine),
-            gridview: gv_lock,
-            blocking: blocking,
         }
     }
 
-    pub fn gridview(&self) -> MutexGuard<GridView> {
-        self.gridview.lock().unwrap()
-    }
+    // pub fn gridview(&self) -> MutexGuard<GridView> {
+    //     self.gridview.lock().unwrap()
+    // }
 
     fn take_process(&self, pid: ProcessId) -> PuddleResult<Process> {
         self.processes
@@ -101,8 +86,8 @@ impl Manager {
     where
         S: Into<String>,
     {
-        let gridview = Arc::clone(&self.gridview);
-        let process = Process::new(name.into(), gridview);
+        let system = Arc::clone(&self.system);
+        let process = Process::new(name.into(), system);
         let pid = process.id();
         let mut procs = self.processes.lock().unwrap();
         procs.insert(pid, process);
@@ -124,10 +109,11 @@ impl Manager {
     }
 
     pub fn visualizer_droplet_info(&self) -> PuddleResult<Vec<DropletInfo>> {
-        // DONT FLUSH
-        let endp = self.exec_endpoint.lock().unwrap();
-        endp.send(()).unwrap();
-        let info = endp.recv().unwrap();
-        Ok(info)
+        unimplemented!()
+        // // DONT FLUSH
+        // let endp = self.exec_endpoint.lock().unwrap();
+        // endp.send(()).unwrap();
+        // let info = endp.recv().unwrap();
+        // Ok(info)
     }
 }

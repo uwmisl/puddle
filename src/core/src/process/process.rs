@@ -3,14 +3,15 @@ use std::sync::atomic::Ordering::Relaxed;
 use std::sync::mpsc::channel;
 use std::sync::{Arc, Mutex};
 
-use util::seconds_duration;
+use crate::util::seconds_duration;
 
-use grid::{DropletId, DropletInfo, GridView, Location};
+use crate::grid::{DropletId, DropletInfo, Location};
+use crate::system::System;
 
-use command;
-use command::Command;
+use crate::command;
+use crate::command::BoxedCommand;
 
-use plan::PlanError;
+use crate::plan::PlanError;
 
 #[derive(Debug)]
 pub enum PuddleError {
@@ -19,7 +20,7 @@ pub enum PuddleError {
     NonExistentProcess(ProcessId),
 }
 
-use PuddleError::*;
+use crate::PuddleError::*;
 
 pub type PuddleResult<T> = Result<T, PuddleError>;
 
@@ -30,7 +31,7 @@ pub struct Process {
     #[allow(dead_code)]
     name: String,
     next_droplet_id: AtomicUsize,
-    gridview: Arc<Mutex<GridView>>,
+    system: Arc<Mutex<System>>,
     // TODO we probably want something like this for more precise flushing
     // unresolved_droplet_ids: Mutex<Set<DropletId>>,
 }
@@ -38,12 +39,12 @@ pub struct Process {
 static NEXT_PROCESS_ID: AtomicUsize = AtomicUsize::new(0);
 
 impl Process {
-    pub fn new(name: String, gridview: Arc<Mutex<GridView>>) -> Process {
+    pub fn new(name: String, system: Arc<Mutex<System>>) -> Process {
         Process {
             id: NEXT_PROCESS_ID.fetch_add(1, Relaxed),
             name: name,
             next_droplet_id: AtomicUsize::new(0),
-            gridview,
+            system,
         }
     }
 
@@ -58,15 +59,11 @@ impl Process {
         }
     }
 
-    fn plan(&self, cmd: Box<dyn Command>) -> PuddleResult<()> {
-        let mut gv = self.gridview.lock().unwrap();
-        gv.plan(cmd).map_err(|(_cmd, err)| PlanError(err))
-    }
-}
-
-impl Drop for Process {
-    fn drop(&mut self) {
-        self.close()
+    // FIXME rename
+    fn plan(&self, cmd: BoxedCommand) -> PuddleResult<()> {
+        let mut sys = self.system.lock().unwrap();
+        // FIXME
+        sys.add(cmd)
     }
 }
 
@@ -76,6 +73,7 @@ impl Process {
         let flush_cmd = command::Flush::new(self.id, tx);
 
         self.plan(Box::new(flush_cmd))?;
+        self.system.lock().unwrap().flush(&[]).unwrap();
         rx.recv().unwrap().map_err(PlanError)
     }
 
@@ -149,17 +147,6 @@ impl Process {
         let heat_cmd = command::Heat::new(d, out, temperature, duration)?;
         self.plan(Box::new(heat_cmd))?;
         Ok(out)
-    }
-
-    pub fn close(&mut self) {
-        let mut gv = match self.gridview.lock() {
-            Ok(gv) => gv,
-            Err(e) => {
-                error!("Error while closing! {:?}", e);
-                return;
-            }
-        };
-        gv.close();
     }
 }
 

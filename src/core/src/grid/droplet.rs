@@ -1,16 +1,46 @@
 use std::collections::HashSet;
+use std::fmt;
 use std::sync::atomic::AtomicUsize;
 use std::sync::atomic::Ordering::Relaxed;
 
-use super::Location;
-use process::ProcessId;
+use serde_derive::{Deserialize, Serialize};
+
+use super::{Location, Rectangle};
+use crate::process::ProcessId;
 
 static NEXT_COLLISION_GROUP: AtomicUsize = AtomicUsize::new(0);
 
-#[derive(PartialEq, Eq, PartialOrd, Hash, Ord, Debug, Clone, Copy, Serialize, Deserialize)]
+#[derive(
+    PartialEq,
+    Eq,
+    PartialOrd,
+    Hash,
+    Ord,
+    Clone,
+    Copy,
+    Serialize,
+    Deserialize
+)]
 pub struct DropletId {
     pub id: usize,
     pub process_id: ProcessId,
+}
+
+impl fmt::Debug for DropletId {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", self.id)?;
+        if self.process_id != 0 {
+            write!(f, "p{}", self.process_id)?;
+        }
+        Ok(())
+    }
+}
+
+#[cfg(test)]
+impl From<usize> for DropletId {
+    fn from(id: usize) -> DropletId {
+        DropletId { id, process_id: 0 }
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -23,8 +53,6 @@ pub struct Droplet {
     pub volume: f64,
 
     // all this stuff is used for routing
-    // TODO should droplets really know about their destinations?
-    pub destination: Option<Location>,
     pub collision_group: usize,
     pub pinned: bool,
 }
@@ -49,37 +77,21 @@ impl Droplet {
             id,
             location,
             dimensions,
-            destination: None,
             volume: volume,
             collision_group: NEXT_COLLISION_GROUP.fetch_add(1, Relaxed),
             pinned: false,
         }
     }
 
-    fn top_edge(&self) -> i32 {
-        self.location.y
-    }
-    fn bottom_edge(&self) -> i32 {
-        self.location.y + self.dimensions.y
-    }
-    fn left_edge(&self) -> i32 {
-        self.location.x
-    }
-    fn right_edge(&self) -> i32 {
-        self.location.x + self.dimensions.x
+    fn rectangle(&self) -> Rectangle {
+        Rectangle {
+            location: self.location,
+            dimensions: self.dimensions,
+        }
     }
 
     pub fn collision_distance(&self, other: &Droplet) -> i32 {
-        let y_dist = signed_min(
-            self.bottom_edge() - other.top_edge(),
-            self.top_edge() - other.bottom_edge(),
-        );
-        let x_dist = signed_min(
-            self.right_edge() - other.left_edge(),
-            self.left_edge() - other.right_edge(),
-        );
-
-        return y_dist.max(x_dist);
+        self.rectangle().collision_distance(&other.rectangle())
     }
 
     pub fn info(&self) -> DropletInfo {
@@ -100,16 +112,6 @@ impl Droplet {
     }
 }
 
-fn signed_min(a: i32, b: i32) -> i32 {
-    let res = if (a < 0) == (b < 0) {
-        i32::min(a.abs(), b.abs())
-    } else {
-        -i32::min(a.abs(), b.abs())
-    };
-    trace!("signed min({}, {}) = {}", a, b, res);
-    res
-}
-
 impl Default for Droplet {
     fn default() -> Self {
         // for locations, just use something bad that will crash if not replaced
@@ -124,7 +126,6 @@ impl Default for Droplet {
             dimensions: bad_loc,
             pinned: false,
             volume: 1.0,
-            destination: None,
             collision_group: NEXT_COLLISION_GROUP.fetch_add(1, Relaxed),
         }
     }
@@ -161,7 +162,7 @@ impl SimpleBlob {
             y: locs.iter().map(|l| l.y).max().unwrap_or(0) + 1,
             x: locs.iter().map(|l| l.x).max().unwrap_or(0) + 1,
         };
-        let dimensions = &far_corner - &location;
+        let dimensions = far_corner - location;
 
         let set1: HashSet<Location> = locs.iter().cloned().collect();
         let mut set2 = HashSet::new();
@@ -193,8 +194,8 @@ impl SimpleBlob {
 
 impl Blob for SimpleBlob {
     fn get_similarity(&self, droplet: &Droplet) -> i32 {
-        self.location.distance_to(&droplet.location) as i32
-            + self.dimensions.distance_to(&droplet.dimensions) as i32
+        self.location.distance_to(droplet.location) as i32
+            + self.dimensions.distance_to(droplet.dimensions) as i32
             + ((self.volume - droplet.volume) as i32).abs()
     }
 
