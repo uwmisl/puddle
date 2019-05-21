@@ -9,6 +9,8 @@ use crate::util::collections::Map;
 pub struct Executor {
     pub gridview: GridView,
     running_commands: Map<CmdIndex, PlannedCommand>,
+    #[cfg(feature = "pi")]
+    pi: Option<crate::pi::RaspberryPi>,
 }
 
 pub enum ExecResponse {
@@ -21,6 +23,8 @@ impl Executor {
         Executor {
             gridview: GridView::new(grid),
             running_commands: Map::new(),
+            #[cfg(feature = "pi")]
+            pi: None,
         }
     }
 
@@ -44,7 +48,12 @@ impl Executor {
             match cmd.run(subview) {
                 RunStatus::Done => {
                     info!("Finalizing a command");
+
+                    #[cfg(not(feature = "pi"))]
                     cmd.finalize(subview);
+                    #[cfg(feature = "pi")]
+                    cmd.finalize(subview, self.pi.as_mut());
+
                     done.push(planned_cmd.cmd_id);
                 }
                 RunStatus::KeepGoing => (),

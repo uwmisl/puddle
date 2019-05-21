@@ -1,20 +1,17 @@
 use std::error::Error;
 use std::fs::File;
-use std::io;
-use std::io::prelude::*;
 use std::path::Path;
 use std::thread;
 
-extern crate log;
-use log::{debug, info};
+use log::*;
 
-extern crate puddle_core;
 use puddle_core::{
-    grid::droplet::{Blob, Droplet, DropletId, SimpleBlob},
+    grid::droplet::{DropletId, SimpleBlob},
+    grid::gridview::GridView,
     grid::parse::{ParsedGrid, PolarityConfig},
-    grid::{Grid, Location, Snapshot},
+    grid::{Grid, Location},
     pi::RaspberryPi,
-    util::{collections::Map, seconds_duration},
+    util::seconds_duration,
 };
 
 #[derive(Debug)]
@@ -133,12 +130,15 @@ fn main() -> Result<(), Box<Error>> {
             dimensions,
             seconds,
         } => {
-            let (_, snapshot) = mk_snapshot(&[SimpleBlob {
-                location,
-                dimensions,
-                volume: 0.0,
-            }]);
-            pi.output_pins(&grid, &snapshot);
+            let gv = mk_gridview(
+                grid.clone(),
+                &[SimpleBlob {
+                    location,
+                    dimensions,
+                    volume: 0.0,
+                }],
+            );
+            pi.output_pins(&gv);
             thread::sleep(seconds.0);
         }
         BackAndForth {
@@ -153,7 +153,7 @@ fn main() -> Result<(), Box<Error>> {
             let blobs: Vec<_> = (0..n_droplets)
                 .map(|i| {
                     let y_offset = (dimensions.y + spacing as i32) * i as i32;
-                    let location = &starting_location + &Location { y: y_offset, x: 0 };
+                    let location = starting_location + Location { y: y_offset, x: 0 };
                     let volume = 0.0;
                     SimpleBlob {
                         volume,
@@ -163,7 +163,8 @@ fn main() -> Result<(), Box<Error>> {
                 })
                 .collect();
 
-            let (ids, mut snapshot) = mk_snapshot(&blobs);
+            let mut gv = mk_gridview(grid.clone(), &blobs);
+            let ids: Vec<_> = (0..n_droplets).map(|i| mk_id(i as usize)).collect();
 
             let xs: Vec<i32> = {
                 let start = starting_location.x;
@@ -183,14 +184,15 @@ fn main() -> Result<(), Box<Error>> {
 
             for x in xs {
                 for id in &ids {
-                    snapshot.droplets.get_mut(&id).unwrap().location.x = x as i32;
+                    let droplet = gv.droplets.get_mut(id).unwrap();
+                    droplet.location.x = x as i32;
                     if let Some(stagger) = &stagger {
-                        pi.output_pins(&grid, &snapshot);
+                        pi.output_pins(&gv);
                         thread::sleep(stagger.0);
                     }
                 }
-                let locs: Vec<_> = snapshot.droplets.values().map(|d| d.location).collect();
-                pi.output_pins(&grid, &snapshot);
+                let locs: Vec<_> = gv.droplets.values().map(|d| d.location).collect();
+                pi.output_pins(&gv);
                 println!("Droplets at {:?}", locs);
 
                 thread::sleep(seconds.0);
@@ -202,12 +204,15 @@ fn main() -> Result<(), Box<Error>> {
             circle_size,
             seconds,
         } => {
-            let (ids, mut snapshot) = mk_snapshot(&[SimpleBlob {
-                location,
-                dimensions,
-                volume: 0.0,
-            }]);
-            let id = ids[0];
+            let mut gv = mk_gridview(
+                grid.clone(),
+                &[SimpleBlob {
+                    location,
+                    dimensions,
+                    volume: 0.0,
+                }],
+            );
+            let id = mk_id(0);
 
             //     pi.output_pins(&grid, &snapshot);
 
@@ -216,8 +221,8 @@ fn main() -> Result<(), Box<Error>> {
                     y: location.y + yo,
                     x: location.x + xo,
                 };
-                snapshot.droplets.get_mut(&id).unwrap().location = loc;
-                pi.output_pins(&grid, &snapshot);
+                gv.droplets.get_mut(&id).unwrap().location = loc;
+                pi.output_pins(&gv);
                 println!("Droplet at {}", loc);
                 thread::sleep(seconds.0);
             };
@@ -248,24 +253,32 @@ fn mk_grid(path_str: &str) -> Result<ParsedGrid, Box<Error>> {
     Ok(grid)
 }
 
-fn mk_snapshot(blobs: &[SimpleBlob]) -> (Vec<DropletId>, Snapshot) {
-    let n = blobs.len();
-    let ids: Vec<_> = (0..n)
-        .map(|i| DropletId {
-            id: i,
-            process_id: 0,
-        })
-        .collect();
+fn mk_id(i: usize) -> DropletId {
+    DropletId {
+        id: i,
+        process_id: 42,
+    }
+}
 
-    let droplets: Map<DropletId, Droplet> = ids
-        .iter()
-        .zip(blobs)
-        .map(|(&id, blob)| (id, blob.to_droplet(id)))
-        .collect();
+fn mk_gridview(_grid: Grid, _blobs: &[SimpleBlob]) -> GridView {
+    unimplemented!()
+    // let n = blobs.len();
+    // let ids: Vec<_> = (0..n)
+    //     .map(|i| DropletId {
+    //         id: i,
+    //         process_id: 0,
+    //     })
+    //     .collect();
 
-    let snapshot = Snapshot {
-        droplets,
-        commands_to_finalize: vec![],
-    };
-    (ids, snapshot)
+    // let droplets: Map<DropletId, Droplet> = ids
+    //     .iter()
+    //     .zip(blobs)
+    //     .map(|(&id, blob)| (id, blob.to_droplet(id)))
+    //     .collect();
+
+    // let snapshot = Snapshot {
+    //     droplets,
+    //     commands_to_finalize: vec![],
+    // };
+    // (ids, snapshot)
 }

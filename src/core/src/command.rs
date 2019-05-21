@@ -51,7 +51,7 @@ pub trait Command: fmt::Debug + Send {
     #[cfg(not(feature = "pi"))]
     fn finalize(&mut self, _: &GridSubView) {}
     #[cfg(feature = "pi")]
-    fn finalize(&mut self, _: &Snapshot, _: Option<&mut RaspberryPi>) {}
+    fn finalize(&mut self, _: &GridSubView, _: Option<&mut RaspberryPi>) {}
 
     fn abort(&mut self, err: PlanError) {
         error!("Aborting command {:?} with {:#?}", self, err);
@@ -162,7 +162,7 @@ impl Command for Flush {
         self.tx.send(Ok(info)).unwrap();
     }
     #[cfg(feature = "pi")]
-    fn finalize(&mut self, gv: &Snapshot, _: Option<&mut RaspberryPi>) {
+    fn finalize(&mut self, gv: &GridSubView, _: Option<&mut RaspberryPi>) {
         let info = gv.droplet_info(Some(self.pid));
         self.tx.send(Ok(info)).unwrap();
     }
@@ -646,7 +646,7 @@ impl Command for Heat {
     }
 
     #[cfg(feature = "pi")]
-    fn finalize(&mut self, _: &Snapshot, pi: Option<&mut RaspberryPi>) {
+    fn finalize(&mut self, _: &GridSubView, pi: Option<&mut RaspberryPi>) {
         let heater = self.heater.take().unwrap();
         pi.map(|pi| pi.heat(&heater, self.temperature as f64, self.duration));
     }
@@ -737,7 +737,7 @@ impl Command for Input {
     }
 
     #[cfg(feature = "pi")]
-    fn finalize(&mut self, _: &Snapshot, pi: Option<&mut RaspberryPi>) {
+    fn finalize(&mut self, _: &GridSubView, pi: Option<&mut RaspberryPi>) {
         let input = self.input.take().unwrap();
         pi.map(|pi| {
             let loc26 = 118;
@@ -757,16 +757,16 @@ impl Command for Input {
             pi.input(&input, self.volume).unwrap();
 
             set(pi, &[loc27]);
-            thread::sleep(Duration::from_millis(1500));
+            std::thread::sleep(Duration::from_millis(1500));
 
             set(pi, &[loc37]);
-            thread::sleep(Duration::from_millis(1500));
+            std::thread::sleep(Duration::from_millis(1500));
 
             set(pi, &[loc26, loc27, loc36, loc37]);
-            thread::sleep(Duration::from_millis(1500));
+            std::thread::sleep(Duration::from_millis(1500));
 
             set(pi, &[loc26]);
-            thread::sleep(Duration::from_millis(1500));
+            std::thread::sleep(Duration::from_millis(1500));
         });
     }
 }
@@ -851,7 +851,7 @@ impl Command for Output {
     }
 
     #[cfg(feature = "pi")]
-    fn finalize(&mut self, _: &Snapshot, pi: Option<&mut RaspberryPi>) {
+    fn finalize(&mut self, _: &GridSubView, pi: Option<&mut RaspberryPi>) {
         let volume = self.volume.take().unwrap();
         let output = self.output.take().unwrap();
         pi.map(|pi| pi.output(&output, volume));

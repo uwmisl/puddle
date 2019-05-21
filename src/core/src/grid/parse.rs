@@ -1,9 +1,9 @@
+use serde::{Deserialize, Serialize};
 use serde_json;
-use serde::{Serialize, Deserialize};
 use std::io::Read;
 
-use crate::util::collections::Map;
 use crate::grid::grid::*;
+use crate::util::collections::Map;
 
 #[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Mark {

@@ -8,7 +8,7 @@ use std::io::Read;
 use super::Location;
 use crate::util::collections::Map;
 
-use crate::grid::parse::{PiConfig, Mark, ParsedElectrode, ParsedGrid};
+use crate::grid::parse::{Mark, ParsedElectrode, ParsedGrid, PiConfig};
 
 #[derive(Debug, PartialEq, Eq, Hash, Serialize, Deserialize, Clone)]
 pub struct Electrode {
@@ -105,7 +105,11 @@ impl Grid {
             })
             .collect();
         let pi_config = PiConfig::default();
-        ParsedGrid { pi_config, board, peripherals }
+        ParsedGrid {
+            pi_config,
+            board,
+            peripherals,
+        }
     }
 
     pub fn to_strs(&self) -> Vec<String> {

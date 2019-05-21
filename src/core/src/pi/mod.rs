@@ -4,15 +4,12 @@
 
 mod hv507;
 
-use std::fmt;
-use std::thread;
-use std::time::{Duration, Instant};
+use std::time::Duration;
 
 use rppal::gpio::Gpio;
-use rppal::pwm::Pwm;
 
-use crate::grid::{parse::PiConfig, Blob, Grid, Location, Peripheral, Snapshot};
-use crate::util::{pid::PidController, seconds_duration, Timer};
+use crate::grid::gridview::GridView;
+use crate::grid::{parse::PiConfig, Location, Peripheral};
 
 #[cfg(feature = "vision")]
 use vision::Detector;
@@ -72,7 +69,7 @@ impl RaspberryPi {
 
         trace!("Initializing pi hv507...");
         let mut hv507 = Hv507::new(&gpio)?;
-        hv507.init(&config.polarity);
+        hv507.init(&config.polarity).unwrap();
 
         trace!("Initializing pi...");
         let pi = RaspberryPi {
@@ -120,9 +117,9 @@ impl RaspberryPi {
 
     pub fn heat(
         &mut self,
-        heater: &Peripheral,
-        target_temperature: f64,
-        duration: Duration,
+        _heater: &Peripheral,
+        _target_temperature: f64,
+        _duration: Duration,
     ) -> Result<()> {
         unimplemented!()
         // // FIXME: for now, this simply blocks
@@ -207,7 +204,7 @@ impl RaspberryPi {
         // Ok(())
     }
 
-    pub fn get_temperature(&mut self, temp_sensor: Peripheral) -> Result<f32> {
+    pub fn get_temperature(&mut self, _temp_sensor: Peripheral) -> Result<f32> {
         unimplemented!()
         // if let Peripheral::Heater { spi_channel, .. } = temp_sensor {
         //     // right now we can only work on the one channel
@@ -232,21 +229,22 @@ impl RaspberryPi {
         self.hv507.shift_and_latch();
     }
 
-    pub fn output_pins(&mut self, grid: &Grid, snapshot: &Snapshot) {
-        let mut pins = vec![0; (grid.max_pin() + 1) as usize];
+    pub fn output_pins(&mut self, gv: &GridView) {
+        let mut pins = vec![0; (gv.grid.max_pin() + 1) as usize];
 
         self.hv507.clear_pins();
 
         // set pins to high if there's a droplet on that electrode
-        for d in snapshot.droplets.values() {
+        for d in gv.droplets.values() {
             for i in 0..d.dimensions.y {
                 for j in 0..d.dimensions.x {
                     let loc = Location {
                         y: d.location.y + i,
                         x: d.location.x + j,
                     };
-                    let electrode = grid
-                        .get_cell(&loc)
+                    let electrode = gv
+                        .grid
+                        .get_cell(loc)
                         .unwrap_or_else(|| panic!("Couldn't find electrode for {}", loc));
                     pins[electrode.pin as usize] = 1;
                     self.hv507.set_pin_hi(electrode.pin as usize);
@@ -263,7 +261,7 @@ impl RaspberryPi {
         self.hv507.shift_and_latch();
     }
 
-    pub fn input(&mut self, input_port: &Peripheral, volume: f64) -> Result<()> {
+    pub fn input(&mut self, _input_port: &Peripheral, _volume: f64) -> Result<()> {
         unimplemented!()
         //     let pwm_channel = if let Peripheral::Input { pwm_channel, .. } = input_port {
         //         *pwm_channel
@@ -287,7 +285,7 @@ impl RaspberryPi {
         //     Ok(())
     }
 
-    pub fn output(&mut self, output_port: &Peripheral, volume: f64) -> Result<()> {
+    pub fn output(&mut self, _output_port: &Peripheral, _volume: f64) -> Result<()> {
         unimplemented!()
         //     let pwm_channel = if let Peripheral::Output { pwm_channel, .. } = output_port {
         //         *pwm_channel

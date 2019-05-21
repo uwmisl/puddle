@@ -1,17 +1,10 @@
-use std::thread;
-use std::time::Duration;
-
 use rppal::gpio::{Gpio, IoPin, Level, Mode, OutputPin};
 use rppal::pwm::{Channel, Polarity, Pwm};
-
-use crate::util::seconds_duration;
 
 use super::Result;
 use crate::grid::parse::PolarityConfig;
 
 const N_PINS: usize = 128;
-
-const ALL_ZEROS: &[Level] = &[Level::Low; N_PINS];
 
 // physical pin 11
 pub const BLANK_PIN: u8 = 17;
@@ -22,6 +15,7 @@ pub const CLOCK_PIN: u8 = 22;
 // physical pin 16
 pub const DATA_PIN: u8 = 23;
 
+#[allow(dead_code)]
 pub struct Hv507 {
     blank: OutputPin,
     latch_enable: OutputPin,
@@ -87,10 +81,10 @@ impl Hv507 {
         self.data.set_low();
 
         // make sure the active state is set to high
-        self.polarity.set_polarity(Polarity::Normal);
+        self.polarity.set_polarity(Polarity::Normal)?;
 
         // now call the public function to set the HV507 polarity pin
-        self.set_polarity(config);
+        self.set_polarity(config)?;
 
         Ok(())
     }
