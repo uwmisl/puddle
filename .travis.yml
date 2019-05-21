@@ -1,33 +1,5 @@
-language: rust
-rust:
-  - stable
-  # dont test nightly or beta because of --write-fmt missing in cargo fmt 1.28
-  # - beta
-  # - nightly
-
-# matrix:
-#   allow_failures:
-#     - rust:
-#         - nightly
-
-cache:
-  directories:
-    # rust caching
-    - $HOME/.cargo
-    - src/core/target
-    # python caching
-    - $HOME/.virtualenvs
-
-before_install:
-  # force install of python 3.6
-  - curl -L https://raw.githubusercontent.com/pyenv/pyenv-installer/master/bin/pyenv-installer | bash
-  - pyenv install 3.6.3 && pyenv global 3.6.3
-  # get pipenv
-  - pip install --user pipenv
-  # get rustfmt so we can check code style
-  - rustup component add rustfmt-preview
-
-script: ./run-tests.sh
+language: nix
+script: nix-shell --command ./run-tests.sh
 
 notifications:
   slack:

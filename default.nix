@@ -1,5 +1,5 @@
-with import <nixpkgs> { 
-  overlays = [ 
+with import <nixpkgs> {
+  overlays = [
     # set up the rust overlay for up-to-date rust versions
     (import (builtins.fetchTarball https://github.com/mozilla/nixpkgs-mozilla/archive/master.tar.gz))
   ];
@@ -25,6 +25,7 @@ stdenv.mkDerivation {
     (if in_ci then null else arm.stdenv.cc)
     rust
     rustracer
+    python37Packages.flake8
   ];
   RUST_SRC_PATH = "${rust}/lib/rustlib/src/rust/src";
 }
