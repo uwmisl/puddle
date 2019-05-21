@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use petgraph::prelude::*;
+use petgraph::prelude as pg;
 
 use crate::util::find_duplicate;
 
@@ -11,11 +11,12 @@ type NodeData = Option<BoxedCommand>;
 type EdgeData = DropletId;
 
 type Ix = u32;
-pub type CmdIndex = NodeIndex<Ix>;
+pub type CmdIndex = pg::NodeIndex<Ix>;
 
+#[derive(Default)]
 pub struct Graph {
-    pub graph: StableDiGraph<NodeData, EdgeData, Ix>,
-    pub droplet_idx: HashMap<DropletId, EdgeIndex<Ix>>,
+    pub graph: pg::StableDiGraph<NodeData, EdgeData, Ix>,
+    pub droplet_idx: HashMap<DropletId, pg::EdgeIndex<Ix>>,
 }
 
 #[derive(Debug)]
@@ -29,13 +30,6 @@ pub enum GraphError {
 type GraphResult<T> = Result<T, GraphError>;
 
 impl Graph {
-    pub fn new() -> Graph {
-        Graph {
-            graph: StableDiGraph::new(),
-            droplet_idx: HashMap::new(),
-        }
-    }
-
     pub fn check_add_command(&self, cmd: &BoxedCommand) -> GraphResult<()> {
         // make sure there aren't duplicates in the inputs
         let in_droplets = cmd.input_droplets();
@@ -114,8 +108,8 @@ impl Graph {
 mod tests {
 
     use super::*;
-    use matches::assert_matches;
     use crate::command::{tests::Dummy, BoxedCommand};
+    use matches::assert_matches;
 
     fn input(id: usize) -> BoxedCommand {
         Dummy::new(&[], &[id]).boxed()
@@ -128,7 +122,7 @@ mod tests {
     #[test]
     fn test_add_command_validate() {
         // we can test validation errors all in one go because they shouldn't modify the graph
-        let mut graph = Graph::new();
+        let mut graph = Graph::default();
         graph.add_command(input(0)).unwrap();
         graph.add_command(input(1)).unwrap();
 

@@ -35,15 +35,17 @@ pub struct SchedResponse {
 
 type Result<T> = std::result::Result<T, SchedError>;
 
-impl Scheduler {
-    pub fn new() -> Scheduler {
+impl Default for Scheduler {
+    fn default() -> Scheduler {
         Scheduler {
-            debug: if cfg!(test) { true } else { false },
+            debug: cfg!(test),
             node_sched: HashMap::new(),
             current_sched: 0,
         }
     }
+}
 
+impl Scheduler {
     pub fn maybe_validate(&self, req: &SchedRequest) {
         if self.debug {
             self.validate(req);
@@ -213,7 +215,7 @@ mod tests {
     }
 
     fn simple_graph() -> (Graph, CmdIndex, CmdIndex, CmdIndex) {
-        let mut graph = Graph::new();
+        let mut graph = Graph::default();
         let in0 = graph.add_command(input(0)).unwrap();
         let in1 = graph.add_command(input(1)).unwrap();
         let mix = graph.add_command(mix(0, 1, 2)).unwrap();
@@ -226,7 +228,7 @@ mod tests {
         let (graph, in0, _, mix) = simple_graph();
         let req = SchedRequest { graph: &graph };
 
-        let mut sched = Scheduler::new();
+        let mut sched = Scheduler::default();
         sched.current_sched = 100;
 
         sched.set_node_schedule(in0, 9);
@@ -240,7 +242,7 @@ mod tests {
         let (graph, in0, _, _) = simple_graph();
         let req = SchedRequest { graph: &graph };
 
-        let mut sched = Scheduler::new();
+        let mut sched = Scheduler::default();
         sched.current_sched = 100;
 
         sched.set_node_schedule(in0, 1);
@@ -257,7 +259,7 @@ mod tests {
         let pass = |x, y| Dummy::new(&[x], &[y]).boxed();
         let split = |x, y1, y2| Dummy::new(&[x], &[y1, y2]).boxed();
 
-        let mut graph = Graph::new();
+        let mut graph = Graph::default();
         let mut map = HashMap::new();
 
         map.insert("input", graph.add_command(input(0)).unwrap());
@@ -290,7 +292,7 @@ mod tests {
     fn test_storing_droplets() {
         let (graph, map) = long_graph();
 
-        let mut sched = Scheduler::new();
+        let mut sched = Scheduler::default();
         sched.current_sched = 3;
 
         sched.set_node_schedule(map["input"], 0);

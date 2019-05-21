@@ -1,5 +1,4 @@
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
-use serde_derive::{Deserialize, Serialize};
 // use serde_derive::serde;
 use serde_json;
 
@@ -9,7 +8,7 @@ use std::io::Read;
 use super::Location;
 use crate::util::collections::Map;
 
-use crate::grid::parse::{Mark, ParsedElectrode, ParsedGrid};
+use crate::grid::parse::{PiConfig, Mark, ParsedElectrode, ParsedGrid};
 
 #[derive(Debug, PartialEq, Eq, Hash, Serialize, Deserialize, Clone)]
 pub struct Electrode {
@@ -48,7 +47,7 @@ pub struct Grid {
     pub vec: Vec<Vec<Option<Electrode>>>,
 }
 
-#[cfg_attr(rustfmt, rustfmt_skip)]
+#[rustfmt::skip]
 const NEIGHBORS_8: [Location; 8] = [
     Location { y: -1, x: -1 },
     Location { y:  0, x: -1 },
@@ -61,7 +60,7 @@ const NEIGHBORS_8: [Location; 8] = [
     Location { y:  1, x: 1 }
 ];
 
-#[cfg_attr(rustfmt, rustfmt_skip)]
+#[rustfmt::skip]
 pub const NEIGHBORS_5: [Location; 5] = [
     Location { y:  0, x: -1 },
     Location { y: -1, x:  0 },
@@ -70,7 +69,7 @@ pub const NEIGHBORS_5: [Location; 5] = [
     Location { y:  0, x:  1 },
 ];
 
-#[cfg_attr(rustfmt, rustfmt_skip)]
+#[rustfmt::skip]
 const NEIGHBORS_4: [Location; 4] = [
     Location { y:  0, x: -1 },
     Location { y: -1, x: 0 },
@@ -105,7 +104,8 @@ impl Grid {
                     .collect()
             })
             .collect();
-        ParsedGrid { board, peripherals }
+        let pi_config = PiConfig::default();
+        ParsedGrid { pi_config, board, peripherals }
     }
 
     pub fn to_strs(&self) -> Vec<String> {
@@ -113,7 +113,7 @@ impl Grid {
             .iter()
             .map(|row| {
                 row.iter()
-                    .map(|electrode| if let Some(_) = electrode { '.' } else { ' ' })
+                    .map(|electrode| if electrode.is_some() { '.' } else { ' ' })
                     .collect()
             })
             .collect()
@@ -192,7 +192,7 @@ impl Grid {
 
     // from here on out, functions only return valid locations
 
-    pub fn get_cell(&self, loc: &Location) -> Option<&Electrode> {
+    pub fn get_cell(&self, loc: Location) -> Option<&Electrode> {
         if loc.x < 0 || loc.y < 0 {
             return None;
         }
@@ -203,7 +203,7 @@ impl Grid {
             .and_then(|row| row.get(j).and_then(|cell_opt| cell_opt.as_ref()))
     }
 
-    pub fn get_cell_mut(&mut self, loc: &Location) -> Option<&mut Electrode> {
+    pub fn get_cell_mut(&mut self, loc: Location) -> Option<&mut Electrode> {
         if loc.x < 0 || loc.y < 0 {
             return None;
         }
@@ -214,38 +214,38 @@ impl Grid {
             .and_then(|row| row.get_mut(j).and_then(|cell_opt| cell_opt.as_mut()))
     }
 
-    fn locations_from_offsets<'a, I>(&self, loc: &Location, offsets: I) -> Vec<Location>
+    fn locations_from_offsets<'a, I>(&self, loc: Location, offsets: I) -> Vec<Location>
     where
         I: Iterator<Item = &'a Location>,
     {
         offsets
-            .map(|off| *loc + *off)
-            .filter(|loc| self.get_cell(loc).is_some())
+            .map(|off| loc + *off)
+            .filter(|loc| self.get_cell(*loc).is_some())
             .collect()
     }
 
-    pub fn neighbors4(&self, loc: &Location) -> Vec<Location> {
-        self.locations_from_offsets(loc, NEIGHBORS_4.into_iter())
+    pub fn neighbors4(&self, loc: Location) -> Vec<Location> {
+        self.locations_from_offsets(loc, NEIGHBORS_4.iter())
     }
 
-    pub fn neighbors8(&self, loc: &Location) -> Vec<Location> {
-        self.locations_from_offsets(loc, NEIGHBORS_8.into_iter())
+    pub fn neighbors8(&self, loc: Location) -> Vec<Location> {
+        self.locations_from_offsets(loc, NEIGHBORS_8.iter())
     }
 
-    pub fn neighbors9(&self, loc: &Location) -> Vec<Location> {
-        let mut vec = self.locations_from_offsets(loc, NEIGHBORS_8.into_iter());
-        vec.push(*loc);
+    pub fn neighbors9(&self, loc: Location) -> Vec<Location> {
+        let mut vec = self.locations_from_offsets(loc, NEIGHBORS_8.iter());
+        vec.push(loc);
         vec
     }
 
     /// Returns a Vec representing the neighbors of the location combined with
     /// the dimensions of the droplet.
-    pub fn neighbors_dimensions(&self, loc: &Location, dimensions: &Location) -> Vec<Location> {
+    pub fn neighbors_dimensions(&self, loc: Location, dimensions: Location) -> Vec<Location> {
         let mut dimensions_nbrhd: HashSet<Location> = HashSet::new();
         for y in 0..dimensions.y {
             for x in 0..dimensions.x {
-                let new_loc = *loc + Location { y, x };
-                dimensions_nbrhd.extend(self.neighbors9(&new_loc));
+                let new_loc = loc + Location { y, x };
+                dimensions_nbrhd.extend(self.neighbors9(new_loc));
             }
         }
         dimensions_nbrhd.iter().cloned().collect()

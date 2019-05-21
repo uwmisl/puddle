@@ -3,7 +3,7 @@ use std::fmt;
 use std::sync::atomic::AtomicUsize;
 use std::sync::atomic::Ordering::Relaxed;
 
-use serde_derive::{Deserialize, Serialize};
+use serde::{Deserialize, Serialize};
 
 use super::{Location, Rectangle};
 use crate::process::ProcessId;
@@ -117,8 +117,8 @@ impl Default for Droplet {
         // for locations, just use something bad that will crash if not replaced
         let bad_loc = Location { y: -1, x: -1 };
         let bad_id = DropletId {
-            id: 0xc0ffee,
-            process_id: 0xc0ffee,
+            id: 1234,
+            process_id: 1234,
         };
         Droplet {
             id: bad_id,

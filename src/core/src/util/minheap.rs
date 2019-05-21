@@ -4,17 +4,23 @@
 use std::cmp::Ordering;
 use std::collections::BinaryHeap;
 
-pub struct MinHeap<K: Ord, T: Eq> {
+pub struct MinHeap<K, T> {
     heap: BinaryHeap<MinHeapElem<K, T>>,
     timestamp: u32,
 }
 
-impl<K: Ord, T: Eq> MinHeap<K, T> {
-    pub fn new() -> MinHeap<K, T> {
+impl<K: Ord, T: Eq> Default for MinHeap<K, T> {
+    fn default() -> MinHeap<K, T> {
         MinHeap {
-            heap: BinaryHeap::new(),
+            heap: BinaryHeap::default(),
             timestamp: 0,
         }
+    }
+}
+
+impl<K: Ord, T: Eq> MinHeap<K, T> {
+    pub fn is_empty(&self) -> bool {
+        self.heap.is_empty()
     }
 
     pub fn len(&self) -> usize {
@@ -54,7 +60,7 @@ impl<K: Ord, T: Eq> MinHeap<K, T> {
 /// **Note:** `MinHeapElem` implements a total order (`Ord`), so that it is
 /// possible to use float types as scores.
 #[derive(PartialEq, Eq, Debug)]
-struct MinHeapElem<K: Ord, T: Eq> {
+struct MinHeapElem<K, T> {
     cost: K,
     timestamp: u32,
     elem: T,

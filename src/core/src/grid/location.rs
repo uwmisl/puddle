@@ -3,7 +3,7 @@ use std::num::ParseIntError;
 use std::str::FromStr;
 
 use derive_more::{Add, Display, From, Sub};
-use serde_derive::{Deserialize, Serialize};
+use serde::{Deserialize, Serialize};
 
 #[derive(PartialEq, Eq, PartialOrd, Ord, Hash, Clone, Copy)]
 #[derive(Serialize, Deserialize)] // from serde_derive
@@ -64,7 +64,7 @@ impl FromStr for Location {
         let coords: Vec<&str> = s
             .trim()
             .trim_matches(|p| p == '(' || p == ')')
-            .split(",")
+            .split(',')
             .map(|s| s.trim())
             .collect();
 
@@ -126,7 +126,7 @@ impl Rectangle {
             self.left_edge() - other.right_edge(),
         );
 
-        return y_dist.max(x_dist);
+        y_dist.max(x_dist)
     }
 
     pub fn locations(self) -> impl Iterator<Item = Location> {

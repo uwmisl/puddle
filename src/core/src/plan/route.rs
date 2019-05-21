@@ -27,13 +27,10 @@ pub enum RoutingError {
     NoRoute,
 }
 
+#[derive(Default)]
 pub struct Router {}
 
 impl Router {
-    pub fn new() -> Router {
-        Router {}
-    }
-
     pub fn route(&mut self, req: &RoutingRequest) -> Result<RoutingResponse, RoutingError> {
         debug!("Routing agents: {:#?}", req.agents);
 
@@ -113,9 +110,9 @@ type EdgeCost = u32;
 const STAY_COST: EdgeCost = 1;
 const MOVE_COST: EdgeCost = 2;
 
-fn step_cost(loc: &Location) -> EdgeCost {
+fn step_cost(loc: Location) -> EdgeCost {
     let sit_still = Location { y: 0, x: 0 };
-    if loc == &sit_still {
+    if loc == sit_still {
         STAY_COST
     } else {
         MOVE_COST
@@ -163,7 +160,7 @@ impl Node {
         for (&loc, agent) in self.with_group(group) {
             let rect = agent.rectangle(loc);
             for rloc in rect.locations() {
-                if ctx.grid.get_cell(&rloc).is_none() {
+                if ctx.grid.get_cell(rloc).is_none() {
                     return false;
                 }
             }
@@ -201,7 +198,7 @@ impl Node {
             .map(|(&agent, &offset)| agent + offset)
             .collect();
 
-        let edge_cost = offsets.iter().map(step_cost).sum();
+        let edge_cost = offsets.iter().cloned().map(step_cost).sum();
 
         let node = Node {
             locations: new_locs,
@@ -299,7 +296,7 @@ impl Context<'_> {
 
                 if cfg!(debug_assertions) {
                     for loc in rect1.clone().locations() {
-                        assert!(self.grid.get_cell(&loc).is_some())
+                        assert!(self.grid.get_cell(loc).is_some())
                     }
                 }
 
@@ -365,7 +362,7 @@ impl Context<'_> {
     fn route_group(&self, group: &Group, max_time: u32) -> Option<PathMap> {
         let start_time = Instant::now();
 
-        let mut todo: MinHeap<Cost, Node> = MinHeap::new();
+        let mut todo: MinHeap<Cost, Node> = MinHeap::default();
         let mut best_so_far: HashMap<Node, u32> = HashMap::new();
         let mut came_from: HashMap<Node, Node> = HashMap::new();
         // TODO remove done in favor of came_from

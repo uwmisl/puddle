@@ -25,7 +25,7 @@ impl System {
         };
         System {
             grid: grid.clone(),
-            graph: Graph::new(),
+            graph: Graph::default(),
             planner: Arc::new(Mutex::new(planner)),
             executor: Executor::new(grid.clone()),
         }

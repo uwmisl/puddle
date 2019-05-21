@@ -5,7 +5,7 @@ use std::time::Duration;
 use crate::plan::PlanError;
 
 #[cfg(feature = "pi")]
-use pi::RaspberryPi;
+use crate::pi::RaspberryPi;
 
 use crate::grid::{
     gridview::{GridSubView, GridView},
@@ -495,7 +495,7 @@ impl Command for Split {
     // }
 
     fn request(&self, gridview: &GridView) -> CommandRequest {
-        let d0 = gridview.droplets.get(&self.inputs[0]).unwrap();
+        let d0 = &gridview.droplets[&self.inputs[0]];
         // we only split in the x right now, so we don't need y padding
         let x_dim = (d0.dimensions.x as usize) + SPLIT_PADDING;
         let y_dim = d0.dimensions.y as usize;
@@ -588,7 +588,7 @@ impl Command for Heat {
     }
 
     fn request(&self, gridview: &GridView) -> CommandRequest {
-        let d = gridview.droplets.get(&self.inputs[0]).unwrap();
+        let d = &gridview.droplets[&self.inputs[0]];
         // we only split in the x right now, so we don't need y padding
         let x_dim = d.dimensions.x as usize;
         let y_dim = d.dimensions.y as usize;
@@ -604,7 +604,7 @@ impl Command for Heat {
             y: y_dim as i32 - 1,
             x: 0,
         };
-        grid.get_cell_mut(&loc).unwrap().peripheral = Some(Peripheral::Heater {
+        grid.get_cell_mut(loc).unwrap().peripheral = Some(Peripheral::Heater {
             pwm_channel: 0,
             spi_channel: 0,
         });
@@ -696,7 +696,7 @@ impl Command for Input {
             y: self.dimensions.y / 2,
             x: self.dimensions.x - 1 + 1,
         };
-        grid.get_cell_mut(&loc).unwrap().peripheral = Some(Peripheral::Input {
+        grid.get_cell_mut(loc).unwrap().peripheral = Some(Peripheral::Input {
             pwm_channel: 0,
             name: self.substance.clone(),
         });
@@ -800,7 +800,7 @@ impl Command for Output {
     }
 
     fn request(&self, gridview: &GridView) -> CommandRequest {
-        let d = gridview.droplets.get(&self.inputs[0]).unwrap();
+        let d = &gridview.droplets[&self.inputs[0]];
 
         let mut grid = Grid::rectangle(d.dimensions.y as usize, d.dimensions.x as usize);
 
@@ -810,7 +810,7 @@ impl Command for Output {
             y: d.dimensions.y / 2,
             x: 0,
         };
-        grid.get_cell_mut(&loc).unwrap().peripheral = Some(Peripheral::Output {
+        grid.get_cell_mut(loc).unwrap().peripheral = Some(Peripheral::Output {
             pwm_channel: 0,
             name: self.name.clone(),
         });

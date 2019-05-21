@@ -37,7 +37,7 @@ impl Executor {
                 .expect("node not in graph")
                 .as_mut()
                 .expect("node unbound");
-            let mut subview = &mut self.gridview.subview(&planned_cmd.placement);
+            let subview = &mut self.gridview.subview(&planned_cmd.placement);
 
             // write down if they are done
             debug!("Running command: {:?}", cmd);
@@ -96,7 +96,7 @@ impl Executor {
         }
 
         // just drive all commands to completion for now
-        while self.running_commands.len() > 0 {
+        while !self.running_commands.is_empty() {
             self.run_all_commands(graph);
         }
 

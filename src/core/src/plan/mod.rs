@@ -44,9 +44,9 @@ impl Planner {
     pub fn new(gridview: GridView) -> Planner {
         Planner {
             gridview: gridview,
-            scheduler: Scheduler::new(),
-            placer: Placer::new(),
-            router: Router::new(),
+            scheduler: Scheduler::default(),
+            placer: Placer::default(),
+            router: Router::default(),
         }
     }
 
@@ -74,12 +74,11 @@ impl Planner {
             .iter()
             .map(|cmd_id: &CmdIndex| {
                 let cmd = graph.graph[*cmd_id].as_ref().expect("Command was unbound!");
-                let cmd_req = cmd.request(&self.gridview);
+                cmd.request(&self.gridview)
                 // TODO update the outputs
                 // for out in cmd_req.outputs {
                 //     self.droplets.insert(out.id, out);
                 // }
-                cmd_req
             })
             .collect();
 

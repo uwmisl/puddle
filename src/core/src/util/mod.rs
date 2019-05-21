@@ -6,11 +6,11 @@ pub mod pid;
 use std::env;
 use std::time::{Duration, Instant};
 
-use rand::prng::isaac::IsaacRng;
-use rand::Rng;
+use rand::{Rng, SeedableRng};
+use rand_pcg::Pcg32;
 
 pub fn mk_rng() -> impl Rng {
-    IsaacRng::new_from_u64(
+    Pcg32::seed_from_u64(
         env::var("PUDDLE_SEED")
             .map(|seed| {
                 seed.parse()
@@ -51,7 +51,8 @@ impl Timer {
 }
 
 pub fn duration_seconds(duration: &Duration) -> f64 {
-    (duration.as_secs() as f64) + (duration.subsec_nanos() as f64) / 1e9
+    let nanos: f64 = duration.subsec_nanos().into();
+    (duration.as_secs() as f64) + nanos / 1e9
 }
 
 pub fn seconds_duration(seconds: f64) -> Duration {

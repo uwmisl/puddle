@@ -11,8 +11,8 @@ use std::time::{Duration, Instant};
 use rppal::gpio::Gpio;
 use rppal::pwm::Pwm;
 
-use grid::{parse::PiConfig, Blob, Grid, Location, Peripheral, Snapshot};
-use util::{pid::PidController, seconds_duration, Timer};
+use crate::grid::{parse::PiConfig, Blob, Grid, Location, Peripheral, Snapshot};
+use crate::util::{pid::PidController, seconds_duration, Timer};
 
 #[cfg(feature = "vision")]
 use vision::Detector;

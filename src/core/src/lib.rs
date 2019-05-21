@@ -1,42 +1,15 @@
-#![cfg_attr(feature = "cargo-clippy", allow(module_inception))]
-#![cfg_attr(feature = "cargo-clippy", allow(redundant_field_names))]
-#![deny(bare_trait_objects)]
+#![warn(clippy::correctness)]
+#![warn(clippy::style)]
+#![warn(clippy::complexity)]
+#![warn(clippy::perf)]
+// #![warn(clippy::cargo)]
+// #![warn(clippy::pedantic)]
+// #![warn(clippy::nursery)]
+#![allow(clippy::redundant_field_names)]
+#![allow(clippy::module_inception)]
 
-extern crate rand;
-
-extern crate serde;
-extern crate serde_derive;
-
-extern crate serde_json;
-
-#[cfg(test)]
-extern crate glob;
-
-extern crate jsonrpc_core;
-extern crate jsonrpc_macros;
-
-#[cfg(test)]
-extern crate env_logger;
 #[macro_use]
 extern crate log;
-
-extern crate crossbeam;
-
-extern crate ena;
-
-extern crate pathfinding;
-
-extern crate float_ord;
-
-#[cfg(feature = "pi")]
-extern crate rppal;
-
-#[cfg(feature = "vision")]
-extern crate nalgebra;
-#[cfg(feature = "vision")]
-extern crate ncollide2d;
-
-extern crate matches;
 
 // these need to be pub until we have an api
 mod command;

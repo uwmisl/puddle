@@ -1,7 +1,5 @@
 // build.rs
 
-extern crate cc;
-
 use std::env;
 
 fn main() {

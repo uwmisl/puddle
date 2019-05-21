@@ -31,13 +31,10 @@ pub enum PlacementError {
 
 type PlacementResult = Result<PlacementResponse, PlacementError>;
 
+#[derive(Default)]
 pub struct Placer {}
 
 impl Placer {
-    pub fn new() -> Placer {
-        Placer {}
-    }
-
     pub fn place(&self, req: &PlacementRequest) -> PlacementResult {
         let mut bad_locs = HashSet::new();
 
@@ -68,8 +65,8 @@ impl Placer {
         let mut locations_initially_holding_droplets = HashSet::new();
         for id in req.stored_droplets {
             let droplet = &req.gridview.droplets[id];
-            for y in -1..(droplet.dimensions.y + 1) {
-                for x in -1..(droplet.dimensions.x + 1) {
+            for y in -1..=droplet.dimensions.y {
+                for x in -1..=droplet.dimensions.x {
                     locations_initially_holding_droplets
                         .insert(droplet.location + Location { x, y });
                 }
@@ -169,14 +166,14 @@ fn is_compatible(
 ) -> bool {
     smaller.locations().all(|(small_loc, small_cell)| {
         let big_loc = small_loc + offset;
-        let nbrs = bigger.neighbors9(&big_loc);
+        let nbrs = bigger.neighbors9(big_loc);
         if nbrs.iter().any(|n| bad_locs.contains(n)) {
             return false;
         }
 
         // return the compatibility
         bigger
-            .get_cell(&big_loc)
+            .get_cell(big_loc)
             .map_or(false, |big_cell| small_cell.is_compatible(&big_cell))
     })
 }
@@ -185,7 +182,6 @@ fn is_compatible(
 mod tests {
 
     use super::*;
-    use crate::grid::Peripheral;
 
     #[test]
     fn grid_self_compatible() {

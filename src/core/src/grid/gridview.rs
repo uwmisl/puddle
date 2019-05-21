@@ -79,9 +79,9 @@ impl<'a> GridSubView<'a> {
     //     self.backing_gridview.pi.as_mut().map(f)
     // }
 
-    pub fn get_electrode(&self, loc: &Location) -> Option<&Electrode> {
-        let actual_loc = self.placement.mapping.get(loc)?;
-        self.backing_gridview.grid.get_cell(&actual_loc)
+    pub fn get_electrode(&self, loc: Location) -> Option<&Electrode> {
+        let actual_loc = self.placement.mapping.get(&loc)?;
+        self.backing_gridview.grid.get_cell(*actual_loc)
     }
 
     // TODO: translate or somehow hide the untranslated location of this
