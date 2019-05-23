@@ -42,6 +42,9 @@ set -x
 
 pushd src/
 
+cargo --version
+rustc --version
+
 cargo build
 cargo test
 
@@ -70,6 +73,9 @@ echo
 set -x
 
 pushd src/python/
+python --version
+./setup.py --version
 ./setup.py test
+yapf --version
 yapf --recursive --diff .
 popd

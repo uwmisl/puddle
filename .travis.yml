@@ -1,5 +1,7 @@
 language: nix
 script: nix-shell --command ./run-tests.sh
+env:
+  - NIX_PATH=nixpkgs=channel:nixos-19.03
 
 notifications:
   slack:
