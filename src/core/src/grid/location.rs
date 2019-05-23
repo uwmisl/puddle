@@ -65,7 +65,7 @@ impl FromStr for Location {
             .trim()
             .trim_matches(|p| p == '(' || p == ')')
             .split(',')
-            .map(|s| s.trim())
+            .map(str::trim)
             .collect();
 
         if coords.len() != 2 {

@@ -69,7 +69,7 @@ impl Executor {
     fn commit(&mut self) {}
 
     fn take_routes(&mut self, paths: &HashMap<DropletId, Path>, graph: &mut Graph) {
-        let max_len = paths.values().map(|path| path.len()).max().unwrap_or(0);
+        let max_len = paths.values().map(Vec::len).max().unwrap_or(0);
 
         // make sure that all droplets start where they are at this time step
         for (id, path) in paths.iter() {

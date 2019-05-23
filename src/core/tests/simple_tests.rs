@@ -265,7 +265,7 @@ fn split_dimensions_size() {
 }
 
 #[test]
-#[ignore("Creation doesn't check anything for now")]
+#[ignore = "Creation doesn't check anything for now"]
 fn create_dimensions_failure_overlap() {
     let man = manager_from_rect(9, 9);
     let p = man.get_new_process("test");
@@ -364,7 +364,7 @@ fn heat_droplet() {
 }
 
 #[test]
-#[ignore("We don't support combine into yet")]
+#[ignore = "We don't support combine into yet"]
 fn combine_into() {
     let man = manager_from_rect(10, 10);
     let p = man.get_new_process("test");

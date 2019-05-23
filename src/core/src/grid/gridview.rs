@@ -31,7 +31,7 @@ impl GridView {
         self.droplets
             .values()
             .filter(|&d| pid_option.map_or(true, |pid| d.id.process_id == pid))
-            .map(|d| d.info())
+            .map(Droplet::info)
             .collect()
     }
 

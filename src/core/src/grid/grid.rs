@@ -140,7 +140,7 @@ impl Grid {
     }
 
     pub fn max_width(&self) -> usize {
-        self.vec.iter().map(|row| row.len()).max().unwrap_or(0)
+        self.vec.iter().map(Vec::len).max().unwrap_or(0)
     }
 
     pub fn max_pin(&self) -> u32 {
@@ -203,7 +203,8 @@ impl Grid {
         let j = loc.x as usize;
         self.vec
             .get(i)
-            .and_then(|row| row.get(j).and_then(|cell_opt| cell_opt.as_ref()))
+            .and_then(|row| row.get(j))
+            .and_then(Option::as_ref)
     }
 
     pub fn get_cell_mut(&mut self, loc: Location) -> Option<&mut Electrode> {
@@ -214,7 +215,8 @@ impl Grid {
         let j = loc.x as usize;
         self.vec
             .get_mut(i)
-            .and_then(|row| row.get_mut(j).and_then(|cell_opt| cell_opt.as_mut()))
+            .and_then(|row| row.get_mut(j))
+            .and_then(Option::as_mut)
     }
 
     fn locations_from_offsets<'a, I>(&self, loc: Location, offsets: I) -> Vec<Location>

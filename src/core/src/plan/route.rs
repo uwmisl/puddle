@@ -281,7 +281,7 @@ impl Context<'_> {
     fn find_collisions(&self, paths: &PathMap) -> Vec<Collision> {
         let mut collisions = Vec::new();
 
-        let max_length = paths.values().map(|p| p.len()).max().unwrap();
+        let max_length = paths.values().map(Vec::len).max().unwrap();
 
         for time in 0..max_length {
             let mut iter = paths.iter();
@@ -704,7 +704,7 @@ mod tests {
     }
 
     #[test]
-    #[ignore("can only be run with release profile")]
+    #[ignore = "can only be run with release profile"]
     fn test_hard_cooperative_route() {
         #[rustfmt::skip]
         let gv0 = parse_gridview(&[
