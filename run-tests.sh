@@ -30,27 +30,37 @@ do
     fi
 done
 
-set -x
+function long() {
+    echo "------------------------------------"
+    echo "$@"
+    echo "------------------------------------"
+    echo
+    start=$SECONDS
+    $@
+    duration=$(( SECONDS - start ))
+    echo
+    echo "Took $duration seconds: \"$@\""
+    echo
+    echo
+}
 
-set +x
 echo
 echo "+-----------------------------------------------+"
 echo "|                 Testing rust                  |"
 echo "+-----------------------------------------------+"
 echo
-set -x
 
 pushd src/
 
 cargo --version
 rustc --version
 
-cargo build
-cargo test
-cargo clippy --tests
+long cargo build
+long cargo test
+long cargo clippy --tests
 
-cargo check --features pi
-cargo check --tests --features pi
+long cargo check --features pi
+long cargo check --tests --features pi
 
 cargo fmt -- --check
 
@@ -65,18 +75,16 @@ cargo fmt -- --check
 popd
 
 
-set +x
 echo
 echo "+-----------------------------------------------+"
 echo "|                Testing python                 |"
 echo "+-----------------------------------------------+"
 echo
-set -x
 
 pushd src/python/
 python --version
 ./setup.py --version
-./setup.py test
+long ./setup.py test
 yapf --version
 yapf --recursive --diff .
 popd
