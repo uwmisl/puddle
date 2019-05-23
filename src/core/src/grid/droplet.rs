@@ -10,17 +10,8 @@ use crate::util::HashSet;
 
 static NEXT_COLLISION_GROUP: AtomicUsize = AtomicUsize::new(0);
 
-#[derive(
-    PartialEq,
-    Eq,
-    PartialOrd,
-    Hash,
-    Ord,
-    Clone,
-    Copy,
-    Serialize,
-    Deserialize
-)]
+#[derive(PartialEq, Eq, PartialOrd, Hash, Ord, Clone, Copy)] // std
+#[derive(Serialize, Deserialize)] // serde
 pub struct DropletId {
     pub id: usize,
     pub process_id: ProcessId,

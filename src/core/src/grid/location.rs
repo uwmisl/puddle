@@ -5,9 +5,9 @@ use std::str::FromStr;
 use derive_more::{Add, Display, From, Sub};
 use serde::{Deserialize, Serialize};
 
-#[derive(PartialEq, Eq, PartialOrd, Ord, Hash, Clone, Copy)]
-#[derive(Serialize, Deserialize)] // from serde_derive
-#[derive(From, Display, Add, Sub)] // from derive_more
+#[derive(PartialEq, Eq, PartialOrd, Ord, Hash, Clone, Copy)] // std
+#[derive(Serialize, Deserialize)] // serde
+#[derive(From, Display, Add, Sub)] // derive
 #[display(fmt = "({}, {})", y, x)]
 pub struct Location {
     pub y: i32,
