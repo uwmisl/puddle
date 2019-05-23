@@ -47,6 +47,7 @@ rustc --version
 
 cargo build
 cargo test
+cargo clippy --tests
 
 cargo check --features pi
 cargo check --tests --features pi

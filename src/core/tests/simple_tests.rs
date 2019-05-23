@@ -4,18 +4,17 @@ use std::env;
 use matches::assert_matches;
 use puddle_core::*;
 
-fn manager_from_str<'a>(json_str: &str) -> Manager {
+fn manager_from_str(json_str: &str) -> Manager {
     let _ = env_logger::try_init();
     let grid = Grid::from_reader(json_str.as_bytes()).unwrap();
     // reduce the step delay for testing
     env::set_var("PUDDLE_STEP_DELAY_MS", "1");
 
     let blocking = false;
-    let man = Manager::new(blocking, grid);
-    man
+    Manager::new(blocking, grid)
 }
 
-fn manager_from_rect<'a>(rows: usize, cols: usize) -> Manager {
+fn manager_from_rect(rows: usize, cols: usize) -> Manager {
     let _ = env_logger::try_init();
     let grid = Grid::rectangle(rows, cols);
 
@@ -23,8 +22,7 @@ fn manager_from_rect<'a>(rows: usize, cols: usize) -> Manager {
     env::set_var("PUDDLE_STEP_DELAY_MS", "1");
 
     let blocking = false;
-    let man = Manager::new(blocking, grid);
-    man
+    Manager::new(blocking, grid)
 }
 
 fn info_dict(p: &ProcessHandle) -> HashMap<DropletId, DropletInfo> {

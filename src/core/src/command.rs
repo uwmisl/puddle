@@ -144,7 +144,7 @@ impl Flush {
 impl Command for Flush {
     fn request(&self, _gridview: &GridView) -> CommandRequest {
         CommandRequest {
-            name: format!("flush"),
+            name: format!("flush(pid={})", self.pid),
             shape: Grid::rectangle(0, 0),
             input_locations: vec![],
             offset: None,
@@ -326,7 +326,7 @@ impl Command for Combine {
 
         if self.pin_d0 {
             CommandRequest {
-                name: format!("combine pin"),
+                name: format!("combine({:?}, {:?}) pin", d0.id, d1.id),
                 shape: Grid::rectangle(
                     combined.dimensions.y as usize,
                     combined.dimensions.x as usize,
@@ -336,7 +336,7 @@ impl Command for Combine {
             }
         } else {
             CommandRequest {
-                name: format!("combine"),
+                name: format!("combine({:?}, {:?})", d0.id, d1.id),
                 shape: Grid::rectangle(
                     // we need the plus 1 to ensure a gap
                     combined.dimensions.y as usize + 1,
@@ -413,7 +413,7 @@ impl Command for Agitate {
         let droplet = &gridview.droplets[&self.inputs[0]];
 
         CommandRequest {
-            name: format!("Agitate"),
+            name: format!("agitate({:?})", self.inputs[0]),
             shape: Grid::rectangle(
                 droplet.dimensions.y as usize + AGITATE_PADDING,
                 droplet.dimensions.x as usize + AGITATE_PADDING,
@@ -619,7 +619,7 @@ impl Command for Heat {
         let input_locations = vec![loc];
 
         CommandRequest {
-            name: format!("heat"),
+            name: format!("heat({:?})", d.id),
             shape: grid,
             input_locations: input_locations,
             offset: None,
@@ -712,7 +712,7 @@ impl Command for Input {
         debug!("Input location will be at {}", loc);
 
         CommandRequest {
-            name: format!("input"),
+            name: format!("input -> {:?}", self.outputs[0]),
             shape: grid,
             input_locations: vec![],
             offset: None,
@@ -827,7 +827,7 @@ impl Command for Output {
         debug!("Output location will be at {}", loc);
 
         CommandRequest {
-            name: format!("output"),
+            name: format!("output({:?})", d.id),
             shape: grid,
             input_locations: vec![loc],
             offset: None,

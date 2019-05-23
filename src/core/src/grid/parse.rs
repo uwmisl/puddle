@@ -132,7 +132,7 @@ pub mod tests {
                 // we think this is a droplet is it's alphanumeric
                 if ch.is_alphanumeric() {
                     // add this location to those for this character
-                    let locs = droplet_map.entry(ch).or_insert_with(|| Vec::new());
+                    let locs = droplet_map.entry(ch).or_insert_with(Vec::new);
                     locs.push(Location {
                         y: i as i32,
                         x: j as i32,

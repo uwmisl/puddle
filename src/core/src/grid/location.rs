@@ -162,7 +162,7 @@ pub mod tests {
         }
     }
 
-    pub fn connected_components<'a, I>(locs: I) -> HashMap<Location, u32>
+    pub fn connected_components<I>(locs: I) -> HashMap<Location, u32>
     where
         I: Iterator<Item = Location>,
     {
