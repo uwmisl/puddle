@@ -26,6 +26,7 @@ stdenv.mkDerivation {
     rust
     rustracer
     python37Packages.flake8
+    python37Packages.requests
   ];
   RUST_SRC_PATH = "${rust}/lib/rustlib/src/rust/src";
 }

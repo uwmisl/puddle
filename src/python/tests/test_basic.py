@@ -2,6 +2,7 @@
 import puddle
 import unittest
 
+
 class TestPuddleStuff(unittest.TestCase):
 
     def setUp(self):
@@ -11,10 +12,9 @@ class TestPuddleStuff(unittest.TestCase):
         self.session = session.__enter__()
         self.addCleanup(session.__exit__, None, None, None)
 
-
     def test_easy(self):
-        a = self.session.create((1,1), 1.0, (1,1))
-        b = self.session.create(None, 1.0, (1,1))
+        a = self.session.create((1, 1), 1.0, (1, 1))
+        b = self.session.create(None, 1.0, (1, 1))
         c = a.mix(b)
 
         droplets = self.session.droplets()
@@ -22,10 +22,9 @@ class TestPuddleStuff(unittest.TestCase):
         # TODO droplet ids should be strings at some point
         self.assertSetEqual(set(droplets.keys()), {c._id})
 
-
     def test_consumed(self):
-        a = self.session.create(None, 1.0, (1,1))
-        b = self.session.create(None, 1.0, (1,1))
+        a = self.session.create(None, 1.0, (1, 1))
+        b = self.session.create(None, 1.0, (1, 1))
         c = a.mix(b)
 
         self.assertIsNotNone(c)
@@ -33,10 +32,9 @@ class TestPuddleStuff(unittest.TestCase):
         with self.assertRaises(puddle.DropletConsumed):
             a.mix(b)
 
-
     def test_volume(self):
-        a = self.session.create(None, 1.0, (1,1))
-        b = self.session.create(None, 2.0, (1,1))
+        a = self.session.create(None, 1.0, (1, 1))
+        b = self.session.create(None, 2.0, (1, 1))
         ab = self.session.mix(a, b)
 
         (a_split, b_split) = self.session.split(ab)

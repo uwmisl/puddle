@@ -2,8 +2,11 @@ import unittest
 from pathlib import Path
 
 # test module is empty, we dynamically generate these tests
+
+
 class TestExamples(unittest.TestCase):
     pass
+
 
 example_paths = [
     path for path in
@@ -12,12 +15,14 @@ example_paths = [
     if 'no test' not in open(path).readline()
 ]
 
+
 def mk_test(path):
     def example(self):
         with path.open() as f:
             # empty dicts for globals, used a initial locals
             exec(f.read(), {})
     return example
+
 
 for p in example_paths:
     filename = p.name

@@ -10,13 +10,6 @@ edition = "2018"
 pi = ["rppal"]
 vision = []
 
-[profile.release]
-debug = true
-
-# FIXME put this back
-# [[bin]]
-# name = "puddle-server"
-
 [[bin]]
 name = "pi-test"
 required-features = ["pi"]
@@ -32,11 +25,6 @@ rand_pcg = "0.1"
 
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "^1.0"
-
-jsonrpc-core = "9"
-jsonrpc-http-server = "9"
-jsonrpc-macros = "9"
-hyper-staticfile = "0.3.0"
 
 structopt = "0.2"
 derive_more = "0.14"

@@ -124,7 +124,7 @@ with mk_session(arch_path) as session:
     c_low = 0
     c_high = 1
 
-    c_target = .37
+    c_target = .25
     eps = 0.1
 
     def d_low_factory():

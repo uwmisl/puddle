@@ -1,0 +1,24 @@
+[package]
+name = "puddle-server"
+version = "0.1.0"
+authors = ["Max Willsey <me@mwillsey.com>"]
+edition = "2018"
+
+[dependencies]
+
+puddle-core = { path = "../core" }
+
+serde = "1"
+
+jsonrpc-core = "11"
+jsonrpc-derive = "11"
+jsonrpc-core-client = "11"
+jsonrpc-http-server = "11"
+hyper-staticfile = "0.3.0"
+
+structopt = "0.2.15"
+
+futures = "0.1"
+
+log = "0.4.0"
+env_logger = "0.6.1"

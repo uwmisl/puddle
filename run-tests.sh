@@ -30,22 +30,25 @@ do
     fi
 done
 
-# -v print every line before running it
-set -v
+set -x
 
-# test the core
-pushd src/core/
+set +x
+echo
+echo "+-----------------------------------------------+"
+echo "|                 Testing rust                  |"
+echo "+-----------------------------------------------+"
+echo
+set -x
 
-# check for formatting
-cargo fmt -- --check
+pushd src/
 
-# try the regular build and tests
 cargo build
 cargo test
 
-# just check the things that require the pi
 cargo check --features pi
 cargo check --tests --features pi
+
+cargo fmt -- --check
 
 # # just check the things that require vision
 # cargo check --features vision
@@ -58,7 +61,14 @@ cargo check --tests --features pi
 popd
 
 
-# test the python bindings
+set +x
+echo
+echo "+-----------------------------------------------+"
+echo "|                Testing python                 |"
+echo "+-----------------------------------------------+"
+echo
+set -x
+
 pushd src/python/
 
 # FIXME python doesn't work for now
@@ -68,6 +78,6 @@ echo "Skipping python"
 # flake8
 
 # run the tests
-# ./setup.py test
+./setup.py test
 
 popd

@@ -100,7 +100,8 @@ class Session:
         for attempt in range(max_attempts):
             try:
                 resp = requests.get(status_check)
-                break
+                if resp.status_code == requests.codes.ok:
+                    break
             except Exception as exn:
                 msg = 'Attempt {}: could not connect to {}'.format(attempt + 1, status_check)
                 if attempt == max_attempts - 1:
@@ -139,7 +140,7 @@ class Session:
             raise RequestError("Error calling method {}".format(method)) from exn
 
         if response.status_code != requests.codes.ok:
-            raise RequestError("Response {} from server was not OK".format(response.status_code))
+            raise RequestError("Response {} from server was not OK\n{}".format(response.status_code, response.text))
 
         resp_json = response.json()
         assert resp_json['id'] == request_id
@@ -214,7 +215,7 @@ def mk_session(
         arch_file,
         host = '127.0.0.1',
         port = '3000',
-        profile = '--release',
+        profile = '',
 ):
 
     # make sure there aren't any puddle servers running now
@@ -224,11 +225,11 @@ def mk_session(
         pass
 
     # this won't build the server, so make sure it's there
-    default_command = project_path('/src/core/target/debug/puddle-server')
+    default_command = 'cargo run {profile} --bin puddle-server -- '
     command = os.environ.get('PUDDLE_SERVER', default_command)
 
     # build the server command and run it
-    flags = ' --static {static_dir} --addr {host}:{port} --arch {arch_file}'
+    flags = ' --static {static_dir} --address {host}:{port} --grid {arch_file}'
     cmd = (command + flags).format(
         cargo_toml = project_path('/src/core/Cargo.toml'),
         profile = profile,

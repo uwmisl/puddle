@@ -16,11 +16,12 @@ use crate::process::{ProcessId, PuddleResult};
 
 #[derive(Debug)]
 pub struct CommandRequest {
+    pub name: String,
     pub shape: Grid,
     pub input_locations: Vec<Location>,
     // TODO needed to plan ahead, but we can omit if we don't do that for now
     // pub outputs: Vec<Droplet>,
-    pub trusted: bool,
+    pub offset: Option<Location>,
 }
 
 pub enum RunStatus {
@@ -68,10 +69,9 @@ pub type BoxedCommand = Box<dyn Command>;
 pub struct Create {
     inputs: Vec<DropletId>,
     outputs: Vec<DropletId>,
-    location: Location,
+    location: Option<Location>,
     dimensions: Location,
     volume: f64,
-    trusted: bool,
 }
 
 // TODO: dimensions probably shouldn't be optional?
@@ -85,10 +85,9 @@ impl Create {
         Ok(Create {
             inputs: vec![],
             outputs: vec![out_id],
-            location: loc.unwrap_or(Location { y: 0, x: 0 }),
+            location: loc,
             dimensions: dim.unwrap_or(Location { y: 1, x: 1 }),
             volume: vol,
-            trusted: loc.is_some(),
         })
     }
 }
@@ -106,9 +105,10 @@ impl Command for Create {
         let grid = Grid::rectangle(self.dimensions.y as usize, self.dimensions.x as usize);
 
         CommandRequest {
+            name: format!("create -> {:?}", self.outputs[0]),
             shape: grid,
             input_locations: vec![],
-            trusted: self.trusted,
+            offset: self.location,
         }
     }
 
@@ -116,7 +116,7 @@ impl Command for Create {
         gridview.insert(Droplet::new(
             self.outputs[0],
             self.volume,
-            self.location,
+            Location { y: 0, x: 0 },
             self.dimensions,
         ));
         RunStatus::Done
@@ -144,9 +144,10 @@ impl Flush {
 impl Command for Flush {
     fn request(&self, _gridview: &GridView) -> CommandRequest {
         CommandRequest {
+            name: format!("flush"),
             shape: Grid::rectangle(0, 0),
             input_locations: vec![],
-            trusted: false,
+            offset: None,
         }
     }
 
@@ -207,9 +208,10 @@ impl Command for Move {
         let old_id = self.inputs[0];
         let dim = gridview.droplets[&old_id].dimensions;
         CommandRequest {
+            name: format!("move({:?}, {:?})", self.inputs[0], self.outputs[0]),
             shape: Grid::rectangle(dim.y as usize, dim.x as usize),
-            input_locations: vec![self.destination[0]],
-            trusted: true,
+            input_locations: vec![Location { y: 0, x: 0 }],
+            offset: Some(self.destination[0]),
         }
     }
 
@@ -303,10 +305,11 @@ impl Command for Combine {
         let id0 = &self.inputs[0];
         let id1 = &self.inputs[1];
 
-        // FIXME what to do about collisions?
-        // set the collision groups to be the same
-        // must scope the mutable borrow
+        // // FIXME what to do about collisions?
+        // // set the collision groups to be the same
+        // // must scope the mutable borrow
         // {
+        //     let droplets = &mut gridview.droplets;
         //     let cg1 = droplets[id1].collision_group;
         //     let d0 = droplets.get_mut(id0).unwrap();
         //     d0.collision_group = cg1;
@@ -323,15 +326,17 @@ impl Command for Combine {
 
         if self.pin_d0 {
             CommandRequest {
+                name: format!("combine pin"),
                 shape: Grid::rectangle(
                     combined.dimensions.y as usize,
                     combined.dimensions.x as usize,
                 ),
                 input_locations: vec![d0.location, combined.location],
-                trusted: true,
+                offset: None,
             }
         } else {
             CommandRequest {
+                name: format!("combine"),
                 shape: Grid::rectangle(
                     // we need the plus 1 to ensure a gap
                     combined.dimensions.y as usize + 1,
@@ -345,7 +350,7 @@ impl Command for Combine {
                     },
                     Location { y: 0, x: 0 },
                 ],
-                trusted: false,
+                offset: None,
             }
         }
     }
@@ -408,12 +413,13 @@ impl Command for Agitate {
         let droplet = &gridview.droplets[&self.inputs[0]];
 
         CommandRequest {
+            name: format!("Agitate"),
             shape: Grid::rectangle(
                 droplet.dimensions.y as usize + AGITATE_PADDING,
                 droplet.dimensions.x as usize + AGITATE_PADDING,
             ),
             input_locations: vec![Location { y: 0, x: 0 }],
-            trusted: false,
+            offset: None,
         }
     }
 
@@ -504,9 +510,10 @@ impl Command for Split {
         let input_locations = vec![Location { y: 0, x: 2 }];
 
         CommandRequest {
+            name: format!("split({:?})", self.inputs[0]),
             shape: grid,
             input_locations: input_locations,
-            trusted: false,
+            offset: None,
         }
     }
 
@@ -612,9 +619,10 @@ impl Command for Heat {
         let input_locations = vec![loc];
 
         CommandRequest {
+            name: format!("heat"),
             shape: grid,
             input_locations: input_locations,
-            trusted: false,
+            offset: None,
         }
     }
 
@@ -704,9 +712,10 @@ impl Command for Input {
         debug!("Input location will be at {}", loc);
 
         CommandRequest {
+            name: format!("input"),
             shape: grid,
             input_locations: vec![],
-            trusted: false,
+            offset: None,
         }
     }
 
@@ -818,9 +827,10 @@ impl Command for Output {
         debug!("Output location will be at {}", loc);
 
         CommandRequest {
+            name: format!("output"),
             shape: grid,
             input_locations: vec![loc],
-            trusted: false,
+            offset: None,
         }
     }
 

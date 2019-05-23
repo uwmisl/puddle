@@ -59,7 +59,7 @@ pub struct Droplet {
 
 // derive PartialEq because Droplets don't, and it's useful to compare them.
 // comparing the info is a safer way to do so
-#[derive(Debug, Serialize, PartialEq)]
+#[derive(Debug, Serialize, Deserialize, PartialEq)]
 pub struct DropletInfo {
     pub id: DropletId,
     pub location: Location,

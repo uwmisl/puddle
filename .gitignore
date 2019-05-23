@@ -9,3 +9,6 @@
 
 # build artifacts
 *.s
+
+# rust compiled stuff
+target
