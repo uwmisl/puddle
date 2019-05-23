@@ -5,26 +5,27 @@ with import <nixpkgs> {
   ];
 };
 let
+  # don't install arm stuff on travis
+  not_ci = x: if builtins.getEnv "CI" == "true" then null else x;
+
   # using rust overlay
-  rustChannel = rustChannelOf { channel = "1.32.0"; };
+  rustChannel = rustChannelOf { channel = "1.34.2"; };
   rust = rustChannel.rust.override {
-    extensions = ["rust-src"];
+    extensions = [(not_ci "rust-src")];
     targets = [
       "x86_64-unknown-linux-gnu"
-      "armv7-unknown-linux-musleabihf"
+      (not_ci "armv7-unknown-linux-musleabihf")
     ];
   };
 
-  # don't install arm stuff on travis
-  in_ci = builtins.getEnv "CI" == "true";
   arm = import <nixpkgs> { crossSystem.config = "armv7l-unknown-linux-musleabihf"; };
 in
 stdenv.mkDerivation {
   name = "puddle";
   buildInputs = [
-    (if in_ci then null else arm.stdenv.cc)
+    (not_ci arm.stdenv.cc)
     rust
-    rustracer
+    (not_ci rustracer)
     python37Packages.yapf
     python37Packages.requests
   ];
