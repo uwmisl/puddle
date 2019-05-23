@@ -7,12 +7,13 @@ with import <nixpkgs> {
 let
   # don't install arm stuff on travis
   not_ci = x: if builtins.getEnv "CI" == "true" then null else x;
+  filter = builtins.filter (x: !isNull x);
 
   # using rust overlay
   rustChannel = rustChannelOf { channel = "1.34.2"; };
   rust = rustChannel.rust.override {
-    extensions = [(not_ci "rust-src")];
-    targets = [
+    extensions = filter [(not_ci "rust-src")];
+    targets = filter [
       "x86_64-unknown-linux-gnu"
       (not_ci "armv7-unknown-linux-musleabihf")
     ];
@@ -22,7 +23,7 @@ let
 in
 stdenv.mkDerivation {
   name = "puddle";
-  buildInputs = [
+  buildInputs = filter [
     (not_ci arm.stdenv.cc)
     rust
     (not_ci rustracer)
