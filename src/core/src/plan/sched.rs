@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 use petgraph::{
     algo::toposort,
     prelude::*,
@@ -8,7 +6,7 @@ use petgraph::{
 
 use crate::grid::DropletId;
 use crate::plan::graph::{CmdIndex, Graph};
-use crate::util::collections::Map;
+use crate::util::HashMap;
 
 type Schedule = usize;
 
@@ -39,7 +37,7 @@ impl Default for Scheduler {
     fn default() -> Scheduler {
         Scheduler {
             debug: cfg!(test),
-            node_sched: HashMap::new(),
+            node_sched: HashMap::default(),
             current_sched: 0,
         }
     }
@@ -177,8 +175,8 @@ impl Scheduler {
     }
 }
 
-fn critical_paths(graph: &Graph) -> Map<CmdIndex, usize> {
-    let mut distances = Map::<CmdIndex, usize>::new();
+fn critical_paths(graph: &Graph) -> HashMap<CmdIndex, usize> {
+    let mut distances = HashMap::<CmdIndex, usize>::default();
 
     // do a reverse toposort so we can count the critical path lengths
     let working_space = None;
@@ -260,7 +258,7 @@ mod tests {
         let split = |x, y1, y2| Dummy::new(&[x], &[y1, y2]).boxed();
 
         let mut graph = Graph::default();
-        let mut map = HashMap::new();
+        let mut map = HashMap::default();
 
         map.insert("input", graph.add_command(input(0)).unwrap());
         map.insert("split", graph.add_command(split(0, 1, 2)).unwrap());

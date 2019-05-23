@@ -1,12 +1,12 @@
 use crate::grid::{Droplet, DropletId, DropletInfo, Electrode, Grid, Location};
 use crate::plan::place::Placement;
 use crate::process::ProcessId;
-use crate::util::collections::{Map, Set};
+use crate::util::{HashMap, HashSet};
 
 #[derive(Default, Clone)]
 pub struct GridView {
     pub grid: Grid,
-    pub droplets: Map<DropletId, Droplet>,
+    pub droplets: HashMap<DropletId, Droplet>,
 }
 
 use std::fmt;
@@ -146,7 +146,7 @@ impl<'a> GridSubView<'a> {
     fn check_droplet(&self, id: &DropletId) {
         // TODO will this have translated or real location??
         let droplet = self.get(id);
-        let mapped_to: Set<_> = self.placement.mapping.values().collect();
+        let mapped_to: HashSet<_> = self.placement.mapping.values().collect();
         // TODO this is pretty slow
         for i in 0..droplet.dimensions.y {
             for j in 0..droplet.dimensions.x {
@@ -241,7 +241,7 @@ pub mod tests {
     }
 
     fn placement_rect(offset: impl Into<Location>, size: impl Into<Location>) -> Placement {
-        let mut mapping = Map::new();
+        let mut mapping = HashMap::default();
         let offset = offset.into();
         let size = size.into();
         for y in 0..size.y {

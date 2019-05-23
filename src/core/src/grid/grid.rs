@@ -2,11 +2,10 @@ use serde::{Deserialize, Deserializer, Serialize, Serializer};
 // use serde_derive::serde;
 use serde_json;
 
-use std::collections::HashSet;
 use std::io::Read;
 
 use super::Location;
-use crate::util::collections::Map;
+use crate::util::{HashMap, HashSet};
 
 use crate::grid::parse::{Mark, ParsedElectrode, ParsedGrid, PiConfig};
 
@@ -80,7 +79,7 @@ const NEIGHBORS_4: [Location; 4] = [
 
 impl Grid {
     pub fn to_parsed_grid(&self) -> ParsedGrid {
-        let mut peripherals = Map::new();
+        let mut peripherals = HashMap::default();
         let board = self
             .vec
             .iter()
@@ -245,7 +244,7 @@ impl Grid {
     /// Returns a Vec representing the neighbors of the location combined with
     /// the dimensions of the droplet.
     pub fn neighbors_dimensions(&self, loc: Location, dimensions: Location) -> Vec<Location> {
-        let mut dimensions_nbrhd: HashSet<Location> = HashSet::new();
+        let mut dimensions_nbrhd: HashSet<Location> = HashSet::default();
         for y in 0..dimensions.y {
             for x in 0..dimensions.x {
                 let new_loc = loc + Location { y, x };
@@ -354,8 +353,8 @@ impl<'de> Deserialize<'de> for Grid {
 //         let bad_edges = &Set::default();
 //         let map = grid.place(&grid, snapshot, bad_edges).unwrap();
 
-//         let identity_locs: Map<Location, Location> =
-//             Map::from_iter(grid.locations().map(|(loc, _)| (loc, loc)));
+//         let identity_locs: HashMap<Location, Location> =
+//             HashMap::from_iter(grid.locations().map(|(loc, _)| (loc, loc)));
 //         assert_eq!(&identity_locs, &map);
 //     }
 // }

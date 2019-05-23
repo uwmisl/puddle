@@ -142,7 +142,7 @@ impl Rectangle {
 #[cfg(test)]
 pub mod tests {
     use super::*;
-    use std::collections::HashMap;
+    use crate::util::HashMap;
 
     use ena::unify::{InPlaceUnificationTable, UnifyKey};
 
@@ -167,7 +167,7 @@ pub mod tests {
         I: Iterator<Item = Location>,
     {
         // inputs must be in row major order
-        let mut labels = HashMap::new();
+        let mut labels = HashMap::default();
         let mut equivs = InPlaceUnificationTable::<IntKey>::new();
 
         for loc in locs {

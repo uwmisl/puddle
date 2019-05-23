@@ -1,13 +1,11 @@
-use std::collections::HashSet;
-
 use crate::command::CommandRequest;
 use crate::grid::{DropletId, Grid, GridView, Location};
-use crate::util::collections::Map;
+use crate::util::{HashMap, HashSet};
 
 #[derive(Debug, Clone)]
 pub struct Placement {
     // TODO idk if this should be pub
-    pub mapping: Map<Location, Location>,
+    pub mapping: HashMap<Location, Location>,
 }
 
 #[derive(Debug)]
@@ -36,7 +34,7 @@ pub struct Placer {}
 
 impl Placer {
     pub fn place(&self, req: &PlacementRequest) -> PlacementResult {
-        let mut bad_locs = HashSet::new();
+        let mut bad_locs = HashSet::default();
 
         // initialize bad locs with the fixed commands
         for placement in &req.fixed_commands {
@@ -62,7 +60,7 @@ impl Placer {
         // build up a set of location that currently hold droplets, and would
         // therefore require moving them if a command was placed on top of them.
         // Use this to avoid unnecessary moves.
-        let mut locations_initially_holding_droplets = HashSet::new();
+        let mut locations_initially_holding_droplets = HashSet::default();
         for id in req.stored_droplets {
             let droplet = &req.gridview.droplets[id];
             for y in -1..=droplet.dimensions.y {
@@ -77,7 +75,7 @@ impl Placer {
         for cmd_req in req.commands {
             debug!("Placing {:?}", cmd_req);
             if let Some(offset) = cmd_req.offset {
-                let mapping: Map<_, _> = cmd_req
+                let mapping: HashMap<_, _> = cmd_req
                     .shape
                     .locations()
                     .map(|(loc, _cell)| (loc, loc + offset))
@@ -195,7 +193,7 @@ mod tests {
         let grid = Grid::rectangle(5, 4);
         let shape = Grid::rectangle(5, 4);
         let offset = Location { y: 0, x: 0 };
-        let bad_locs = HashSet::new();
+        let bad_locs = HashSet::default();
 
         assert!(is_compatible(&grid, &shape, offset, &bad_locs))
     }
@@ -210,7 +208,7 @@ mod tests {
     //     let end_tick = Some(5);
     //     let placement = plan.place(&shape, start_tick, end_tick).unwrap();
 
-    //     let identity_mapping: Map<_, _> = grid.locations().map(|(loc, _)| (loc, loc)).collect();
+    //     let identity_mapping: HashMap<_, _> = grid.locations().map(|(loc, _)| (loc, loc)).collect();
     //     assert_eq!(identity_mapping, placement.mapping)
     // }
 

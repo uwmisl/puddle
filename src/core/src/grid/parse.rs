@@ -3,7 +3,7 @@ use serde_json;
 use std::io::Read;
 
 use crate::grid::grid::*;
-use crate::util::collections::Map;
+use crate::util::HashMap;
 
 #[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Mark {
@@ -50,7 +50,7 @@ pub struct ParsedGrid {
     pub pi_config: PiConfig,
     pub board: Vec<Vec<ParsedElectrode>>,
     #[serde(default)]
-    pub peripherals: Map<String, Peripheral>,
+    pub peripherals: HashMap<String, Peripheral>,
 }
 
 impl ParsedGrid {
@@ -118,14 +118,14 @@ pub mod tests {
     use serde_json as sj;
 
     use crate::grid::{droplet::SimpleBlob, Grid, Location};
-    use std::collections::{HashMap, HashSet};
+    use crate::util::{HashMap, HashSet};
     use std::env;
 
     pub fn parse_strings(rows: &[&str]) -> (Grid, HashMap<char, SimpleBlob>) {
         use crate::grid::location::tests::connected_components;
 
-        let mut droplet_map = HashMap::new();
-        let mut cell_locs = HashSet::new();
+        let mut droplet_map = HashMap::default();
+        let mut cell_locs = HashSet::default();
 
         for (i, row) in rows.iter().enumerate() {
             for (j, ch) in row.chars().enumerate() {

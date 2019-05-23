@@ -1,13 +1,9 @@
+use std::collections::hash_map::Entry;
 use std::rc::Rc;
 use std::time::Instant;
 
-use hashbrown::{
-    hash_map::{Entry, HashMap},
-    HashSet,
-};
-
 use crate::grid::{grid::NEIGHBORS_5, Droplet, DropletId, Grid, GridView, Location, Rectangle};
-use crate::util::minheap::MinHeap;
+use crate::util::{minheap::MinHeap, HashMap, HashSet};
 
 pub type Path = Vec<Location>;
 
@@ -19,7 +15,7 @@ pub struct RoutingRequest<'a> {
 
 #[derive(Debug, Clone)]
 pub struct RoutingResponse {
-    pub routes: crate::util::collections::Map<DropletId, Path>,
+    pub routes: HashMap<DropletId, Path>,
 }
 
 #[derive(Debug)]
@@ -330,7 +326,7 @@ impl Context<'_> {
 
     fn route(&mut self, max_time: u32) -> Option<PathMap> {
         // route everyone independently
-        let mut paths = PathMap::new();
+        let mut paths = PathMap::default();
         // we assume that groups, agents are non-empty, so just return if there's nothing to plan
         if self.groups.is_empty() {
             return Some(paths);
@@ -365,10 +361,10 @@ impl Context<'_> {
         let start_time = Instant::now();
 
         let mut todo: MinHeap<Cost, Node> = MinHeap::default();
-        let mut best_so_far: HashMap<Node, u32> = HashMap::new();
-        let mut came_from: HashMap<Node, Node> = HashMap::new();
+        let mut best_so_far: HashMap<Node, u32> = HashMap::default();
+        let mut came_from: HashMap<Node, Node> = HashMap::default();
         // TODO remove done in favor of came_from
-        let mut done: HashSet<Node> = HashSet::new();
+        let mut done: HashSet<Node> = HashSet::default();
 
         let mut n_explored = 0;
         let mut next_nodes = Vec::new();
@@ -603,7 +599,7 @@ mod tests {
             "..a",
         ]);
 
-        let mut expected = ExpectedPaths::new();
+        let mut expected = ExpectedPaths::default();
         #[rustfmt::skip]
         expected.insert('a', &[
             "A..",

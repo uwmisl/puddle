@@ -4,11 +4,11 @@ use crate::plan::{
     graph::{CmdIndex, Graph},
     Path, PlanPhase, PlannedCommand,
 };
-use crate::util::collections::Map;
+use crate::util::HashMap;
 
 pub struct Executor {
     pub gridview: GridView,
-    running_commands: Map<CmdIndex, PlannedCommand>,
+    running_commands: HashMap<CmdIndex, PlannedCommand>,
     #[cfg(feature = "pi")]
     pi: Option<crate::pi::RaspberryPi>,
 }
@@ -22,7 +22,7 @@ impl Executor {
         info!("Creating an Executor");
         Executor {
             gridview: GridView::new(grid),
-            running_commands: Map::new(),
+            running_commands: HashMap::default(),
             #[cfg(feature = "pi")]
             pi: None,
         }
@@ -68,7 +68,7 @@ impl Executor {
 
     fn commit(&mut self) {}
 
-    fn take_routes(&mut self, paths: &Map<DropletId, Path>, graph: &mut Graph) {
+    fn take_routes(&mut self, paths: &HashMap<DropletId, Path>, graph: &mut Graph) {
         let max_len = paths.values().map(|path| path.len()).max().unwrap_or(0);
 
         // make sure that all droplets start where they are at this time step
