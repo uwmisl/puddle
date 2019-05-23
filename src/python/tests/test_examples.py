@@ -9,8 +9,7 @@ class TestExamples(unittest.TestCase):
 
 
 example_paths = [
-    path for path in
-    Path('examples').glob('*.py')
+    path for path in Path('examples').glob('*.py')
     # we have to exclude the interactive examples from testing
     if 'no test' not in open(path).readline()
 ]
@@ -21,6 +20,7 @@ def mk_test(path):
         with path.open() as f:
             # empty dicts for globals, used a initial locals
             exec(f.read(), {})
+
     return example
 
 

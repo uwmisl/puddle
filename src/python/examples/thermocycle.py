@@ -2,7 +2,6 @@
 
 from puddle import mk_session, project_path
 
-
 # def thermocycle(droplet, temps_and_times):
 
 arch_path = project_path('tests/arches/purpledrop-thermocycle.json')
@@ -11,7 +10,7 @@ with mk_session(arch_path) as session:
     # a = session.input('water', volume=15.0, dimensions=(1,1))
     # a.move((2,2))
     # session._flush()
-    a = session.create(location=(14,5), volume=1.0, dimensions=(1,1))
+    a = session.create(location=(14, 5), volume=1.0, dimensions=(1, 1))
     for i in range(10):
         print('python loop ', i)
 
@@ -20,7 +19,7 @@ with mk_session(arch_path) as session:
             print('post 98 volume: ', a.volume())
 
         if a.volume() < 1.0:
-            r = session.input('water', volume = 15, dimensions=(1,1))
+            r = session.input('water', volume=15, dimensions=(1, 1))
             session._flush()
             a = session.combine_into(a, r)
 

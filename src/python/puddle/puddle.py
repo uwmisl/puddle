@@ -11,17 +11,18 @@ import shlex
 
 
 class Droplet:
-
     def __init__(self, session, id, i_know_what_im_doing=False):
         if not i_know_what_im_doing:
-            raise Exception("You shouldn't be calling this constructor directly")
+            raise Exception(
+                "You shouldn't be calling this constructor directly")
         self.session = session
         self.valid = True
         self._id = id['id']
         self._process = id['process_id']
 
     def _new(self, *args, **kwargs):
-        return type(self)(self.session, *args, i_know_what_im_doing=True, **kwargs)
+        return type(self)(
+            self.session, *args, i_know_what_im_doing=True, **kwargs)
 
     def _use(self):
         if not self.valid:
@@ -39,17 +40,20 @@ class Droplet:
         self._id = new_id['id']
 
     def move(self, loc):
-        result_id = self.session._rpc("move", self.session.pid, self._use(), to_location(loc))
+        result_id = self.session._rpc("move", self.session.pid, self._use(),
+                                      to_location(loc))
         self._renew(result_id)
 
     def mix(self, other):
         assert isinstance(other, type(self))
-        result_id = self.session._rpc("mix", self.session.pid, self._use(), other._use())
+        result_id = self.session._rpc("mix", self.session.pid, self._use(),
+                                      other._use())
         return self._new(result_id)
 
     def combine_into(self, other):
         assert isinstance(other, type(self))
-        result_id = self.session._rpc("combine_into", self.session.pid, self._use(), other._use())
+        result_id = self.session._rpc("combine_into", self.session.pid,
+                                      self._use(), other._use())
         return self._new(result_id)
 
     def split(self):
@@ -86,9 +90,7 @@ class DropletConsumed(Exception):
 
 class Session:
 
-    json_headers = {
-        'content-type': 'application/json'
-    }
+    json_headers = {'content-type': 'application/json'}
 
     def __init__(self, endpoint, name):
         self.endpoint = endpoint
@@ -103,15 +105,17 @@ class Session:
                 if resp.status_code == requests.codes.ok:
                     break
             except Exception as exn:
-                msg = 'Attempt {}: could not connect to {}'.format(attempt + 1, status_check)
+                msg = 'Attempt {}: could not connect to {}'.format(
+                    attempt + 1, status_check)
                 if attempt == max_attempts - 1:
                     raise RPCError(msg) from exn
                 print(msg)
                 time.sleep(0.5)
 
         if resp.status_code != 200:
-            raise RPCError('Something is wrong with {}: got status code {}'
-                           .format(status_check, resp.status_code))
+            raise RPCError(
+                'Something is wrong with {}: got status code {}'.format(
+                    status_check, resp.status_code))
 
         self.pid = self._rpc('new_process', name)
 
@@ -133,14 +137,16 @@ class Session:
         try:
             response = requests.post(
                 self.endpoint + '/rpc',
-                headers = Session.json_headers,
-                data = json.dumps(data),
+                headers=Session.json_headers,
+                data=json.dumps(data),
             )
         except requests.RequestException as exn:
-            raise RequestError("Error calling method {}".format(method)) from exn
+            raise RequestError(
+                "Error calling method {}".format(method)) from exn
 
         if response.status_code != requests.codes.ok:
-            raise RequestError("Response {} from server was not OK\n{}".format(response.status_code, response.text))
+            raise RequestError("Response {} from server was not OK\n{}".format(
+                response.status_code, response.text))
 
         resp_json = response.json()
         assert resp_json['id'] == request_id
@@ -150,7 +156,7 @@ class Session:
         else:
             raise SessionError(resp_json['error'])
 
-    def prelude(self, starting_dict = None):
+    def prelude(self, starting_dict=None):
         if starting_dict is None:
             starting_dict = {}
         else:
@@ -174,10 +180,14 @@ class Session:
     def close(self):
         self._rpc("close_process", self.pid)
 
-    def create(self, location, volume=1.0, dimensions=(1,1), **kwargs):
+    def create(self, location, volume=1.0, dimensions=(1, 1), **kwargs):
         droplet_class = kwargs.pop('droplet_class', Droplet)
-        result_id = self._rpc("create", self.pid, to_location(location) if location else None, volume, to_location(dimensions) if dimensions else None)
-        return droplet_class(self, result_id, **kwargs, i_know_what_im_doing=True)
+        result_id = self._rpc("create", self.pid,
+                              to_location(location) if location else None,
+                              volume,
+                              to_location(dimensions) if dimensions else None)
+        return droplet_class(
+            self, result_id, **kwargs, i_know_what_im_doing=True)
 
     def input(self, substance, volume, dimensions, **kwargs):
         result_id = self._rpc("input", self.pid, substance, volume, dimensions)
@@ -188,15 +198,20 @@ class Session:
         return Droplet(self, result_id, **kwargs, i_know_what_im_doing=True)
 
     # just call the droplet methods
-    def move (self, droplet, *args, **kwargs): return droplet.move (*args, **kwargs)
+    def move(self, droplet, *args, **kwargs):
+        return droplet.move(*args, **kwargs)
 
-    def mix  (self, droplet, *args, **kwargs): return droplet.mix  (*args, **kwargs)
+    def mix(self, droplet, *args, **kwargs):
+        return droplet.mix(*args, **kwargs)
 
-    def combine_into  (self, droplet, *args, **kwargs): return droplet.combine_into  (*args, **kwargs)
+    def combine_into(self, droplet, *args, **kwargs):
+        return droplet.combine_into(*args, **kwargs)
 
-    def split(self, droplet, *args, **kwargs): return droplet.split(*args, **kwargs)
+    def split(self, droplet, *args, **kwargs):
+        return droplet.split(*args, **kwargs)
 
-    def output (self, substance, droplet, *args, **kwargs): return droplet.output (substance, *args, **kwargs)
+    def output(self, substance, droplet, *args, **kwargs):
+        return droplet.output(substance, *args, **kwargs)
 
 
 def call(cmd):
@@ -213,9 +228,9 @@ def project_path(path):
 @contextmanager
 def mk_session(
         arch_file,
-        host = '127.0.0.1',
-        port = '3000',
-        profile = '',
+        host='127.0.0.1',
+        port='3000',
+        profile='',
 ):
 
     # make sure there aren't any puddle servers running now
@@ -231,12 +246,12 @@ def mk_session(
     # build the server command and run it
     flags = ' --static {static_dir} --address {host}:{port} --grid {arch_file}'
     cmd = (command + flags).format(
-        cargo_toml = project_path('/src/core/Cargo.toml'),
-        profile = profile,
-        arch_file = arch_file,
-        static_dir = project_path('/src/web'),
-        host = host,
-        port = port,
+        cargo_toml=project_path('/src/core/Cargo.toml'),
+        profile=profile,
+        arch_file=arch_file,
+        static_dir=project_path('/src/web'),
+        host=host,
+        port=port,
     )
     print(cmd)
 

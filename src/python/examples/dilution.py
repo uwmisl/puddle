@@ -26,10 +26,10 @@ def plan(low, high, target, epsilon=0.01):
 
     for node in rev_topo:
         print(node)
-        total = sum(w for _,_,w in graph.out_edges(node, data='weight'))
+        total = sum(w for _, _, w in graph.out_edges(node, data='weight'))
         graph.node[node]['total'] = total
         in_w = (total + 1) // 2
-        for _,_,data in graph.in_edges(node, data=True):
+        for _, _, data in graph.in_edges(node, data=True):
             data['weight'] = in_w
 
     print(list(graph.nodes(data='total'))),
@@ -38,17 +38,15 @@ def plan(low, high, target, epsilon=0.01):
     for node in graph:
         ins = graph.in_edges(node, data='weight')
         outs = graph.out_edges(node, data='weight')
-        out_amt = sum(w for _,_,w in outs)
-        in_amt = sum(w for _,_,w in ins)
+        out_amt = sum(w for _, _, w in outs)
+        in_amt = sum(w for _, _, w in ins)
         print(ins, outs, in_amt, out_amt)
         assert not ins or out_amt <= in_amt
 
     return graph
 
 
-def dilute(session, d_low_factory, d_high_factory, c_target,
-           epsilon = 0.001):
-
+def dilute(session, d_low_factory, d_high_factory, c_target, epsilon=0.001):
     def dilute_rec(d0, d1):
         session._flush()
         con0 = d0.concentration
@@ -81,19 +79,18 @@ def dilute(session, d_low_factory, d_high_factory, c_target,
             return d_next
 
         if d_next.concentration < c_target:
-            d1_again = dilute(session, d_low_factory, d_high_factory,
-                              con1, epsilon)
+            d1_again = dilute(session, d_low_factory, d_high_factory, con1,
+                              epsilon)
             return dilute_rec(d_next, d1_again)
         else:
-            d0_again = dilute(session, d_low_factory, d_high_factory,
-                              con0, epsilon)
+            d0_again = dilute(session, d_low_factory, d_high_factory, con0,
+                              epsilon)
             return dilute_rec(d0_again, d_next)
 
     return dilute_rec(d_low_factory(), d_high_factory())
 
 
 class VolConcDroplet(Droplet):
-
     def __init__(self, *args, **kwargs):
         self.volume = kwargs.pop('volume', 1)
         self.concentration = kwargs.pop('concentration', 0)
@@ -129,23 +126,22 @@ with mk_session(arch_path) as session:
 
     def d_low_factory():
         return session.create(
-            location = None,
-            volume = 1,
-            dimensions = None,
-            concentration = c_low,
-            droplet_class = VolConcDroplet,
+            location=None,
+            volume=1,
+            dimensions=None,
+            concentration=c_low,
+            droplet_class=VolConcDroplet,
         )
 
     def d_high_factory():
         return session.create(
-            location = None,
-            volume = 1,
-            dimensions = None,
-            concentration = c_high,
-            droplet_class = VolConcDroplet,
+            location=None,
+            volume=1,
+            dimensions=None,
+            concentration=c_high,
+            droplet_class=VolConcDroplet,
         )
 
-    d = dilute(session, d_low_factory, d_high_factory,
-                c_target, epsilon = eps)
+    d = dilute(session, d_low_factory, d_high_factory, c_target, epsilon=eps)
 
     assert abs(d.concentration - c_target) < eps

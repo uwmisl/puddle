@@ -1,11 +1,11 @@
 import puddle
 
-offsets = [(y,x) for y in range(2) for x in range(2)]
+offsets = [(y, x) for y in range(2) for x in range(2)]
 
-corner1 = [( 1 + y, 0 + x) for y,x in offsets]
-corner2 = [( 1 + y, 7 - x) for y,x in offsets]
-corner3 = [(12 - y, 7 - x) for y,x in offsets]
-corner4 = [(12 - y, 0 + x) for y,x in offsets]
+corner1 = [(1 + y, 0 + x) for y, x in offsets]
+corner2 = [(1 + y, 7 - x) for y, x in offsets]
+corner3 = [(12 - y, 7 - x) for y, x in offsets]
+corner4 = [(12 - y, 0 + x) for y, x in offsets]
 
 corners = [corner1, corner2, corner3, corner4]
 
@@ -28,7 +28,7 @@ arch_path = puddle.project_path('tests/arches/purpledrop.json')
 def endurance(session):
     globals().update(session.prelude())
 
-    d = create((6,6))
+    d = create((6, 6))
 
     for i in range(100):
         for j, c in enumerate(corners):

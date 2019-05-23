@@ -1,10 +1,8 @@
-
 import puddle
 import unittest
 
 
 class TestPuddleStuff(unittest.TestCase):
-
     def setUp(self):
         arch_path = puddle.project_path('tests/arches/arch01.json')
 

@@ -9,7 +9,9 @@ from puddle import mk_session, project_path
 
 # from https://docs.python.org/3.6/library/readline.html#example
 class HistoryConsole(code.InteractiveConsole):
-    def __init__(self, locals=None, filename="<console>",
+    def __init__(self,
+                 locals=None,
+                 filename="<console>",
                  histfile=os.path.expanduser("~/.console-history")):
         code.InteractiveConsole.__init__(self, locals, filename)
         self.init_history(histfile)

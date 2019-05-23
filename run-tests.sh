@@ -70,14 +70,6 @@ echo
 set -x
 
 pushd src/python/
-
-# FIXME python doesn't work for now
-echo "Skipping python"
-
-# check for style
-# flake8
-
-# run the tests
 ./setup.py test
-
+yapf --recursive --diff .
 popd
