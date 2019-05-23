@@ -1,16 +1,7 @@
 use std::collections::{HashMap, HashSet};
 use std::env;
 
-extern crate puddle_core;
-
-use puddle_core::plan;
-use puddle_core::PuddleError;
-
-extern crate env_logger;
-
-#[macro_use]
-extern crate matches;
-
+use matches::assert_matches;
 use puddle_core::*;
 
 fn manager_from_str<'a>(json_str: &str) -> Manager {
