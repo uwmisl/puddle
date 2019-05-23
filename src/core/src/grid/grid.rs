@@ -256,12 +256,28 @@ impl Grid {
 }
 
 #[cfg(test)]
+use petgraph::{graphmap::GraphMap, Undirected};
+
+#[cfg(test)]
 impl Grid {
+    fn to_graph(&self) -> GraphMap<Location, (), Undirected> {
+        let mut graph = GraphMap::default();
+        for (loc, _) in self.locations() {
+            graph.add_node(loc);
+        }
+
+        for (loc, _) in self.locations() {
+            for n in self.neighbors4(loc) {
+                graph.add_edge(loc, n, ());
+            }
+        }
+
+        graph
+    }
+
     pub fn is_connected(&self) -> bool {
-        use crate::grid::location::tests::connected_components;
-        let locs = self.locations().map(|(loc, _cell)| loc);
-        let label_map = connected_components(locs);
-        label_map.values().all(|v| *v == 0)
+        use petgraph::algo::connected_components;
+        connected_components(&self.to_graph()) == 1
     }
 }
 

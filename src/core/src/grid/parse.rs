@@ -121,9 +121,29 @@ pub mod tests {
     use crate::util::{HashMap, HashSet};
     use std::env;
 
-    pub fn parse_strings(rows: &[&str]) -> (Grid, HashMap<char, SimpleBlob>) {
-        use crate::grid::location::tests::connected_components;
+    /// Returns the number of connected components where diagonal
+    /// counts as connected
+    fn connected_components(locs: &[Location]) -> usize {
+        use petgraph::{graphmap::GraphMap, Undirected};
+        let mut graph = GraphMap::<Location, (), Undirected>::default();
+        for loc in locs {
+            graph.add_node(*loc);
+        }
+        for &loc in locs {
+            for y in -1..=1 {
+                for x in -1..=1 {
+                    let other = loc + Location { y, x };
+                    if graph.contains_node(other) && loc != other {
+                        graph.add_edge(loc, other, ());
+                    }
+                }
+            }
+        }
 
+        petgraph::algo::connected_components(&graph)
+    }
+
+    pub fn parse_strings(rows: &[&str]) -> (Grid, HashMap<char, SimpleBlob>) {
         let mut droplet_map = HashMap::default();
         let mut cell_locs = HashSet::default();
 
@@ -155,8 +175,7 @@ pub mod tests {
             .iter()
             .map(|(&ch, locs)| {
                 // make sure it only has one connected component
-                let labels = connected_components(locs.iter().cloned());
-                assert!(labels.values().all(|v| *v == 0));
+                assert_eq!(connected_components(locs), 1);
                 (ch, SimpleBlob::from_locations(&locs).expect("not a blob!"))
             })
             .collect();
