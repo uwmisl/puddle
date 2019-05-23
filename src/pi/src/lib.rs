@@ -8,13 +8,15 @@ use std::time::Duration;
 
 use rppal::gpio::Gpio;
 
-use crate::grid::gridview::GridView;
-use crate::grid::{parse::PiConfig, Location, Peripheral};
+use puddle_core::grid::gridview::GridView;
+use puddle_core::grid::{parse::PiConfig, Location, Peripheral};
 
 // use self::max31865::{Max31865, MAX31865_DEFAULT_CONFIG};
 // use self::mcp4725::{Mcp4725, MCP4725_DEFAULT_ADDRESS};
 // use self::pca9685::{Pca9685, PCA9685_DEFAULT_ADDRESS};
-use self::hv507::Hv507;
+use hv507::Hv507;
+
+use log::*;
 
 // const PHYS_0: usize/
 

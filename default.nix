@@ -6,7 +6,7 @@ with import <nixpkgs> {
 };
 let
   # don't install arm stuff on travis
-  not_ci = x: if builtins.getEnv "CI" == "true" then null else x;
+  not_ci = x: if builtins.getEnv "CI" == "" then x else null;
   filter = builtins.filter (x: !isNull x);
 
   # using rust overlay

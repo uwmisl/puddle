@@ -21,9 +21,6 @@ pub mod util;
 
 mod system;
 
-#[cfg(feature = "pi")]
-pub mod pi;
-
 pub use exec::Executor;
 pub use grid::parse;
 pub use grid::{Blob, DropletId, DropletInfo, Grid, Location};

@@ -10,9 +10,9 @@ use puddle_core::{
     grid::gridview::GridView,
     grid::parse::{ParsedGrid, PolarityConfig},
     grid::{Grid, Location},
-    pi::RaspberryPi,
     util::seconds_duration,
 };
+use puddle_pi::RaspberryPi;
 
 #[derive(Debug)]
 struct MyDuration(std::time::Duration);

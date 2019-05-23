@@ -1,0 +1,12 @@
+[package]
+name = "puddle-pi"
+version = "0.1.0"
+authors = ["Max Willsey <me@mwillsey.com>"]
+edition = "2018"
+
+[dependencies]
+puddle-core = { path = "../core" }
+rppal = "0.11.2"
+structopt = "0.2.15"
+log = "0.4.6"
+env_logger = "0.6.1"

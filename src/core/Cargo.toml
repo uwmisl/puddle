@@ -5,14 +5,6 @@ authors = ["Max Willsey <me@mwillsey.com>"]
 license = "MIT"
 edition = "2018"
 
-[features]
-# only works with --target armv7-unknown-linux-gnueabihf
-pi = ["rppal"]
-
-[[bin]]
-name = "pi-test"
-required-features = ["pi"]
-
 [dependencies]
 rand = "0.6.5"
 rand_pcg = "0.1.2"
@@ -28,8 +20,6 @@ env_logger = "0.6.1"
 
 fxhash = "0.2.1"
 petgraph = "0.4.13"
-
-rppal = { version = "0.11.2", optional = true }
 
 [dev-dependencies]
 glob = "0.3.0"

@@ -51,7 +51,6 @@ echo "+-----------------------------------------------+"
 echo
 
 pushd src/
-
 cargo --version
 rustc --version
 
@@ -59,19 +58,7 @@ long cargo build
 long cargo test
 long cargo clippy --tests
 
-long cargo check --features pi
-long cargo check --tests --features pi
-
 cargo fmt -- --check
-
-# # just check the things that require vision
-# cargo check --features vision
-# cargo check --tests --features vision
-
-# # just check the things that require vision and pi
-# cargo check --features vision,pi
-# cargo check --tests --features vision,pi
-
 popd
 
 

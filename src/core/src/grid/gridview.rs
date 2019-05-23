@@ -74,11 +74,6 @@ pub struct GridSubView<'a> {
 }
 
 impl<'a> GridSubView<'a> {
-    // #[cfg(feature = "pi")]
-    // pub fn with_pi<T>(&mut self, f: impl FnOnce(&mut RaspberryPi) -> T) -> Option<T> {
-    //     self.backing_gridview.pi.as_mut().map(f)
-    // }
-
     pub fn get_electrode(&self, loc: Location) -> Option<&Electrode> {
         let actual_loc = self.placement.mapping.get(&loc)?;
         self.backing_gridview.grid.get_cell(*actual_loc)

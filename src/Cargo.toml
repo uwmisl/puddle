@@ -3,6 +3,7 @@
 members = [
     "core",
     "server",
+    "pi",
 ]
 
 [profile.release]

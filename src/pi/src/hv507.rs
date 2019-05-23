@@ -2,7 +2,9 @@ use rppal::gpio::{Gpio, IoPin, Level, Mode, OutputPin};
 use rppal::pwm::{Channel, Polarity, Pwm};
 
 use super::Result;
-use crate::grid::parse::PolarityConfig;
+use puddle_core::grid::parse::PolarityConfig;
+
+use log::*;
 
 const N_PINS: usize = 128;
 

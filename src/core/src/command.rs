@@ -4,9 +4,6 @@ use std::time::Duration;
 
 use crate::plan::PlanError;
 
-#[cfg(feature = "pi")]
-use crate::pi::RaspberryPi;
-
 use crate::grid::{
     gridview::{GridSubView, GridView},
     Blob, Droplet, DropletId, DropletInfo, Grid, Location, Peripheral, SimpleBlob,
@@ -49,10 +46,7 @@ pub trait Command: fmt::Debug + Send {
 
     fn run(&mut self, _: &mut GridSubView) -> RunStatus;
 
-    #[cfg(not(feature = "pi"))]
     fn finalize(&mut self, _: &GridSubView) {}
-    #[cfg(feature = "pi")]
-    fn finalize(&mut self, _: &GridSubView, _: Option<&mut RaspberryPi>) {}
 
     fn abort(&mut self, err: PlanError) {
         error!("Aborting command {:?} with {:#?}", self, err);
@@ -155,16 +149,10 @@ impl Command for Flush {
         RunStatus::Done
     }
 
-    #[cfg(not(feature = "pi"))]
     fn finalize(&mut self, gv: &GridSubView) {
         // FIXME
         let info = gv.droplet_info(Some(self.pid));
         debug!("Flushing this info: {:?}", info);
-        self.tx.send(Ok(info)).unwrap();
-    }
-    #[cfg(feature = "pi")]
-    fn finalize(&mut self, gv: &GridSubView, _: Option<&mut RaspberryPi>) {
-        let info = gv.droplet_info(Some(self.pid));
         self.tx.send(Ok(info)).unwrap();
     }
 
@@ -627,22 +615,6 @@ impl Command for Heat {
     }
 
     fn run(&mut self, gridview: &mut GridSubView) -> RunStatus {
-        // #[cfg(feature = "pi")]
-        // {
-        //     let d = gridview.get(&self.inputs[0]);
-        //     let loc = Location {
-        //         y: d.dimensions.y - 1,
-        //         x: 0,
-        //     };
-        //     let heater = gridview
-        //         .get_electrode(&loc)
-        //         .cloned()
-        //         .unwrap()
-        //         .peripheral
-        //         .unwrap();
-        //     assert_matches!(heater, Peripheral::Heater{..});
-        //     self.heater = Some(heater)
-        // }
         let old_id = self.inputs[0];
         let new_id = self.outputs[0];
 
@@ -651,12 +623,6 @@ impl Command for Heat {
         d.id = new_id;
         gridview.insert(d);
         RunStatus::Done
-    }
-
-    #[cfg(feature = "pi")]
-    fn finalize(&mut self, _: &GridSubView, pi: Option<&mut RaspberryPi>) {
-        let heater = self.heater.take().unwrap();
-        pi.map(|pi| pi.heat(&heater, self.temperature as f64, self.duration));
     }
 }
 
@@ -720,63 +686,7 @@ impl Command for Input {
     }
 
     fn run(&mut self, _gridview: &mut GridSubView) -> RunStatus {
-        // // FIXME: this is a total hack to assume that input is always on the right-hand side
-        // let input_loc = Location {
-        //     y: self.dimensions.y / 2,
-        //     x: self.dimensions.x - 1 + 1,
-        // };
-        // #[cfg(feature = "pi")]
-        // {
-        //     let input = gridview
-        //         .get_electrode(&input_loc)
-        //         .cloned()
-        //         .unwrap()
-        //         .peripheral
-        //         .unwrap();
-        //     assert_matches!(input, Peripheral::Input{..});
-        //     self.input = Some(input);
-        // }
-        // let new_id = self.outputs[0];
-
-        // let d_loc = Location { y: 0, x: 0 };
-        // let d = Droplet::new(new_id, self.volume, d_loc, self.dimensions);
-        // gridview.insert(d);
-        // gridview.tick()
         RunStatus::Done
-    }
-
-    #[cfg(feature = "pi")]
-    fn finalize(&mut self, _: &GridSubView, pi: Option<&mut RaspberryPi>) {
-        let input = self.input.take().unwrap();
-        pi.map(|pi| {
-            let loc26 = 118;
-            let loc27 = 119;
-            let loc36 = 112;
-            let loc37 = 113;
-
-            let set = |pi: &mut RaspberryPi, pins: &[usize]| {
-                let mut all_pins = [0; 128];
-                for p in pins {
-                    all_pins[*p] = 1;
-                }
-                pi.bad_manual_output_pins(&all_pins);
-            };
-
-            set(pi, &[loc26, loc27, loc36, loc37]);
-            pi.input(&input, self.volume).unwrap();
-
-            set(pi, &[loc27]);
-            std::thread::sleep(Duration::from_millis(1500));
-
-            set(pi, &[loc37]);
-            std::thread::sleep(Duration::from_millis(1500));
-
-            set(pi, &[loc26, loc27, loc36, loc37]);
-            std::thread::sleep(Duration::from_millis(1500));
-
-            set(pi, &[loc26]);
-            std::thread::sleep(Duration::from_millis(1500));
-        });
     }
 }
 
@@ -835,36 +745,7 @@ impl Command for Output {
     }
 
     fn run(&mut self, _gridview: &mut GridSubView) -> RunStatus {
-        // let id = self.inputs[0];
-        // #[cfg(feature = "pi")]
-        // {
-        //     // FIXME: this is a total hack to assume that output is always on the left-hand side
-        //     let loc = Location {
-        //         y: gridview.get(&id).dimensions.y / 2,
-        //         x: 0,
-        //     };
-        //     let volume = gridview.get(&id).volume;
-        //     let output = gridview
-        //         .get_electrode(&loc)
-        //         .cloned()
-        //         .unwrap()
-        //         .peripheral
-        //         .unwrap();
-        //     assert_matches!(output, Peripheral::Output{..});
-        //     self.output = Some(output);
-        //     self.volume = Some(volume);
-        //     // gridview.with_pi(|pi| pi.output(&output, volume));
-        // }
-        // gridview.remove(&id);
-        // gridview.tick()
         RunStatus::Done
-    }
-
-    #[cfg(feature = "pi")]
-    fn finalize(&mut self, _: &GridSubView, pi: Option<&mut RaspberryPi>) {
-        let volume = self.volume.take().unwrap();
-        let output = self.output.take().unwrap();
-        pi.map(|pi| pi.output(&output, volume));
     }
 }
 
