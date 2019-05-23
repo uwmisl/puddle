@@ -21,9 +21,6 @@ pub mod util;
 
 mod system;
 
-#[cfg(feature = "vision")]
-pub mod vision;
-
 #[cfg(feature = "pi")]
 pub mod pi;
 

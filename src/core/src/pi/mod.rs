@@ -11,9 +11,6 @@ use rppal::gpio::Gpio;
 use crate::grid::gridview::GridView;
 use crate::grid::{parse::PiConfig, Location, Peripheral};
 
-#[cfg(feature = "vision")]
-use vision::Detector;
-
 // use self::max31865::{Max31865, MAX31865_DEFAULT_CONFIG};
 // use self::mcp4725::{Mcp4725, MCP4725_DEFAULT_ADDRESS};
 // use self::pca9685::{Pca9685, PCA9685_DEFAULT_ADDRESS};

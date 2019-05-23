@@ -15,7 +15,7 @@ cargo build --target $target --features pi
 # ssh $pi -- killall -q puddle-server || true
 
 # sync the binaries
-# $rsync target/$target/debug/{vision-test,puddle-server,pi-test} $pi:
+# $rsync target/$target/debug/{puddle-server,pi-test} $pi:
 $rsync target/$target/debug/{puddle-server,pi-test} $pi:
 
 # sync the python

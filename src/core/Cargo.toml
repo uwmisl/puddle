@@ -8,18 +8,12 @@ edition = "2018"
 [features]
 # only works with --target armv7-unknown-linux-gnueabihf
 pi = ["rppal"]
-vision = []
 
 [[bin]]
 name = "pi-test"
 required-features = ["pi"]
 
-[[bin]]
-name = "vision-test"
-required-features = ["vision"]
-
 [dependencies]
-
 rand = "0.6"
 rand_pcg = "0.1"
 
@@ -35,15 +29,6 @@ env_logger = "^0.5.3"
 
 fxhash = "0.2.1" # fast, deterministic hashing
 
-# kuhn-munkres
-pathfinding = "0.7"
-
-float-ord = "0.2.0"
-
-nalgebra = "0.15"
-ncollide2d = "0.16"
-
-matches = "0.1"
 petgraph = "0.4"
 
 rppal = {version = "0.10.0", optional = true}
