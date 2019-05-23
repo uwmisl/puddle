@@ -99,7 +99,13 @@ impl<'a> GridSubView<'a> {
     pub fn insert(&mut self, mut droplet: Droplet) {
         let id = droplet.id;
         let new_loc = self.placement.mapping.get(&droplet.location);
-        trace!("Inserting {:#?} at {:?}", droplet, new_loc);
+        trace!("mapping: {:?}", self.placement.mapping);
+        trace!(
+            "Inserting {:#?} at {}:{:?}",
+            droplet,
+            droplet.location,
+            new_loc
+        );
         droplet.location = *new_loc.unwrap();
         // let was_not_there = self.ids.insert(droplet.id);
         // assert!(was_not_there);

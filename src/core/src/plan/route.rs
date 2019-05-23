@@ -17,14 +17,14 @@ pub struct RoutingRequest<'a> {
     pub blockages: Vec<Grid>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct RoutingResponse {
     pub routes: crate::util::collections::Map<DropletId, Path>,
 }
 
 #[derive(Debug)]
 pub enum RoutingError {
-    NoRoute,
+    NoRoute { agents: Vec<Agent> },
 }
 
 #[derive(Default)]
@@ -42,7 +42,9 @@ impl Router {
             }),
             None => {
                 warn!("Failed to route agents: {:#?}", req.agents);
-                Err(RoutingError::NoRoute)
+                Err(RoutingError::NoRoute {
+                    agents: req.agents.clone(),
+                })
             }
         }
     }

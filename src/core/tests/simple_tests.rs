@@ -89,6 +89,23 @@ fn move_droplet() {
 }
 
 #[test]
+fn mix2() {
+    let man = manager_from_rect(20, 20);
+    let p = man.get_new_process("test");
+
+    let loc = Location { y: 1, x: 1 };
+    let id1 = p.create(Some(loc), 1.0, None).unwrap();
+    let id2 = p.create(None, 1.0, None).unwrap();
+
+    let id12 = p.mix(id1, id2).unwrap();
+    let droplets = info_dict(&p);
+
+    assert_eq!(droplets.len(), 1);
+    assert!(droplets.contains_key(&id12));
+    assert!(float_epsilon_equal(droplets[&id12].volume, 2.0));
+}
+
+#[test]
 fn mix3() {
     let man = manager_from_rect(20, 20);
     let p = man.get_new_process("test");

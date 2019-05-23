@@ -43,12 +43,12 @@ impl Placer {
             bad_locs.extend(placement.mapping.values().cloned())
         }
 
-        for cmd_req in req.commands {
-            // TODO assert that these are disjoint!
-            if cmd_req.trusted {
-                bad_locs.extend(cmd_req.shape.locations().map(|(loc, _cell)| loc))
-            }
-        }
+        // for cmd_req in req.commands {
+        //     // TODO assert that these are disjoint!
+        //     if cmd_req.offset.is_some() {
+        //         bad_locs.extend(cmd_req.shape.locations().map(|(loc, _cell)| loc))
+        //     }
+        // }
 
         // TODO we only support one placement at a time for now
         assert_eq!(req.commands.len(), 1);
@@ -76,16 +76,19 @@ impl Placer {
         // iteratively place the commands
         for cmd_req in req.commands {
             debug!("Placing {:?}", cmd_req);
-            if cmd_req.trusted {
-                let identity_mapping: Map<_, _> = req
-                    .gridview
-                    .grid
+            if let Some(offset) = cmd_req.offset {
+                let mapping: Map<_, _> = cmd_req
+                    .shape
                     .locations()
-                    .map(|(loc, _cell)| (loc, loc))
+                    .map(|(loc, _cell)| (loc, loc + offset))
                     .collect();
-                response.commands.push(Placement {
-                    mapping: identity_mapping,
-                });
+
+                // mark these spots as taken
+                bad_locs.extend(mapping.values().cloned());
+
+                let placement = Placement { mapping };
+                debug!("Placed at {:?}", placement);
+                response.commands.push(placement);
                 continue;
             }
 
@@ -121,12 +124,15 @@ impl Placer {
             bad_locs.extend(placement.mapping.values().cloned());
 
             // save this for returning
+            debug!("Placed at {:?}", placement);
             response.commands.push(placement)
         }
 
+        trace!("Bad locs: {:?}", bad_locs);
+
         // iteratively place the droplets
         for id in req.stored_droplets {
-            debug!("Placing {:?}", id);
+            debug!("Placing droplet {:?}", id);
             // simply find an offset by testing all of them.
 
             let droplet = &req.gridview.droplets[id];
@@ -151,6 +157,7 @@ impl Placer {
             // mark these spots as taken
             bad_locs.extend(shape.locations().map(|(loc, _cell)| offset + loc));
 
+            debug!("Placed at {:?}", offset);
             response.stored_droplets.push(offset)
         }
 
