@@ -31,7 +31,6 @@ derive_more = "0.14"
 
 log = "^0.4.1"
 
-crossbeam = "0.3.2"
 env_logger = "^0.5.3"
 
 # union-find

@@ -6,8 +6,6 @@ extern crate puddle_core;
 use puddle_core::plan;
 use puddle_core::PuddleError;
 
-extern crate crossbeam;
-
 extern crate env_logger;
 
 #[macro_use]
@@ -153,17 +151,19 @@ fn process_isolation() {
     // Spawn 6 processes
     let num_processes = 6;
 
-    let manager = manager_from_rect(9, 9);
-    let ps = (0..num_processes).map(|i| manager.get_new_process(format!("test-{}", i)));
+    use std::sync::Arc;
 
-    crossbeam::scope(|scope| {
-        for p in ps {
-            scope.spawn(move || {
-                let _drop_id = p.create(None, 1.0, None).unwrap();
-                p.flush().unwrap();
-            });
-        }
-    });
+    let manager = Arc::new(manager_from_rect(9, 9));
+
+    // for p in ps {
+    for i in 0..num_processes {
+        let man = Arc::clone(&manager);
+        std::thread::spawn(move || {
+            let p = man.get_new_process(format!("test-{}", i));
+            let _drop_id = p.create(None, 1.0, None).unwrap();
+            p.flush().unwrap();
+        });
+    }
 }
 
 #[test]
