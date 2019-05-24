@@ -11,9 +11,9 @@ We use [Git LFS][lfs] to store larger files. If you want to see those larger
 files (videos, presentations, etc.) make sure to install it. Once you have it
 installed, you can use Git as you usually would.
 
+Run [`invoke`][invoke] to build and test stuff.
+
 The [core][] is written in [Rust][]. Go in there to see how to build it.
-Alternatively, you can run `run-tests.sh` from the project root to build and
-test everything.
 
 ## Running Examples
 
@@ -31,3 +31,4 @@ Check out the [Code of Conduct][cc] and the [Contributing Guidelines][contrib].
 [project page]: http://misl.cs.washington.edu/projects/puddle.html
 [misl]: http://misl.cs.washington.edu/
 [rust]: https://www.rust-lang.org/
+[invoke]: http://docs.pyinvoke.org/

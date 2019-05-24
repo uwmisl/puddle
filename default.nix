@@ -27,6 +27,8 @@ stdenv.mkDerivation {
     (not_ci arm.stdenv.cc)
     rust
     (not_ci rustracer)
+    python37Packages.invoke
+    python37Packages.pyflakes
     python37Packages.yapf
     python37Packages.requests
   ];

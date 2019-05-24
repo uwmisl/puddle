@@ -1,5 +1,5 @@
 language: nix
-script: nix-shell --command ./run-tests.sh
+script: nix-shell --command invoke test
 env:
   - NIX_PATH=nixpkgs=channel:nixos-19.03
 

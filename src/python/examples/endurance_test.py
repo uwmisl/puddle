@@ -26,9 +26,7 @@ arch_path = puddle.project_path('tests/arches/purpledrop.json')
 
 
 def endurance(session):
-    globals().update(session.prelude())
-
-    d = create((6, 6))
+    d = session.create((6, 6))
 
     for i in range(100):
         for j, c in enumerate(corners):
