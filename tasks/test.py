@@ -27,11 +27,12 @@ def tasks(c):
 
 
 @invoke.task
-def rust(c):
+def rust(c, release=False):
     banner('rust')
     with c.cd(root + 'src'):
-        c.time_run('cargo build')
-        c.time_run('cargo test')
+        profile = '--release' if release else ''
+        c.time_run(pty=True, cmd=f'cargo build {profile}')
+        c.time_run(pty=True, cmd=f'cargo test {profile}')
     print("Rust checked!")
 
 
