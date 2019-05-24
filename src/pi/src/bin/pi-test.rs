@@ -247,7 +247,7 @@ fn main() -> Result<(), Box<Error>> {
 
 fn mk_grid(path_str: &str) -> Result<ParsedGrid, Box<Error>> {
     let path = Path::new(path_str);
-    let reader = File::open(path).expect(&format!("failed to read: {}", path_str));
+    let reader = File::open(path)?;
     debug!("Read config file successfully");
     let grid = ParsedGrid::from_reader(reader)?;
     Ok(grid)
