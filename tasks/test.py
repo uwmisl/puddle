@@ -33,6 +33,7 @@ def rust(c, release=False):
         profile = '--release' if release else ''
         c.time_run(pty=True, cmd=f'cargo build {profile}')
         c.time_run(pty=True, cmd=f'cargo test {profile}')
+        c.time_run(pty=True, cmd=f'cargo clippy --tests')
     print("Rust checked!")
 
 
