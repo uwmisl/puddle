@@ -59,10 +59,8 @@ impl Process {
         }
     }
 
-    // FIXME rename
     fn plan(&self, cmd: BoxedCommand) -> PuddleResult<()> {
         let mut sys = self.system.lock().unwrap();
-        // FIXME
         sys.add(cmd)
     }
 }

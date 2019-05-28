@@ -54,7 +54,6 @@ impl Planner {
         debug!("Planning GV: {:#?}", self.gridview.droplets);
         self.gridview.check_no_collision();
 
-        // FIXME get rid of unwraps
         let sched_resp = {
             let req = SchedRequest { graph };
             debug!("Schedule request");

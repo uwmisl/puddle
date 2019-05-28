@@ -356,7 +356,6 @@ impl Context<'_> {
         Some(paths)
     }
 
-    // FIXME this is not deterministic!
     fn route_group(&self, group: &Group, max_time: u32) -> Option<PathMap> {
         let start_time = Instant::now();
 

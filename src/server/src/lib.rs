@@ -30,6 +30,8 @@ pub struct Server {
     static_dir: String,
     #[structopt(long = "grid")]
     grid_file: String,
+    #[structopt(long = "sync")]
+    should_sync: bool,
 }
 
 fn serve(req: Request<Body>, statik: &Static) -> RequestMiddlewareAction {
@@ -97,8 +99,7 @@ impl Server {
 
         debug!("Grid parsed.");
 
-        let should_sync = false; // FIXME
-        let manager = Arc::new(Manager::new(should_sync, grid));
+        let manager = Arc::new(Manager::new(self.should_sync, grid));
 
         debug!("Manager created.");
 
