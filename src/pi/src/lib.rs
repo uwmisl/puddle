@@ -214,20 +214,6 @@ impl RaspberryPi {
         // }
     }
 
-    // // FIXME HACK
-    pub fn bad_manual_output_pins(&mut self, pins: &[u8]) {
-        // actually write the pins and cycle the clock
-        for (i, pin) in pins.iter().enumerate() {
-            if *pin == 0 {
-                self.hv507.set_pin_lo(i)
-            } else {
-                self.hv507.set_pin_hi(i)
-            }
-        }
-
-        self.hv507.shift_and_latch();
-    }
-
     pub fn output_pins(&mut self, gv: &GridView) {
         let mut pins = vec![0; (gv.grid.max_pin() + 1) as usize];
 

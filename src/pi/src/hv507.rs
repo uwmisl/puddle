@@ -1,4 +1,4 @@
-use rppal::gpio::{Gpio, IoPin, Level, Mode, OutputPin};
+use rppal::gpio::{Gpio, IoPin, Level, Mode, OutputPin, Pin};
 use rppal::pwm::{Channel, Polarity, Pwm};
 
 use super::Result;
@@ -34,13 +34,10 @@ impl Hv507 {
     pub fn new(gpio: &Gpio) -> Result<Hv507> {
         // by default, these pins will be set to low on drop
 
-        macro_rules! mk_output {
-            ($pin:expr) => {{
-                let pin = $pin;
-                trace!("initializing pin {}...", pin);
-                gpio.get(pin)?.into_output()
-            }};
-        }
+        let mk_output = |pin| {
+            trace!("initializing pin {}...", pin);
+            gpio.get(pin).map(Pin::into_output)
+        };
 
         // let mut blank = mk_output!(BLANK_PIN);
         // thread::spawn(move || {
@@ -52,10 +49,10 @@ impl Hv507 {
         // });
 
         let hv = Hv507 {
-            blank: mk_output!(BLANK_PIN),
-            latch_enable: mk_output!(LATCH_ENABLE_PIN),
-            clock: mk_output!(CLOCK_PIN),
-            data: mk_output!(DATA_PIN),
+            blank: mk_output(BLANK_PIN)?,
+            latch_enable: mk_output(LATCH_ENABLE_PIN)?,
+            clock: mk_output(CLOCK_PIN)?,
+            data: mk_output(DATA_PIN)?,
             polarity_gpio: gpio.get(12)?.into_io(Mode::Alt0),
             polarity: {
                 trace!("initializing pwm0...");
@@ -113,16 +110,7 @@ impl Hv507 {
     }
 
     pub fn shift_and_latch(&mut self) {
-        // self.do_one_shift_and_latch(ALL_ZEROS);
-        // let duration = Duration::from_millis(10);
-        // thread::sleep(duration);
-        //FIXME dumb clone
-        let pins = self.pins.clone();
-        self.do_one_shift_and_latch(&pins);
-    }
-
-    fn do_one_shift_and_latch(&mut self, pins: &[Level]) {
-        for pin in pins.iter() {
+        for pin in self.pins.iter() {
             // write and cycle the clock
             self.data.write(*pin);
             self.clock.set_high();
