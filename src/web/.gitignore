@@ -1,8 +1,0 @@
-# Puddle web .gitignore
-
-# js garbage
-node_modules/
-
-# bundler stuff
-.cache/
-dist/
