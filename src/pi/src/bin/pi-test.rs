@@ -1,12 +1,11 @@
 use std::error::Error;
-use std::fmt;
 use std::fs::File;
 use std::path::Path;
 
 use log::*;
 
 use puddle_core::{
-    grid::droplet::{DropletId, SimpleBlob},
+    grid::droplet::{Blob, DropletId, SimpleBlob},
     grid::gridview::GridView,
     grid::parse::{ParsedGrid, PolarityConfig},
     grid::{Grid, Location},
@@ -29,56 +28,19 @@ impl std::str::FromStr for MyDuration {
     }
 }
 
-// TODO don't need to do this
-extern crate structopt;
 use structopt::StructOpt;
 
+type RunResult<T> = Result<T, Box<dyn Error>>;
+type SleepFn = Fn(MyDuration) -> RunResult<()>;
+
 #[derive(Debug, StructOpt)]
+#[structopt(rename_all = "kebab-case")]
 enum SubCommand {
-    #[structopt(name = "set-polarity")]
-    SetPolarity {
-        frequency: f64,
-        duty_cycle: f64,
-        seconds: MyDuration,
-    },
-    #[structopt(name = "set-gpio")]
-    SetGpio { pin: usize, seconds: MyDuration },
-    #[structopt(name = "set-loc")]
-    SetLoc {
-        location: Location,
-        #[structopt(default_value = "(1,1)")]
-        dimensions: Location,
-        #[structopt(default_value = "1")]
-        seconds: MyDuration,
-    },
-    #[structopt(name = "circle")]
-    Circle {
-        location: Location,
-        dimensions: Location,
-        circle_size: Location,
-        #[structopt(default_value = "1")]
-        seconds: MyDuration,
-    },
-    #[structopt(name = "back-and-forth")]
-    BackAndForth {
-        #[structopt(short = "d", long = "dimensions", default_value = "2,2")]
-        dimensions: Location,
-        #[structopt(short = "x", long = "x-distance", default_value = "3")]
-        x_distance: i32,
-        #[structopt(long = "spacing", default_value = "1")]
-        spacing: u32,
-        #[structopt(long = "starting-location", default_value = "1,0")]
-        starting_location: Location,
-        #[structopt(short = "n", long = "n-droplets", default_value = "1")]
-        n_droplets: u32,
-        #[structopt(short = "s", long = "seconds", default_value = "1")]
-        seconds: MyDuration,
-        #[structopt(
-            long = "stagger",
-            help = "additional seconds to stagger the movement of droplets"
-        )]
-        stagger: Option<MyDuration>,
-    },
+    SetPolarity(SetPolarity),
+    SetPin(SetPin),
+    SetLoc(SetLoc),
+    Circle(Circle),
+    BackAndForth(BackAndForth),
     // Dac,
     // Pwm,
     // Temp,
@@ -86,40 +48,32 @@ enum SubCommand {
     // Pins,
 }
 
-#[derive(Debug)]
-struct SignalError(i32);
-
-impl fmt::Display for SignalError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "SignalError({})", self.0)
-    }
-}
-
-impl Error for SignalError {}
-
 static SIGNALS: &[i32] = &[signal_hook::SIGINT];
 
-fn main() -> Result<(), Box<Error>> {
+fn main() -> RunResult<()> {
     // enable logging
     let _ = env_logger::try_init();
 
-    let (signal_tx, signal_rx) = std::sync::mpsc::sync_channel(10);
+    // set up the sleep function by registering a signal handler that
+    // will catch a ctrl-c, stop the thread from sleeping, and return
+    // an error
+    let sleep = {
+        let (signal_tx, signal_rx) = std::sync::mpsc::sync_channel(10);
 
-    for &sig in SIGNALS {
-        let tx = signal_tx.clone();
-        let f = move || {
-            if let Err(e) = tx.try_send(sig) {
-                eprintln!("Couldn't send a signal! {:?}", e);
-            }
-        };
-        unsafe { signal_hook::register(sig, f) }.unwrap();
-    }
+        for &sig in SIGNALS {
+            let tx = signal_tx.clone();
+            let f = move || {
+                if let Err(e) = tx.try_send(sig) {
+                    eprintln!("Couldn't send a signal! {:?}", e);
+                }
+            };
+            unsafe { signal_hook::register(sig, f) }.unwrap();
+        }
 
-    let sleep = |dur: MyDuration| {
-        match signal_rx.recv_timeout(dur.0) {
+        move |dur: MyDuration| match signal_rx.recv_timeout(dur.0) {
             Ok(sig) => {
                 eprintln!("Got signal {}, closing...", sig);
-                Err(SignalError(sig))
+                Err(format!("Got signal {}", sig).into())
             }
             Err(_timeout) => Ok(()),
         }
@@ -127,160 +81,30 @@ fn main() -> Result<(), Box<Error>> {
 
     let sub = SubCommand::from_args();
 
-    let config: ParsedGrid = match std::env::var("PI_CONFIG") {
-        Ok(path) => {
-            println!("Using PI_CONFIG={}", path);
-            mk_grid(&path)?
-        }
-        Err(e) => {
+    let config: ParsedGrid = std::env::var("PI_CONFIG")
+        .map_err(|err| {
             eprintln!("Please set environment variable PI_CONFIG");
-            return Err(e.into());
-        }
-    };
+            err.into()
+        })
+        .and_then(|path| {
+            println!("Using PI_CONFIG={}", path);
+            mk_grid(&path)
+        })?;
     let grid = config.to_grid();
 
     let mut pi = RaspberryPi::new(config.pi_config)?;
 
     use SubCommand::*;
     match sub {
-        SetPolarity {
-            frequency,
-            duty_cycle,
-            seconds,
-        } => {
-            let polarity_config = PolarityConfig {
-                frequency,
-                duty_cycle,
-            };
-            pi.hv507.set_polarity(&polarity_config)?;
-            sleep(seconds)?;
-        }
-        SetGpio { pin, seconds } => {
-            pi.hv507.set_pin_hi(pin);
-            pi.hv507.shift_and_latch();
-            sleep(seconds)?;
-        }
-        SetLoc {
-            location,
-            dimensions,
-            seconds,
-        } => {
-            let gv = mk_gridview(
-                grid.clone(),
-                &[SimpleBlob {
-                    location,
-                    dimensions,
-                    volume: 0.0,
-                }],
-            );
-            pi.output_pins(&gv);
-            sleep(seconds)?;
-        }
-        BackAndForth {
-            dimensions,
-            starting_location,
-            spacing,
-            n_droplets,
-            x_distance,
-            seconds,
-            stagger,
-        } => {
-            let blobs: Vec<_> = (0..n_droplets)
-                .map(|i| {
-                    let y_offset = (dimensions.y + spacing as i32) * i as i32;
-                    let location = starting_location + Location { y: y_offset, x: 0 };
-                    let volume = 0.0;
-                    SimpleBlob {
-                        volume,
-                        dimensions,
-                        location,
-                    }
-                })
-                .collect();
-
-            let mut gv = mk_gridview(grid.clone(), &blobs);
-            let ids: Vec<_> = (0..n_droplets).map(|i| mk_id(i as usize)).collect();
-
-            let xs: Vec<i32> = {
-                let start = starting_location.x;
-                let end = start + x_distance;
-                assert!(end >= 0);
-
-                if start < end {
-                    let xs = start..end;
-                    (xs.clone()).chain(xs.rev()).collect()
-                } else {
-                    let xs = end..start;
-                    (xs.clone().rev()).chain(xs).collect()
-                }
-            };
-
-            println!("Moving to x's: {:?}", xs);
-
-            for x in xs {
-                for id in &ids {
-                    let droplet = gv.droplets.get_mut(id).unwrap();
-                    droplet.location.x = x as i32;
-                    if let Some(stagger) = stagger {
-                        pi.output_pins(&gv);
-                        sleep(stagger)?;
-                    }
-                }
-                let locs: Vec<_> = gv.droplets.values().map(|d| d.location).collect();
-                pi.output_pins(&gv);
-                println!("Droplets at {:?}", locs);
-
-                sleep(seconds)?;
-            }
-        }
-        Circle {
-            location,
-            dimensions,
-            circle_size,
-            seconds,
-        } => {
-            let mut gv = mk_gridview(
-                grid.clone(),
-                &[SimpleBlob {
-                    location,
-                    dimensions,
-                    volume: 0.0,
-                }],
-            );
-            let id = mk_id(0);
-
-            //     pi.output_pins(&grid, &snapshot);
-
-            let mut set = |yo, xo| {
-                let loc = Location {
-                    y: location.y + yo,
-                    x: location.x + xo,
-                };
-                gv.droplets.get_mut(&id).unwrap().location = loc;
-                pi.output_pins(&gv);
-                println!("Droplet at {}", loc);
-                sleep(seconds)
-            };
-
-            for xo in 0..circle_size.x {
-                set(0, xo)?;
-            }
-            for yo in 0..circle_size.y {
-                set(yo, circle_size.x - 1)?;
-            }
-            for xo in 0..circle_size.x {
-                set(circle_size.y - 1, circle_size.x - 1 - xo)?;
-            }
-            for yo in 0..circle_size.y {
-                set(circle_size.y - 1 - yo, 0)?;
-            }
-        }
+        SetPolarity(x) => x.run(&grid, &mut pi, &sleep),
+        SetPin(x) => x.run(&grid, &mut pi, &sleep),
+        SetLoc(x) => x.run(&grid, &mut pi, &sleep),
+        Circle(x) => x.run(&grid, &mut pi, &sleep),
+        BackAndForth(x) => x.run(&grid, &mut pi, &sleep),
     }
-
-    Ok(())
 }
 
-fn mk_grid(path_str: &str) -> Result<ParsedGrid, Box<Error>> {
+fn mk_grid(path_str: &str) -> RunResult<ParsedGrid> {
     let path = Path::new(path_str);
     let reader = File::open(path)?;
     debug!("Read config file successfully");
@@ -295,25 +119,198 @@ fn mk_id(i: usize) -> DropletId {
     }
 }
 
-fn mk_gridview(_grid: Grid, _blobs: &[SimpleBlob]) -> GridView {
-    unimplemented!()
-    // let n = blobs.len();
-    // let ids: Vec<_> = (0..n)
-    //     .map(|i| DropletId {
-    //         id: i,
-    //         process_id: 0,
-    //     })
-    //     .collect();
+fn mk_gridview(grid: Grid, blobs: &[SimpleBlob]) -> GridView {
+    let mut gv = GridView::new(grid);
 
-    // let droplets: Map<DropletId, Droplet> = ids
-    //     .iter()
-    //     .zip(blobs)
-    //     .map(|(&id, blob)| (id, blob.to_droplet(id)))
-    //     .collect();
+    for (i, blob) in blobs.iter().enumerate() {
+        let id = mk_id(i);
+        gv.droplets.insert(id, blob.to_droplet(id));
+    }
 
-    // let snapshot = Snapshot {
-    //     droplets,
-    //     commands_to_finalize: vec![],
-    // };
-    // (ids, snapshot)
+    gv
+}
+
+#[derive(Debug, StructOpt)]
+struct SetPolarity {
+    frequency: f64,
+    duty_cycle: f64,
+    seconds: MyDuration,
+}
+
+impl SetPolarity {
+    fn run(&self, _: &Grid, pi: &mut RaspberryPi, sleep: &SleepFn) -> RunResult<()> {
+        let polarity_config = PolarityConfig {
+            frequency: self.frequency,
+            duty_cycle: self.duty_cycle,
+        };
+        pi.hv507.set_polarity(&polarity_config)?;
+        sleep(self.seconds)
+    }
+}
+
+#[derive(Debug, StructOpt)]
+struct SetPin {
+    pin: usize,
+    #[structopt(default_value = "1")]
+    seconds: MyDuration,
+}
+
+impl SetPin {
+    fn run(&self, _: &Grid, pi: &mut RaspberryPi, sleep: &SleepFn) -> RunResult<()> {
+        let n = pi.hv507.n_pins();
+        if self.pin >= n {
+            let s = format!("Pin out of bounds! Should be between 0 and {}.", n);
+            return Err(s.into());
+        }
+        pi.hv507.set_pin_hi(self.pin);
+        pi.hv507.shift_and_latch();
+        sleep(self.seconds)
+    }
+}
+
+#[derive(Debug, StructOpt)]
+struct SetLoc {
+    location: Location,
+    #[structopt(default_value = "(1,1)")]
+    dimensions: Location,
+    #[structopt(default_value = "1")]
+    seconds: MyDuration,
+}
+
+impl SetLoc {
+    fn run(&self, grid: &Grid, pi: &mut RaspberryPi, sleep: &SleepFn) -> RunResult<()> {
+        let gv = mk_gridview(
+            grid.clone(),
+            &[SimpleBlob {
+                location: self.location,
+                dimensions: self.dimensions,
+                volume: 0.0,
+            }],
+        );
+        pi.output_pins(&gv);
+        sleep(self.seconds)
+    }
+}
+
+#[derive(Debug, StructOpt)]
+struct Circle {
+    location: Location,
+    dimensions: Location,
+    circle_size: Location,
+    #[structopt(default_value = "1")]
+    seconds: MyDuration,
+}
+
+impl Circle {
+    fn run(&self, grid: &Grid, pi: &mut RaspberryPi, sleep: &SleepFn) -> RunResult<()> {
+        let mut gv = mk_gridview(
+            grid.clone(),
+            &[SimpleBlob {
+                location: self.location,
+                dimensions: self.dimensions,
+                volume: 0.0,
+            }],
+        );
+        let id = mk_id(0);
+
+        //     pi.output_pins(&grid, &snapshot);
+
+        let mut set = |yo, xo| {
+            let loc = Location {
+                y: self.location.y + yo,
+                x: self.location.x + xo,
+            };
+            gv.droplets.get_mut(&id).unwrap().location = loc;
+            pi.output_pins(&gv);
+            println!("Droplet at {}", loc);
+            sleep(self.seconds)
+        };
+
+        for xo in 0..self.circle_size.x {
+            set(0, xo)?;
+        }
+        for yo in 0..self.circle_size.y {
+            set(yo, self.circle_size.x - 1)?;
+        }
+        for xo in 0..self.circle_size.x {
+            set(self.circle_size.y - 1, self.circle_size.x - 1 - xo)?;
+        }
+        for yo in 0..self.circle_size.y {
+            set(self.circle_size.y - 1 - yo, 0)?;
+        }
+
+        Ok(())
+    }
+}
+
+#[derive(Debug, StructOpt)]
+#[structopt(rename_all = "kebab-case")]
+struct BackAndForth {
+    #[structopt(short, long, default_value = "2,2")]
+    dimensions: Location,
+    #[structopt(short, long, default_value = "3")]
+    x_distance: i32,
+    #[structopt(long, default_value = "1")]
+    spacing: u32,
+    #[structopt(long, default_value = "1,0")]
+    starting_location: Location,
+    #[structopt(short, long, default_value = "1")]
+    n_droplets: u32,
+    #[structopt(short, long, default_value = "1")]
+    seconds: MyDuration,
+    #[structopt(long, help = "additional seconds to stagger the movement of droplets")]
+    stagger: Option<MyDuration>,
+}
+
+impl BackAndForth {
+    fn run(&self, grid: &Grid, pi: &mut RaspberryPi, sleep: &SleepFn) -> RunResult<()> {
+        let blobs: Vec<_> = (0..self.n_droplets)
+            .map(|i| {
+                let y_offset = (self.dimensions.y + self.spacing as i32) * i as i32;
+                let location = self.starting_location + Location { y: y_offset, x: 0 };
+                SimpleBlob {
+                    location,
+                    dimensions: self.dimensions,
+                    volume: 0.0,
+                }
+            })
+            .collect();
+
+        let mut gv = mk_gridview(grid.clone(), &blobs);
+        let ids: Vec<_> = (0..self.n_droplets).map(|i| mk_id(i as usize)).collect();
+
+        let xs: Vec<i32> = {
+            let start = self.starting_location.x;
+            let end = start + self.x_distance;
+            assert!(end >= 0);
+
+            if start < end {
+                let xs = start..end;
+                (xs.clone()).chain(xs.rev()).collect()
+            } else {
+                let xs = end..start;
+                (xs.clone().rev()).chain(xs).collect()
+            }
+        };
+
+        println!("Moving to x's: {:?}", xs);
+
+        for x in xs {
+            for id in &ids {
+                let droplet = gv.droplets.get_mut(id).unwrap();
+                droplet.location.x = x as i32;
+                if let Some(stagger) = self.stagger {
+                    pi.output_pins(&gv);
+                    sleep(stagger)?;
+                }
+            }
+            let locs: Vec<_> = gv.droplets.values().map(|d| d.location).collect();
+            pi.output_pins(&gv);
+            println!("Droplets at {:?}", locs);
+
+            sleep(self.seconds)?;
+        }
+
+        Ok(())
+    }
 }

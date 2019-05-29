@@ -1,7 +1,7 @@
 use rppal::gpio::{Gpio, IoPin, Level, Mode, OutputPin, Pin};
 use rppal::pwm::{Channel, Polarity, Pwm};
 
-use super::Result;
+use crate::Result;
 use puddle_core::grid::parse::PolarityConfig;
 
 use log::*;
@@ -19,6 +19,7 @@ pub const DATA_PIN: u8 = 23;
 
 #[allow(dead_code)]
 pub struct Hv507 {
+    gpio: Gpio,
     blank: OutputPin,
     latch_enable: OutputPin,
     clock: OutputPin,
@@ -31,7 +32,7 @@ pub struct Hv507 {
 }
 
 impl Hv507 {
-    pub fn new(gpio: &Gpio) -> Result<Hv507> {
+    pub fn new(gpio: Gpio) -> Result<Hv507> {
         // by default, these pins will be set to low on drop
 
         let mk_output = |pin| {
@@ -63,10 +64,15 @@ impl Hv507 {
                 // Pwm::new(Channel::Pwm1)?
             },
             pins: [Level::Low; N_PINS],
+            gpio,
         };
 
         trace!("init complete!");
         Ok(hv)
+    }
+
+    pub fn n_pins(&self) -> usize {
+        self.pins.len()
     }
 
     pub fn init(&mut self, config: &PolarityConfig) -> Result<()> {

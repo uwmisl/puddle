@@ -1,7 +1,11 @@
 // https://datasheets.maximintegrated.com/en/ds/MAX31865.pdf
 
-use super::{Result, SpiHandle};
+use crate::Result;
 use std::env;
+
+use rppal::spi::Spi;
+
+use log::*;
 
 // From Table 1
 #[allow(dead_code)]
@@ -28,27 +32,28 @@ impl Register {
 }
 
 #[allow(dead_code)]
+#[rustfmt::skip]
 pub enum Config {
     /// 1 = 50Hz, 0 = 60Hz
-    Filter50Hz = 0b0000_0001,
+    Filter50Hz           = 0b0000_0001,
     /// 1 = clear (auto-clear)
-    FaultStatusClear = 0b0000_0010,
+    FaultStatusClear     = 0b0000_0010,
     /// See table 3
     FaultDetectionCycle2 = 0b0000_0100,
     /// See table 3
     FaultDetectionCycle3 = 0b0000_1000,
     /// 1 = 3-wire, 0 = 2-wire or 4-wire
-    ThreeWire = 0b0001_0000,
+    ThreeWire            = 0b0001_0000,
     /// 1 = one-shot (auto-clear)
-    OneShot = 0b0010_0000,
+    OneShot              = 0b0010_0000,
     /// 1 = auto, 0 = normally off
-    ConversionMode = 0b0100_0000,
+    ConversionMode       = 0b0100_0000,
     /// 1 = on, 0 = off
-    VBias = 0b1000_0000,
+    VBias                = 0b1000_0000,
 }
 
 pub struct Max31865 {
-    spi: SpiHandle,
+    spi: Spi,
     n_samples: u32,
     config: u8,
     low_threshold: u16,
@@ -57,18 +62,13 @@ pub struct Max31865 {
     resistance_at_zero: f32,
 }
 
-pub const MAX31865_DEFAULT_CONFIG: u8 = {
+pub const DEFAULT_CONFIG: u8 = {
     use self::Config::*;
     VBias as u8 | ConversionMode as u8
 };
 
 impl Max31865 {
-    pub fn new(
-        spi: SpiHandle,
-        config: u8,
-        low_threshold: u16,
-        high_threshold: u16,
-    ) -> Result<Max31865> {
+    pub fn new(spi: Spi, config: u8, low_threshold: u16, high_threshold: u16) -> Result<Max31865> {
         assert!(low_threshold < high_threshold);
         // make sure the thresholds are 15-bit
         assert!(low_threshold < (1 << 15));
@@ -110,7 +110,8 @@ impl Max31865 {
             ht_lsbs,
             lt_msbs,
             lt_lsbs,
-        ])
+        ])?;
+        Ok(())
     }
 
     pub fn read_one_resistance(&mut self) -> Result<f32> {
@@ -125,7 +126,7 @@ impl Max31865 {
         // write out the config register, that's where we will start reading
         tx_buf[0] = Register::Configuration.read();
 
-        self.spi.transfer(&tx_buf, &mut rx_buf)?;
+        self.spi.transfer(&mut rx_buf, &tx_buf)?;
 
         // ignore the first byte, because that's when we were sending the
         // register to read from
@@ -149,12 +150,13 @@ impl Max31865 {
         // we don't handle status in anyway right now, so just make sure it's nothing
         // assert_eq!(status, 0);
 
-        let resistance = (resistance_bits as f32) * self.reference_resistance / ((1 << 15) as f32);
+        let resistance =
+            f32::from(resistance_bits) * self.reference_resistance / ((1 << 15) as f32);
         debug!("Resistance:     {}", resistance);
         // using the linear formula from the datasheet
         debug!(
             "ADC Resistance: {}",
-            ((resistance_bits) as f32) / 32.0 - 256.0
+            f32::from(resistance_bits) / 32.0 - 256.0
         );
 
         Ok(resistance)
@@ -208,7 +210,7 @@ fn pack_word(word: u16) -> (u8, u8) {
 }
 
 fn unpack_word(msbs: u8, lsbs: u8) -> (u16, bool) {
-    let word = ((msbs as u16) << 8) | (lsbs as u16);
+    let word = (u16::from(msbs) << 8) | u16::from(lsbs);
     let low_bit = (word & 1) == 1;
-    return (word >> 1, low_bit);
+    (word >> 1, low_bit)
 }

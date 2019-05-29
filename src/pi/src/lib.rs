@@ -1,9 +1,3 @@
-// pub mod max31865;
-// pub mod mcp4725;
-// pub mod pca9685;
-
-mod hv507;
-
 use std::time::Duration;
 
 use rppal::gpio::Gpio;
@@ -11,106 +5,69 @@ use rppal::gpio::Gpio;
 use puddle_core::grid::gridview::GridView;
 use puddle_core::grid::{parse::PiConfig, Location, Peripheral};
 
-// use self::max31865::{Max31865, MAX31865_DEFAULT_CONFIG};
-// use self::mcp4725::{Mcp4725, MCP4725_DEFAULT_ADDRESS};
-// use self::pca9685::{Pca9685, PCA9685_DEFAULT_ADDRESS};
-use hv507::Hv507;
-
 use log::*;
 
-// const PHYS_0: usize/
-
-// #[derive(Debug)]
-// pub struct PiError {
-//     msg: String,
-//     code: i32,
-// }
-
-// impl PiError {
-//     fn from_code(code: i32) -> PiError {
-//         assert!(code < 0);
-//         let msg_buf = unsafe { CStr::from_ptr(pigpio_error(code)) };
-//         let msg = msg_buf.to_str().unwrap().into();
-//         PiError { msg, code }
-//     }
-// }
-
-// impl fmt::Display for PiError {
-//     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-//         write!(f, "Pi error code {}: '{}'", self.code, self.msg)
-//     }
-// }
-
-// impl ::std::error::Error for PiError {
-//     fn description(&self) -> &str {
-//         &self.msg
-//     }
-// }
-
-pub type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
+mod devices;
+mod error;
+pub use error::{Error, Result};
 
 pub struct RaspberryPi {
-    // pi_num: i32,
-    // pub mcp4725: Mcp4725,
-    // pub pca9685: Pca9685,
-    // pub max31865: Max31865,
-    // pwm:
-    // pwm: Pwm;
+    pub mcp4725: devices::mcp4725::Mcp4725,
+    pub pca9685: devices::pca9685::Pca9685,
+    pub max31865: devices::max31865::Max31865,
+    pub hv507: devices::hv507::Hv507,
     config: PiConfig,
-    gpio: Gpio,
-    pub hv507: Hv507,
 }
 
 impl RaspberryPi {
     pub fn new(config: PiConfig) -> Result<RaspberryPi> {
-        trace!("Initializing pi gpio...");
-        let gpio = Gpio::new()?;
+        let hv507 = {
+            trace!("Initializing pi gpio...");
+            let gpio = Gpio::new()?;
+            trace!("Initializing pi hv507...");
+            let mut hv = devices::hv507::Hv507::new(gpio)?;
+            hv.init(&config.polarity)?;
+            hv
+        };
 
-        trace!("Initializing pi hv507...");
-        let mut hv507 = Hv507::new(&gpio)?;
-        hv507.init(&config.polarity).unwrap();
+        let i2c_bus = 1;
+
+        let mcp4725 = {
+            use devices::mcp4725::*;
+            let mut i2c = rppal::i2c::I2c::with_bus(i2c_bus)?;
+            i2c.set_slave_address(DEFAULT_ADDRESS)?;
+            Mcp4725::new(i2c)
+        };
+
+        let pca9685 = {
+            use devices::pca9685::*;
+            let mut i2c = rppal::i2c::I2c::with_bus(i2c_bus)?;
+            i2c.set_slave_address(DEFAULT_ADDRESS)?;
+            Pca9685::new(i2c)?
+        };
+
+        let max31865 = {
+            use devices::max31865::*;
+            use rppal::spi::*;
+            let clock_speed = 40_000;
+            let spi = Spi::new(Bus::Spi0, SlaveSelect::Ss0, clock_speed, Mode::Mode1)?;
+            let config = DEFAULT_CONFIG;
+            // use min and max thresholds, we don't care about faults
+            let low_threshold = 0;
+            let high_threshold = 0x7fff;
+            Max31865::new(spi, config, low_threshold, high_threshold)?
+        };
 
         trace!("Initializing pi...");
         let pi = RaspberryPi {
             config,
-            gpio,
             hv507,
+            pca9685,
+            max31865,
+            mcp4725,
         };
         trace!("Initialized pi!");
 
-        // let i2c_bus = 1;
-        // let i2c_flags = 0;
-
-        // // FIXME THESE ARE FAKE
-        // warn!("The SPI params are probably not right yet, and haven't been tested");
-        // let spi_channel = 0;
-        // let spi_baud = 40_000;
-        // let spi_mode = 1;
-
-        // let mcp4725 = {
-        //     let i2c = I2cHandle::new(pi_num, i2c_bus, MCP4725_DEFAULT_ADDRESS, i2c_flags)?;
-        //     Mcp4725::new(i2c)
-        // };
-
-        // let pca9685 = {
-        //     let i2c = I2cHandle::new(pi_num, i2c_bus, PCA9685_DEFAULT_ADDRESS, i2c_flags)?;
-        //     Pca9685::new(i2c)?
-        // };
-
-        // let max31865 = {
-        //     let spi = SpiHandle::new(pi_num, spi_channel, spi_baud, spi_mode)?;
-        //     // use min and max thresholds, we don't care about faults
-        //     let low_threshold = 0;
-        //     let high_threshold = 0x7fff;
-        //     Max31865::new(spi, MAX31865_DEFAULT_CONFIG, low_threshold, high_threshold)?
-        // };
-
-        // let mut pi = RaspberryPi {
-        //     pi_num,
-        //     // mcp4725,
-        //     // pca9685,
-        //     // max31865,
-        // };
         Ok(pi)
     }
 

@@ -1,6 +1,7 @@
 // https://cdn-shop.adafruit.com/datasheets/mcp4725.pdf
 
-use super::{I2cHandle, Result};
+use crate::Result;
+use rppal::i2c::I2c;
 
 // From Table 6.2
 enum Command {
@@ -9,13 +10,13 @@ enum Command {
 }
 
 pub struct Mcp4725 {
-    i2c: I2cHandle,
+    i2c: I2c,
 }
 
-pub const MCP4725_DEFAULT_ADDRESS: u16 = 0x60;
+pub const DEFAULT_ADDRESS: u16 = 0x60;
 
 impl Mcp4725 {
-    pub fn new(i2c: I2cHandle) -> Mcp4725 {
+    pub fn new(i2c: I2c) -> Mcp4725 {
         Mcp4725 { i2c }
     }
 
@@ -32,6 +33,8 @@ impl Mcp4725 {
         let value_hi_8 = (value >> 4) as u8;
         let value_lo_4 = (value << 4) as u8;
 
-        self.i2c.write(&[cmd as u8, value_hi_8, value_lo_4])
+        let written = self.i2c.write(&[cmd as u8, value_hi_8, value_lo_4])?;
+        assert_eq!(written, 3);
+        Ok(())
     }
 }

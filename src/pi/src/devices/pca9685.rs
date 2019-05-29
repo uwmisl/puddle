@@ -1,7 +1,11 @@
 // use super::{I2cHandle, Result};
-use rppal::spi;
+use rppal::i2c::I2c;
 use std::thread::sleep;
 use std::time::Duration;
+
+use crate::Result;
+
+use log::*;
 
 // https://cdn-shop.adafruit.com/datasheets/PCA9685.pdf
 #[allow(dead_code)]
@@ -24,7 +28,7 @@ enum Register {
     PreScale = 254,
 }
 
-pub const PCA9685_DEFAULT_ADDRESS: u16 = 0x42;
+pub const DEFAULT_ADDRESS: u16 = 0x42;
 
 const NUM_LEDS: u8 = 16;
 
@@ -34,7 +38,7 @@ const REGISTERS_PER_LED: u8 = 4;
 
 pub const DUTY_CYCLE_MAX: u16 = 4095;
 
-#[cfg_attr(rustfmt, rustfmt_skip)]
+#[rustfmt::skip]
 enum Mode1 {
     Restart       = 0b1000_0000,
     ExtClk        = 0b0100_0000,
@@ -53,28 +57,35 @@ impl From<Mode1> for u8 {
 }
 
 pub struct Pca9685 {
-    i2c: I2cHandle,
+    i2c: I2c,
 }
 
 impl Pca9685 {
-    pub fn new(i2c: I2cHandle) -> Result<Pca9685> {
+    pub fn new(i2c: I2c) -> Result<Pca9685> {
         let mut pca = Pca9685 { i2c };
         pca.init().map(|_| pca)
     }
 
-    pub fn init(&mut self) -> Result<()> {
-        self.i2c
-            .write(&[Register::Mode1 as u8, Mode1::AutoIncrement as u8])
+    fn init(&mut self) -> Result<()> {
+        self.write_reg(Register::Mode1, Mode1::AutoIncrement)
         // self.i2c.write(&[MODE2, OUTDRV]).unwrap();
     }
 
+    fn write(&mut self, data: &[u8]) -> Result<()> {
+        let written = self.i2c.write(data)?;
+        assert_eq!(written, data.len());
+        Ok(())
+    }
+
     fn write_reg(&mut self, reg: Register, data: impl Into<u8>) -> Result<()> {
-        self.i2c.write(&[reg as u8, data.into()])
+        self.write(&[reg as u8, data.into()])
     }
 
     fn read_reg(&mut self, reg: Register) -> Result<u8> {
-        self.i2c.write(&[reg as u8])?;
-        let buf = self.i2c.read(1)?;
+        self.write(&[reg as u8])?;
+        let mut buf = [0];
+        let n_read = self.i2c.read(&mut buf)?;
+        assert_eq!(n_read, 1);
         Ok(buf[0])
     }
 
@@ -131,7 +142,7 @@ impl Pca9685 {
         let off_l = off as u8;
         let off_h = (off >> 8) as u8;
 
-        self.i2c.write(&[
+        self.write(&[
             Register::LedBase as u8 + (REGISTERS_PER_LED * channel),
             on_l,
             on_h,
