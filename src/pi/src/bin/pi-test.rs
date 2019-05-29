@@ -1,7 +1,7 @@
 use std::error::Error;
+use std::fmt;
 use std::fs::File;
 use std::path::Path;
-use std::thread;
 
 use log::*;
 
@@ -14,7 +14,7 @@ use puddle_core::{
 };
 use puddle_pi::RaspberryPi;
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 struct MyDuration(std::time::Duration);
 
 impl std::str::FromStr for MyDuration {
@@ -86,9 +86,44 @@ enum SubCommand {
     // Pins,
 }
 
+#[derive(Debug)]
+struct SignalError(i32);
+
+impl fmt::Display for SignalError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "SignalError({})", self.0)
+    }
+}
+
+impl Error for SignalError {}
+
+static SIGNALS: &[i32] = &[signal_hook::SIGINT];
+
 fn main() -> Result<(), Box<Error>> {
     // enable logging
     let _ = env_logger::try_init();
+
+    let (signal_tx, signal_rx) = std::sync::mpsc::sync_channel(10);
+
+    for &sig in SIGNALS {
+        let tx = signal_tx.clone();
+        let f = move || {
+            if let Err(e) = tx.try_send(sig) {
+                eprintln!("Couldn't send a signal! {:?}", e);
+            }
+        };
+        unsafe { signal_hook::register(sig, f) }.unwrap();
+    }
+
+    let sleep = |dur: MyDuration| {
+        match signal_rx.recv_timeout(dur.0) {
+            Ok(sig) => {
+                eprintln!("Got signal {}, closing...", sig);
+                Err(SignalError(sig))
+            }
+            Err(_timeout) => Ok(()),
+        }
+    };
 
     let sub = SubCommand::from_args();
 
@@ -118,12 +153,12 @@ fn main() -> Result<(), Box<Error>> {
                 duty_cycle,
             };
             pi.hv507.set_polarity(&polarity_config)?;
-            thread::sleep(seconds.0);
+            sleep(seconds)?;
         }
         SetGpio { pin, seconds } => {
             pi.hv507.set_pin_hi(pin);
             pi.hv507.shift_and_latch();
-            thread::sleep(seconds.0);
+            sleep(seconds)?;
         }
         SetLoc {
             location,
@@ -139,7 +174,7 @@ fn main() -> Result<(), Box<Error>> {
                 }],
             );
             pi.output_pins(&gv);
-            thread::sleep(seconds.0);
+            sleep(seconds)?;
         }
         BackAndForth {
             dimensions,
@@ -186,16 +221,16 @@ fn main() -> Result<(), Box<Error>> {
                 for id in &ids {
                     let droplet = gv.droplets.get_mut(id).unwrap();
                     droplet.location.x = x as i32;
-                    if let Some(stagger) = &stagger {
+                    if let Some(stagger) = stagger {
                         pi.output_pins(&gv);
-                        thread::sleep(stagger.0);
+                        sleep(stagger)?;
                     }
                 }
                 let locs: Vec<_> = gv.droplets.values().map(|d| d.location).collect();
                 pi.output_pins(&gv);
                 println!("Droplets at {:?}", locs);
 
-                thread::sleep(seconds.0);
+                sleep(seconds)?;
             }
         }
         Circle {
@@ -224,20 +259,20 @@ fn main() -> Result<(), Box<Error>> {
                 gv.droplets.get_mut(&id).unwrap().location = loc;
                 pi.output_pins(&gv);
                 println!("Droplet at {}", loc);
-                thread::sleep(seconds.0);
+                sleep(seconds)
             };
 
             for xo in 0..circle_size.x {
-                set(0, xo);
+                set(0, xo)?;
             }
             for yo in 0..circle_size.y {
-                set(yo, circle_size.x - 1);
+                set(yo, circle_size.x - 1)?;
             }
             for xo in 0..circle_size.x {
-                set(circle_size.y - 1, circle_size.x - 1 - xo);
+                set(circle_size.y - 1, circle_size.x - 1 - xo)?;
             }
             for yo in 0..circle_size.y {
-                set(circle_size.y - 1 - yo, 0);
+                set(circle_size.y - 1 - yo, 0)?;
             }
         }
     }

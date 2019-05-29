@@ -122,3 +122,11 @@ impl Hv507 {
         self.latch_enable.set_low();
     }
 }
+
+impl Drop for Hv507 {
+    fn drop(&mut self) {
+        debug!("Cleaning up HV507");
+        self.clear_pins();
+        self.shift_and_latch();
+    }
+}
