@@ -41,6 +41,7 @@ enum SubCommand {
     SetLoc(SetLoc),
     Circle(Circle),
     BackAndForth(BackAndForth),
+    ToggleMask(ToggleMask),
     // Dac,
     // Pwm,
     // Temp,
@@ -101,6 +102,7 @@ fn main() -> RunResult<()> {
         SetLoc(x) => x.run(&grid, &mut pi, &sleep),
         Circle(x) => x.run(&grid, &mut pi, &sleep),
         BackAndForth(x) => x.run(&grid, &mut pi, &sleep),
+        ToggleMask(x) => x.run(&grid, &mut pi, &sleep),
     }
 }
 
@@ -311,6 +313,35 @@ impl BackAndForth {
             sleep(self.seconds)?;
         }
 
+        Ok(())
+    }
+}
+
+fn parse_hex(src: &str) -> Result<u128, std::num::ParseIntError> {
+    u128::from_str_radix(src, 16)
+}
+
+#[derive(Debug, StructOpt)]
+struct ToggleMask {
+    #[structopt(parse(try_from_str = "parse_hex"), help = "in hex, but no 0x prefix")]
+    mask: u128,
+    #[structopt(long, default_value = "1.0")]
+    delay: MyDuration,
+    #[structopt(long, short = "n", default_value = "10")]
+    iterations: usize,
+}
+
+impl ToggleMask {
+    fn run(&self, _: &Grid, pi: &mut RaspberryPi, sleep: &SleepFn) -> RunResult<()> {
+        for i in 0..self.iterations {
+            let flip = i & 1;
+            for pin in 0..128 {
+                let bit = (self.mask >> (127 - pin)) & 1;
+                pi.hv507.set_pin(pin, bit as usize == flip);
+            }
+            pi.hv507.shift_and_latch();
+            sleep(self.delay)?;
+        }
         Ok(())
     }
 }

@@ -107,12 +107,17 @@ impl Hv507 {
         }
     }
 
+    pub fn set_pin(&mut self, pin: usize, value: bool) {
+        use Level::*;
+        self.pins[pin] = if value { High } else { Low };
+    }
+
     pub fn set_pin_hi(&mut self, pin: usize) {
-        self.pins[pin] = Level::High;
+        self.set_pin(pin, true)
     }
 
     pub fn set_pin_lo(&mut self, pin: usize) {
-        self.pins[pin] = Level::Low;
+        self.set_pin(pin, false)
     }
 
     pub fn shift_and_latch(&mut self) {
