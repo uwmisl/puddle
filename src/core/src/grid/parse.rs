@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use serde_aux::field_attributes::deserialize_number_from_string;
 use serde_json;
 use std::io::Read;
 
@@ -16,8 +17,9 @@ pub enum Mark {
 #[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum ParsedElectrode {
-    Marked(Mark),
+    #[serde(deserialize_with = "deserialize_number_from_string")]
     Index(u32),
+    Marked(Mark),
 }
 
 use self::Mark::*;
@@ -214,6 +216,12 @@ pub mod tests {
         .expect("parse failed");
     }
 
+    #[test]
+    fn test_parse_number_or_string() {
+        let _: ParsedGrid =
+            sj::from_str(r#" { "board": [[1, "2", "3", " "]] } "#).expect("parse failed");
+    }
+
     fn check_round_trip(grid: Grid, desc: &str) {
         let s = sj::to_string(&grid).expect("serialization failed");
         let grid2: Grid = sj::from_str(&s).expect("deserialization failed");
@@ -223,7 +231,6 @@ pub mod tests {
         }
     }
 
-    use env_logger;
     #[test]
     fn test_parse_files() {
         let mut successes = 0;
