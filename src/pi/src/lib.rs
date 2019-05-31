@@ -12,9 +12,9 @@ mod error;
 pub use error::{Error, Result};
 
 pub struct RaspberryPi {
-    pub mcp4725: devices::mcp4725::Mcp4725,
-    pub pca9685: devices::pca9685::Pca9685,
-    pub max31865: devices::max31865::Max31865,
+    pub mcp4725: Option<devices::mcp4725::Mcp4725>,
+    pub pca9685: Option<devices::pca9685::Pca9685>,
+    pub max31865: Option<devices::max31865::Max31865>,
     pub hv507: devices::hv507::Hv507,
     config: PiConfig,
 }
@@ -30,32 +30,42 @@ impl RaspberryPi {
             hv
         };
 
-        let i2c_bus = 1;
+        let i2c_from_address = |addr| {
+            let bus = 1;
+            let mut i2c = rppal::i2c::I2c::with_bus(bus)?;
+            i2c.set_slave_address(addr)?;
+            Ok(i2c)
+        };
 
         let mcp4725 = {
             use devices::mcp4725::*;
-            let mut i2c = rppal::i2c::I2c::with_bus(i2c_bus)?;
-            i2c.set_slave_address(DEFAULT_ADDRESS)?;
-            Mcp4725::new(i2c)
+            i2c_from_address(DEFAULT_ADDRESS)
+                .and_then(Mcp4725::new)
+                .map_err(|e| error!("Mcp4725 failed to init: {}", e))
+                .ok()
         };
 
         let pca9685 = {
             use devices::pca9685::*;
-            let mut i2c = rppal::i2c::I2c::with_bus(i2c_bus)?;
-            i2c.set_slave_address(DEFAULT_ADDRESS)?;
-            Pca9685::new(i2c)?
+            i2c_from_address(DEFAULT_ADDRESS)
+                .and_then(Pca9685::new)
+                .map_err(|e| error!("Pca9685 failed to init: {}", e))
+                .ok()
         };
 
         let max31865 = {
             use devices::max31865::*;
             use rppal::spi::*;
             let clock_speed = 40_000;
-            let spi = Spi::new(Bus::Spi0, SlaveSelect::Ss0, clock_speed, Mode::Mode1)?;
             let config = DEFAULT_CONFIG;
             // use min and max thresholds, we don't care about faults
             let low_threshold = 0;
             let high_threshold = 0x7fff;
-            Max31865::new(spi, config, low_threshold, high_threshold)?
+            Spi::new(Bus::Spi0, SlaveSelect::Ss0, clock_speed, Mode::Mode1)
+                .map_err(Into::into)
+                .and_then(|spi| Max31865::new(spi, config, low_threshold, high_threshold))
+                .map_err(|e| error!("Max31865 failed to initialize: {}", e))
+                .ok()
         };
 
         trace!("Initializing pi...");

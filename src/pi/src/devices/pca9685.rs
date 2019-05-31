@@ -57,18 +57,27 @@ impl From<Mode1> for u8 {
 }
 
 pub struct Pca9685 {
+    initialized: bool,
     i2c: I2c,
 }
 
 impl Pca9685 {
     pub fn new(i2c: I2c) -> Result<Pca9685> {
-        let mut pca = Pca9685 { i2c };
-        pca.init().map(|_| pca)
+        debug!("Creating pca9685...");
+        let mut pca = Pca9685 {
+            initialized: false,
+            i2c,
+        };
+        pca.init()?;
+        debug!("Created pca9685!");
+        Ok(pca)
     }
 
     fn init(&mut self) -> Result<()> {
-        self.write_reg(Register::Mode1, Mode1::AutoIncrement)
+        self.write_reg(Register::Mode1, Mode1::AutoIncrement)?;
         // self.i2c.write(&[MODE2, OUTDRV]).unwrap();
+        self.initialized = true;
+        Ok(())
     }
 
     fn write(&mut self, data: &[u8]) -> Result<()> {
@@ -161,9 +170,10 @@ impl Pca9685 {
 
 impl Drop for Pca9685 {
     fn drop(&mut self) {
-        let res = self.all_off();
-        if res.is_err() {
-            error!("Failed to shutdown pwm channels {:#?}", res);
+        if self.initialized {
+            if let Err(err) = self.all_off() {
+                error!("Failed to shutdown pwm channels {}", err)
+            }
         }
     }
 }

@@ -16,8 +16,12 @@ pub struct Mcp4725 {
 pub const DEFAULT_ADDRESS: u16 = 0x60;
 
 impl Mcp4725 {
-    pub fn new(i2c: I2c) -> Mcp4725 {
-        Mcp4725 { i2c }
+    pub fn new(i2c: I2c) -> Result<Mcp4725> {
+        let mut mcp = Mcp4725 { i2c };
+        // write to initialize, but also to make sure `new` fails if
+        // something is wrong with the i2c
+        mcp.write(0)?;
+        Ok(mcp)
     }
 
     pub fn write(&mut self, data: u16) -> Result<()> {
