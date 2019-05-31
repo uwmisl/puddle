@@ -1,13 +1,12 @@
-use serde::{Deserialize, Deserializer, Serialize, Serializer};
-// use serde_derive::serde;
+use serde::{Deserialize, Serialize};
 use serde_json;
 
 use std::io::Read;
 
 use super::Location;
-use crate::util::{HashMap, HashSet};
+use crate::util::{HashSet};
 
-use crate::grid::parse::{Mark, ParsedElectrode, ParsedGrid, PiConfig};
+use crate::grid::parse::{ParsedGrid};
 
 #[derive(Debug, PartialEq, Eq, Hash, Serialize, Deserialize, Clone)]
 pub struct Electrode {
@@ -41,7 +40,9 @@ impl Electrode {
     }
 }
 
-#[derive(Debug, Default, PartialEq, Eq, Clone)]
+#[derive(Debug, Default, PartialEq, Eq, Clone, Deserialize)]
+#[serde(from = "ParsedGrid")]
+#[serde(into = "ParsedGrid")]
 pub struct Grid {
     pub vec: Vec<Vec<Option<Electrode>>>,
 }
@@ -78,39 +79,6 @@ const NEIGHBORS_4: [Location; 4] = [
 ];
 
 impl Grid {
-    pub fn to_parsed_grid(&self) -> ParsedGrid {
-        let mut peripherals = HashMap::default();
-        let board = self
-            .vec
-            .iter()
-            .enumerate()
-            .map(|(i, row)| {
-                row.iter()
-                    .enumerate()
-                    .map(|(j, e_opt)| match e_opt {
-                        None => ParsedElectrode::Marked(Mark::Empty),
-                        Some(e) => {
-                            if let Some(ref peripheral) = e.peripheral {
-                                let loc = Location {
-                                    y: i as i32,
-                                    x: j as i32,
-                                };
-                                peripherals.insert(loc.to_string(), peripheral.clone());
-                            }
-                            ParsedElectrode::Index(e.pin)
-                        }
-                    })
-                    .collect()
-            })
-            .collect();
-        let pi_config = PiConfig::default();
-        ParsedGrid {
-            pi_config,
-            board,
-            peripherals,
-        }
-    }
-
     pub fn to_strs(&self) -> Vec<String> {
         self.vec
             .iter()
@@ -154,7 +122,7 @@ impl Grid {
 
     pub fn from_reader<R: Read>(reader: R) -> Result<Grid, serde_json::Error> {
         let parsed_grid: ParsedGrid = serde_json::from_reader(reader)?;
-        Ok(parsed_grid.to_grid())
+        Ok(parsed_grid.into())
     }
 
     pub fn locations<'a>(&'a self) -> impl Iterator<Item = (Location, Electrode)> + 'a {
@@ -280,24 +248,6 @@ impl Grid {
     pub fn is_connected(&self) -> bool {
         use petgraph::algo::connected_components;
         connected_components(&self.to_graph()) == 1
-    }
-}
-
-impl Serialize for Grid {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        self.to_parsed_grid().serialize(serializer)
-    }
-}
-
-impl<'de> Deserialize<'de> for Grid {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        ParsedGrid::deserialize(deserializer).map(|pg| pg.to_grid())
     }
 }
 

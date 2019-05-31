@@ -4,6 +4,7 @@ use serde_json;
 use std::io::Read;
 
 use crate::grid::grid::*;
+use crate::grid::Location;
 use crate::util::HashMap;
 
 #[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -25,31 +26,9 @@ pub enum ParsedElectrode {
 use self::Mark::*;
 use self::ParsedElectrode::*;
 
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
-pub struct PiConfig {
-    pub polarity: PolarityConfig,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct PolarityConfig {
-    pub frequency: f64,
-    pub duty_cycle: f64,
-}
-
-impl Default for PolarityConfig {
-    fn default() -> PolarityConfig {
-        PolarityConfig {
-            frequency: 500.0,
-            duty_cycle: 0.5,
-        }
-    }
-}
-
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct ParsedGrid {
-    #[serde(default)]
-    pub pi_config: PiConfig,
     pub board: Vec<Vec<ParsedElectrode>>,
     #[serde(default)]
     pub peripherals: HashMap<String, Peripheral>,
@@ -59,10 +38,12 @@ impl ParsedGrid {
     pub fn from_reader<R: Read>(reader: R) -> Result<ParsedGrid, serde_json::Error> {
         serde_json::from_reader(reader)
     }
+}
 
-    pub fn to_grid(&self) -> Grid {
+impl From<ParsedGrid> for Grid {
+    fn from(pg: ParsedGrid) -> Grid {
         // find a pin that higher than anything listed
-        let mut next_auto_pin = self
+        let mut next_auto_pin = pg
             .board
             .iter()
             .flat_map(|row| row.iter())
@@ -90,14 +71,14 @@ impl ParsedGrid {
         };
 
         let mut grid = Grid {
-            vec: self
+            vec: pg
                 .board
                 .iter()
                 .map(|row| row.iter().map(&mut f).collect())
                 .collect(),
         };
 
-        for (location, periph) in self.peripherals.iter() {
+        for (location, periph) in pg.peripherals.iter() {
             let loc = location.parse().unwrap();
             let electrode = grid.get_cell_mut(loc).unwrap();
             assert_eq!(electrode.peripheral, None);
@@ -105,6 +86,36 @@ impl ParsedGrid {
         }
 
         grid
+    }
+}
+
+impl From<Grid> for ParsedGrid {
+    fn from(grid: Grid) -> ParsedGrid {
+        let mut peripherals = HashMap::default();
+        let board = grid
+            .vec
+            .iter()
+            .enumerate()
+            .map(|(i, row)| {
+                row.iter()
+                    .enumerate()
+                    .map(|(j, e_opt)| match e_opt {
+                        None => ParsedElectrode::Marked(Mark::Empty),
+                        Some(e) => {
+                            if let Some(ref peripheral) = e.peripheral {
+                                let loc = Location {
+                                    y: i as i32,
+                                    x: j as i32,
+                                };
+                                peripherals.insert(loc.to_string(), peripheral.clone());
+                            }
+                            ParsedElectrode::Index(e.pin)
+                        }
+                    })
+                    .collect()
+            })
+            .collect();
+        ParsedGrid { board, peripherals }
     }
 }
 
@@ -223,7 +234,8 @@ pub mod tests {
     }
 
     fn check_round_trip(grid: Grid, desc: &str) {
-        let s = sj::to_string(&grid).expect("serialization failed");
+        let pg: ParsedGrid = grid.clone().into();
+        let s = sj::to_string(&pg).expect("serialization failed");
         let grid2: Grid = sj::from_str(&s).expect("deserialization failed");
         if grid != grid2 {
             error!("Failed on {}", desc);

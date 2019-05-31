@@ -3,13 +3,33 @@ use std::time::Duration;
 use rppal::gpio::Gpio;
 
 use puddle_core::grid::gridview::GridView;
-use puddle_core::grid::{parse::PiConfig, Location, Peripheral};
+use puddle_core::grid::{Location, Peripheral};
 
 use log::*;
 
 mod devices;
 mod error;
 pub use error::{Error, Result};
+
+#[derive(Debug, Clone, Default)]
+pub struct PiConfig {
+    pub polarity: PolarityConfig,
+}
+
+#[derive(Debug, Clone)]
+pub struct PolarityConfig {
+    pub frequency: f64,
+    pub duty_cycle: f64,
+}
+
+impl Default for PolarityConfig {
+    fn default() -> PolarityConfig {
+        PolarityConfig {
+            frequency: 500.0,
+            duty_cycle: 0.5,
+        }
+    }
+}
 
 pub struct RaspberryPi {
     pub mcp4725: Option<devices::mcp4725::Mcp4725>,

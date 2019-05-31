@@ -1,8 +1,7 @@
 use rppal::gpio::{Gpio, IoPin, Level, Mode, OutputPin, Pin};
 use rppal::pwm::{Channel, Polarity, Pwm};
 
-use crate::Result;
-use puddle_core::grid::parse::PolarityConfig;
+use crate::{Result, PolarityConfig};
 
 use log::*;
 

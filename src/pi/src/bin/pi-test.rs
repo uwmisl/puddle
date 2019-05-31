@@ -7,11 +7,11 @@ use log::*;
 use puddle_core::{
     grid::droplet::{Blob, DropletId, SimpleBlob},
     grid::gridview::GridView,
-    grid::parse::{ParsedGrid, PolarityConfig},
+    grid::parse::ParsedGrid,
     grid::{Grid, Location},
     util::seconds_duration,
 };
-use puddle_pi::RaspberryPi;
+use puddle_pi::{PiConfig, PolarityConfig, RaspberryPi};
 
 #[derive(Debug, Clone, Copy)]
 struct MyDuration(std::time::Duration);
@@ -91,9 +91,9 @@ fn main() -> RunResult<()> {
             println!("Using PI_CONFIG={}", path);
             mk_grid(&path)
         })?;
-    let grid = config.to_grid();
+    let grid = config.into();
 
-    let mut pi = RaspberryPi::new(config.pi_config)?;
+    let mut pi = RaspberryPi::new(PiConfig::default())?;
 
     use SubCommand::*;
     match sub {
