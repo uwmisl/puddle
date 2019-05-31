@@ -11,3 +11,6 @@ structopt = "0.2.15"
 log = "0.4.6"
 env_logger = "0.6.1"
 signal-hook = "0.1.9"
+
+config = "0.9"
+serde = "1"

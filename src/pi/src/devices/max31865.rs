@@ -1,11 +1,11 @@
+#![allow(clippy::assertions_on_constants)]
 // https://datasheets.maximintegrated.com/en/ds/MAX31865.pdf
 
-use crate::Result;
-use std::env;
-
-use rppal::spi::Spi;
-
 use log::*;
+use rppal::spi::Spi;
+use serde::Deserialize;
+
+use crate::Result;
 
 // From Table 1
 #[allow(dead_code)]
@@ -52,57 +52,79 @@ pub enum Config {
     VBias                = 0b1000_0000,
 }
 
-pub struct Max31865 {
-    spi: Spi,
-    n_samples: u32,
-    config: u8,
-    low_threshold: u16,
-    high_threshold: u16,
-    reference_resistance: f32,
-    resistance_at_zero: f32,
-}
-
+pub const CLOCK_SPEED: u32 = 40_000;
+// use min and max thresholds, we don't care about faults
+pub const LOW_THRESHOLD: u16 = 0;
+pub const HIGH_THRESHOLD: u16 = 0x7fff;
 pub const DEFAULT_CONFIG: u8 = {
     use self::Config::*;
     VBias as u8 | ConversionMode as u8
 };
 
-impl Max31865 {
-    pub fn new(spi: Spi, config: u8, low_threshold: u16, high_threshold: u16) -> Result<Max31865> {
-        assert!(low_threshold < high_threshold);
-        // make sure the thresholds are 15-bit
-        assert!(low_threshold < (1 << 15));
-        assert!(high_threshold < (1 << 15));
+#[derive(Debug, Deserialize)]
+pub struct Settings {
+    pub bus: u8,
+    pub select: u8,
+    pub n_samples: u32,
+    pub resist_ref: f32,
+    pub resist_zero: f32,
+}
 
-        let reference_resistance = env::var("PI_REF_RESIST")
-            .map(|r| r.parse().expect("couldn't parse"))
-            .unwrap_or(4000.0);
-        let resistance_at_zero = env::var("PI_RESIST_ZERO")
-            .map(|r| r.parse().expect("couldn't parse"))
-            .unwrap_or(1000.0);
+impl Settings {
+    pub fn make(&self) -> Result<Max31865> {
+        assert!(LOW_THRESHOLD < HIGH_THRESHOLD);
+        // make sure the thresholds are 15-bit
+        assert!(LOW_THRESHOLD < (1 << 15));
+        assert!(HIGH_THRESHOLD < (1 << 15));
+
+        use rppal::spi::*;
+
+        let bus = match self.bus {
+            0 => Bus::Spi0,
+            1 => Bus::Spi1,
+            2 => Bus::Spi2,
+            _ => panic!("Bad bus: {}", self.bus),
+        };
+
+        let select = match self.select {
+            0 => SlaveSelect::Ss0,
+            1 => SlaveSelect::Ss1,
+            2 => SlaveSelect::Ss2,
+            _ => panic!("Bad select: {}", self.select),
+        };
+
+        let spi = Spi::new(bus, select, CLOCK_SPEED, Mode::Mode1)?;
 
         let mut max = Max31865 {
             spi,
-            config,
-            low_threshold,
-            high_threshold,
-            n_samples: 10,
-            reference_resistance,
-            resistance_at_zero,
+            n_samples: self.n_samples,
+            resist_ref: self.resist_ref,
+            resist_zero: self.resist_zero,
         };
+
         max.initalize()?;
+
         Ok(max)
     }
+}
 
+pub struct Max31865 {
+    spi: Spi,
+    n_samples: u32,
+    resist_ref: f32,
+    resist_zero: f32,
+}
+
+impl Max31865 {
     fn initalize(&mut self) -> Result<()> {
         // first write out the config bits
         self.spi
-            .write(&[Register::Configuration.write(), self.config])?;
+            .write(&[Register::Configuration.write(), DEFAULT_CONFIG])?;
 
         // now write out the thresholds, knowing that it will auto-increment
         // starting from the HighFaultThresholdMsb register
-        let (ht_msbs, ht_lsbs) = pack_word(self.high_threshold);
-        let (lt_msbs, lt_lsbs) = pack_word(self.low_threshold);
+        let (ht_msbs, ht_lsbs) = pack_word(HIGH_THRESHOLD);
+        let (lt_msbs, lt_lsbs) = pack_word(LOW_THRESHOLD);
 
         self.spi.write(&[
             Register::HighFaultThresholdMsb.write(),
@@ -150,8 +172,7 @@ impl Max31865 {
         // we don't handle status in anyway right now, so just make sure it's nothing
         // assert_eq!(status, 0);
 
-        let resistance =
-            f32::from(resistance_bits) * self.reference_resistance / ((1 << 15) as f32);
+        let resistance = f32::from(resistance_bits) * self.resist_ref / ((1 << 15) as f32);
         debug!("Resistance:     {}", resistance);
         // using the linear formula from the datasheet
         debug!(
@@ -175,7 +196,7 @@ impl Max31865 {
     /// We will assume temperatures above 0C, so c = 0, allowing us to use the quadratic equation
     pub fn read_one_temperature(&mut self) -> Result<f32> {
         let resistance = self.read_one_resistance()? as f32;
-        let r0 = self.resistance_at_zero;
+        let r0 = self.resist_zero;
 
         let rtd_a = 3.90830e-3;
         let rtd_b = -5.77500e-7;

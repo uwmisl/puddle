@@ -1,0 +1,24 @@
+[pi.hv507]
+frequency = 500.0
+duty_cycle = 1.0
+
+blank_pin = 17        # physical pin 11
+latch_enable_pin = 27 # physical pin 13
+clock_pin = 22        # physical pin 15
+data_pin = 23         # physical pin 16
+pwm_pin = 18
+
+[pi.mcp4725]
+bus = 1
+address = 0x60
+
+[pi.pca9685]
+bus = 1
+address = 0x42
+
+[pi.max31865]
+bus = 0
+select = 0
+n_samples = 10
+resist_ref = 4000.0
+resist_zero = 1000.0

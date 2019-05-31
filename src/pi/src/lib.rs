@@ -1,100 +1,64 @@
 use std::time::Duration;
 
-use rppal::gpio::Gpio;
+use log::*;
+use serde::Deserialize;
 
 use puddle_core::grid::gridview::GridView;
 use puddle_core::grid::{Location, Peripheral};
 
-use log::*;
-
-mod devices;
+pub mod devices;
 mod error;
+
 pub use error::{Error, Result};
 
-#[derive(Debug, Clone, Default)]
-pub struct PiConfig {
-    pub polarity: PolarityConfig,
+#[derive(Debug, Deserialize)]
+pub struct Settings {
+    pub hv507: devices::hv507::Settings,
+    pub mcp4725: Option<devices::mcp4725::Settings>,
+    pub pca9685: Option<devices::pca9685::Settings>,
+    pub max31865: Option<devices::max31865::Settings>,
 }
 
-#[derive(Debug, Clone)]
-pub struct PolarityConfig {
-    pub frequency: f64,
-    pub duty_cycle: f64,
-}
+const TABLE_KEYS: &[&str] = &["pi.mcp4725", "pi.pca9685", "pi.max31865"];
 
-impl Default for PolarityConfig {
-    fn default() -> PolarityConfig {
-        PolarityConfig {
-            frequency: 500.0,
-            duty_cycle: 0.5,
+impl Settings {
+    pub fn from_config(conf: &mut config::Config) -> Result<Self> {
+        use config::{Config, Environment, File, Value};
+
+        // For keys that _should_ represent tables, check if they are
+        // the empty string, indicating that a use tried to override
+        // it with an environment variable. If so, set it to None.
+        for k in TABLE_KEYS {
+            if let Ok(s) = conf.get_str(k) {
+                if s.is_empty() {
+                    conf.set(k, Option::<i64>::None)?;
+                }
+            }
         }
+
+        let pi_conf: Value = conf.get("pi")?;
+        debug!("{:#?}", pi_conf);
+        let settings: Settings = pi_conf.try_into()?;
+        info!("{:#?}", settings);
+        Ok(settings)
     }
 }
 
 pub struct RaspberryPi {
+    pub hv507: devices::hv507::Hv507,
     pub mcp4725: Option<devices::mcp4725::Mcp4725>,
     pub pca9685: Option<devices::pca9685::Pca9685>,
     pub max31865: Option<devices::max31865::Max31865>,
-    pub hv507: devices::hv507::Hv507,
-    config: PiConfig,
 }
 
 impl RaspberryPi {
-    pub fn new(config: PiConfig) -> Result<RaspberryPi> {
-        let hv507 = {
-            trace!("Initializing pi gpio...");
-            let gpio = Gpio::new()?;
-            trace!("Initializing pi hv507...");
-            let mut hv = devices::hv507::Hv507::new(gpio)?;
-            hv.init(&config.polarity)?;
-            hv
-        };
-
-        let i2c_from_address = |addr| {
-            let bus = 1;
-            let mut i2c = rppal::i2c::I2c::with_bus(bus)?;
-            i2c.set_slave_address(addr)?;
-            Ok(i2c)
-        };
-
-        let mcp4725 = {
-            use devices::mcp4725::*;
-            i2c_from_address(DEFAULT_ADDRESS)
-                .and_then(Mcp4725::new)
-                .map_err(|e| error!("Mcp4725 failed to init: {}", e))
-                .ok()
-        };
-
-        let pca9685 = {
-            use devices::pca9685::*;
-            i2c_from_address(DEFAULT_ADDRESS)
-                .and_then(Pca9685::new)
-                .map_err(|e| error!("Pca9685 failed to init: {}", e))
-                .ok()
-        };
-
-        let max31865 = {
-            use devices::max31865::*;
-            use rppal::spi::*;
-            let clock_speed = 40_000;
-            let config = DEFAULT_CONFIG;
-            // use min and max thresholds, we don't care about faults
-            let low_threshold = 0;
-            let high_threshold = 0x7fff;
-            Spi::new(Bus::Spi0, SlaveSelect::Ss0, clock_speed, Mode::Mode1)
-                .map_err(Into::into)
-                .and_then(|spi| Max31865::new(spi, config, low_threshold, high_threshold))
-                .map_err(|e| error!("Max31865 failed to initialize: {}", e))
-                .ok()
-        };
-
+    pub fn new(settings: Settings) -> Result<RaspberryPi> {
         trace!("Initializing pi...");
         let pi = RaspberryPi {
-            config,
-            hv507,
-            pca9685,
-            max31865,
-            mcp4725,
+            hv507: settings.hv507.make()?,
+            mcp4725: settings.mcp4725.map(|s| s.make()).transpose()?,
+            pca9685: settings.pca9685.map(|s| s.make()).transpose()?,
+            max31865: settings.max31865.map(|s| s.make()).transpose()?,
         };
         trace!("Initialized pi!");
 
@@ -279,5 +243,29 @@ impl RaspberryPi {
         //     thread::sleep(pump_duration);
         //     self.pca9685.set_duty_cycle(pwm_channel, 0)?;
         //     Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    #[allow(clippy::float_cmp)]
+    fn test_defaults() {
+        let mut path = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+        path.push("config/default");
+        let path_str = path.to_str().unwrap();
+
+        std::env::set_var("PI__HV507__DUTY_CYCLE", "123456.7");
+
+        use config::{Config, Environment, File};
+
+        let mut conf = Config::new();
+        conf.merge(File::with_name(path_str)).unwrap();
+        conf.merge(Environment::new().separator("__")).unwrap();
+        let settings = Settings::from_config(&mut conf).unwrap();
+
+        assert_eq!(settings.hv507.duty_cycle, 123_456.7);
     }
 }

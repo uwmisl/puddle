@@ -4,9 +4,9 @@ use serde_json;
 use std::io::Read;
 
 use super::Location;
-use crate::util::{HashSet};
+use crate::util::HashSet;
 
-use crate::grid::parse::{ParsedGrid};
+use crate::grid::parse::ParsedGrid;
 
 #[derive(Debug, PartialEq, Eq, Hash, Serialize, Deserialize, Clone)]
 pub struct Electrode {

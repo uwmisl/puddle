@@ -1,20 +1,73 @@
-use rppal::gpio::{Gpio, IoPin, Level, Mode, OutputPin, Pin};
-use rppal::pwm::{Channel, Polarity, Pwm};
-
-use crate::{Result, PolarityConfig};
-
 use log::*;
+use serde::Deserialize;
+
+use rppal::gpio::{Gpio, IoPin, Level, OutputPin, Pin};
+use rppal::pwm::{self, Pwm};
+
+use crate::{Error, Result};
 
 const N_PINS: usize = 128;
 
-// physical pin 11
-pub const BLANK_PIN: u8 = 17;
-// physical pin 13
-pub const LATCH_ENABLE_PIN: u8 = 27;
-// physical pin 15
-pub const CLOCK_PIN: u8 = 22;
-// physical pin 16
-pub const DATA_PIN: u8 = 23;
+#[derive(Debug, Deserialize)]
+pub struct Settings {
+    pub frequency: f64,
+    pub duty_cycle: f64,
+    pub blank_pin: u8,
+    pub latch_enable_pin: u8,
+    pub clock_pin: u8,
+    pub data_pin: u8,
+    pub pwm_pin: u8,
+}
+
+fn mk_pwm(gpio: &Gpio, pin: u8) -> Result<(IoPin, Pwm)> {
+    use rppal::gpio::Mode::*;
+    use rppal::pwm::Channel::*;
+    let (chan, alt) = match pin {
+        12 => (Pwm0, Alt0),
+        13 => (Pwm1, Alt0),
+        18 => (Pwm0, Alt5),
+        19 => (Pwm1, Alt5),
+        _ => return Err(Error::InvalidPwmChannel(pin)),
+    };
+    info!(
+        "Initializing hv507 pwm - pin={}, chan={:?}, alt={:?}",
+        pin, chan, alt
+    );
+    let io_pin = gpio.get(pin)?.into_io(alt);
+    let pwm = Pwm::new(chan)?;
+    Ok((io_pin, pwm))
+}
+
+impl Settings {
+    pub fn make(&self) -> Result<Hv507> {
+        trace!("Initializing pi gpio...");
+        let gpio = Gpio::new()?;
+
+        // by default, these pins will be set to low on drop
+        let mk_output = |pin| {
+            trace!("initializing pin {}...", pin);
+            gpio.get(pin).map(Pin::into_output)
+        };
+
+        let (polarity_gpio, polarity) = mk_pwm(&gpio, self.pwm_pin)?;
+
+        let mut hv = Hv507 {
+            blank: mk_output(self.blank_pin)?,
+            latch_enable: mk_output(self.latch_enable_pin)?,
+            clock: mk_output(self.clock_pin)?,
+            data: mk_output(self.data_pin)?,
+            pins: [Level::Low; N_PINS],
+            polarity_gpio,
+            polarity,
+            gpio,
+        };
+
+        hv.init(self)?;
+
+        trace!("init complete!");
+        Ok(hv)
+    }
+}
 
 #[allow(dead_code)]
 pub struct Hv507 {
@@ -31,50 +84,11 @@ pub struct Hv507 {
 }
 
 impl Hv507 {
-    pub fn new(gpio: Gpio) -> Result<Hv507> {
-        // by default, these pins will be set to low on drop
-
-        let mk_output = |pin| {
-            trace!("initializing pin {}...", pin);
-            gpio.get(pin).map(Pin::into_output)
-        };
-
-        // let mut blank = mk_output!(BLANK_PIN);
-        // thread::spawn(move || {
-        //     let dur = seconds_duration(1.0 / 500.0);
-        //     loop {
-        //         thread::sleep(dur);
-        //         blank.toggle();
-        //     }
-        // });
-
-        let hv = Hv507 {
-            blank: mk_output(BLANK_PIN)?,
-            latch_enable: mk_output(LATCH_ENABLE_PIN)?,
-            clock: mk_output(CLOCK_PIN)?,
-            data: mk_output(DATA_PIN)?,
-            polarity_gpio: gpio.get(12)?.into_io(Mode::Alt0),
-            polarity: {
-                trace!("initializing pwm0...");
-                // physical pin 32, bcm 12 (pwm0)
-                Pwm::new(Channel::Pwm0)?
-                // trace!("initializing pwm1...");
-                // // physical pin 33, bcm 13 (pwm1)
-                // Pwm::new(Channel::Pwm1)?
-            },
-            pins: [Level::Low; N_PINS],
-            gpio,
-        };
-
-        trace!("init complete!");
-        Ok(hv)
-    }
-
     pub fn n_pins(&self) -> usize {
         self.pins.len()
     }
 
-    pub fn init(&mut self, config: &PolarityConfig) -> Result<()> {
+    fn init(&mut self, settings: &Settings) -> Result<()> {
         // setup the HV507 for serial data write
         // see row "LOAD S/R" in table 3-2 in
         // http://ww1.microchip.com/downloads/en/DeviceDoc/20005845A.pdf
@@ -85,17 +99,16 @@ impl Hv507 {
         self.data.set_low();
 
         // make sure the active state is set to high
-        self.polarity.set_polarity(Polarity::Normal)?;
+        self.polarity.set_polarity(pwm::Polarity::Normal)?;
 
         // now call the public function to set the HV507 polarity pin
-        self.set_polarity(config)?;
+        self.set_polarity(settings.frequency, settings.duty_cycle)?;
 
         Ok(())
     }
 
-    pub fn set_polarity(&mut self, config: &PolarityConfig) -> Result<()> {
-        self.polarity
-            .set_frequency(config.frequency, config.duty_cycle)?;
+    pub fn set_polarity(&mut self, frequency: f64, duty_cycle: f64) -> Result<()> {
+        self.polarity.set_frequency(frequency, duty_cycle)?;
         self.polarity.enable()?;
         Ok(())
     }

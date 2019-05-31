@@ -1,6 +1,4 @@
 use std::error::Error;
-use std::fs::File;
-use std::path::Path;
 
 use log::*;
 
@@ -11,7 +9,7 @@ use puddle_core::{
     grid::{Grid, Location},
     util::seconds_duration,
 };
-use puddle_pi::{PiConfig, PolarityConfig, RaspberryPi};
+use puddle_pi::{RaspberryPi, Settings};
 
 #[derive(Debug, Clone, Copy)]
 struct MyDuration(std::time::Duration);
@@ -82,18 +80,24 @@ fn main() -> RunResult<()> {
 
     let sub = SubCommand::from_args();
 
-    let config: ParsedGrid = std::env::var("PI_CONFIG")
-        .map_err(|err| {
-            eprintln!("Please set environment variable PI_CONFIG");
-            err.into()
-        })
-        .and_then(|path| {
-            println!("Using PI_CONFIG={}", path);
-            mk_grid(&path)
-        })?;
-    let grid = config.into();
+    let conf_path = std::env::var("PI_CONFIG").map_err(|err| {
+        eprintln!("Please set environment variable PI_CONFIG");
+        err
+    })?;
+    println!("Using PI_CONFIG={}", conf_path);
 
-    let mut pi = RaspberryPi::new(PiConfig::default())?;
+    let mut conf = config::Config::new();
+    conf.merge(config::File::with_name(&conf_path))?;
+    conf.merge(config::Environment::new().separator("__"))?;
+    let settings = Settings::from_config(&mut conf)?;
+    debug!("Settings made!");
+
+    let mut pi = RaspberryPi::new(settings)?;
+    debug!("Pi made!");
+
+    let parsed_grid: ParsedGrid = conf.try_into()?;
+    let grid = parsed_grid.into();
+    debug!("Grid made!");
 
     use SubCommand::*;
     match sub {
@@ -104,14 +108,6 @@ fn main() -> RunResult<()> {
         BackAndForth(x) => x.run(&grid, &mut pi, &sleep),
         ToggleMask(x) => x.run(&grid, &mut pi, &sleep),
     }
-}
-
-fn mk_grid(path_str: &str) -> RunResult<ParsedGrid> {
-    let path = Path::new(path_str);
-    let reader = File::open(path)?;
-    debug!("Read config file successfully");
-    let grid = ParsedGrid::from_reader(reader)?;
-    Ok(grid)
 }
 
 fn mk_id(i: usize) -> DropletId {
@@ -141,11 +137,7 @@ struct SetPolarity {
 
 impl SetPolarity {
     fn run(&self, _: &Grid, pi: &mut RaspberryPi, sleep: &SleepFn) -> RunResult<()> {
-        let polarity_config = PolarityConfig {
-            frequency: self.frequency,
-            duty_cycle: self.duty_cycle,
-        };
-        pi.hv507.set_polarity(&polarity_config)?;
+        pi.hv507.set_polarity(self.frequency, self.duty_cycle)?;
         sleep(self.seconds)
     }
 }

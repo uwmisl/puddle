@@ -1,7 +1,8 @@
 // https://cdn-shop.adafruit.com/datasheets/mcp4725.pdf
+use rppal::i2c::I2c;
+use serde::Deserialize;
 
 use crate::Result;
-use rppal::i2c::I2c;
 
 // From Table 6.2
 enum Command {
@@ -9,21 +10,30 @@ enum Command {
     WriteDacAndEeprom = 0b1100_0000,
 }
 
-pub struct Mcp4725 {
-    i2c: I2c,
+#[derive(Debug, Deserialize)]
+pub struct Settings {
+    pub bus: u8,
+    pub address: u16,
 }
 
-pub const DEFAULT_ADDRESS: u16 = 0x60;
+impl Settings {
+    pub fn make(&self) -> Result<Mcp4725> {
+        let mut i2c = rppal::i2c::I2c::with_bus(self.bus)?;
+        i2c.set_slave_address(self.address)?;
 
-impl Mcp4725 {
-    pub fn new(i2c: I2c) -> Result<Mcp4725> {
         let mut mcp = Mcp4725 { i2c };
         // write to initialize, but also to make sure `new` fails if
         // something is wrong with the i2c
         mcp.write(0)?;
         Ok(mcp)
     }
+}
 
+pub struct Mcp4725 {
+    i2c: I2c,
+}
+
+impl Mcp4725 {
     pub fn write(&mut self, data: u16) -> Result<()> {
         self.do_write(data, Command::WriteDac)
     }

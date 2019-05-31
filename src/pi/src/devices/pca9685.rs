@@ -1,11 +1,11 @@
-// use super::{I2cHandle, Result};
-use rppal::i2c::I2c;
 use std::thread::sleep;
 use std::time::Duration;
 
-use crate::Result;
-
 use log::*;
+use rppal::i2c::I2c;
+use serde::Deserialize;
+
+use crate::Result;
 
 // https://cdn-shop.adafruit.com/datasheets/PCA9685.pdf
 #[allow(dead_code)]
@@ -27,8 +27,6 @@ enum Register {
     /// prescaler for PWM output frequency
     PreScale = 254,
 }
-
-pub const DEFAULT_ADDRESS: u16 = 0x42;
 
 const NUM_LEDS: u8 = 16;
 
@@ -56,13 +54,16 @@ impl From<Mode1> for u8 {
     }
 }
 
-pub struct Pca9685 {
-    initialized: bool,
-    i2c: I2c,
+#[derive(Debug, Deserialize)]
+pub struct Settings {
+    pub bus: u8,
+    pub address: u16,
 }
 
-impl Pca9685 {
-    pub fn new(i2c: I2c) -> Result<Pca9685> {
+impl Settings {
+    pub fn make(&self) -> Result<Pca9685> {
+        let mut i2c = rppal::i2c::I2c::with_bus(self.bus)?;
+        i2c.set_slave_address(self.address)?;
         debug!("Creating pca9685...");
         let mut pca = Pca9685 {
             initialized: false,
@@ -72,7 +73,14 @@ impl Pca9685 {
         debug!("Created pca9685!");
         Ok(pca)
     }
+}
 
+pub struct Pca9685 {
+    initialized: bool,
+    i2c: I2c,
+}
+
+impl Pca9685 {
     fn init(&mut self) -> Result<()> {
         self.write_reg(Register::Mode1, Mode1::AutoIncrement)?;
         // self.i2c.write(&[MODE2, OUTDRV]).unwrap();
