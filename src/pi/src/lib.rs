@@ -21,10 +21,18 @@ pub struct Settings {
 
 const TABLE_KEYS: &[&str] = &["pi.mcp4725", "pi.pca9685", "pi.max31865"];
 
-impl Settings {
-    pub fn from_config(conf: &mut config::Config) -> Result<Self> {
-        use config::{Config, Environment, File, Value};
+const DEFAULT_CONFIG: &str = include_str!("../config/default.toml");
 
+impl Settings {
+    pub fn default_config() -> config::Config {
+        use config::{Config, File, FileFormat};
+        let mut conf = Config::new();
+        let file = File::from_str(DEFAULT_CONFIG, FileFormat::Toml);
+        conf.merge(file).unwrap();
+        conf
+    }
+
+    pub fn from_config(conf: &mut config::Config) -> Result<Self> {
         // For keys that _should_ represent tables, check if they are
         // the empty string, indicating that a use tried to override
         // it with an environment variable. If so, set it to None.
@@ -36,7 +44,7 @@ impl Settings {
             }
         }
 
-        let pi_conf: Value = conf.get("pi")?;
+        let pi_conf: config::Value = conf.get("pi")?;
         debug!("{:#?}", pi_conf);
         let settings: Settings = pi_conf.try_into()?;
         info!("{:#?}", settings);
@@ -251,21 +259,26 @@ mod tests {
     use super::*;
 
     #[test]
+    fn make_default() {
+        let mut conf = Settings::default_config();
+        Settings::from_config(&mut conf).unwrap();
+    }
+
+    #[test]
     #[allow(clippy::float_cmp)]
-    fn test_defaults() {
-        let mut path = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-        path.push("config/default");
-        let path_str = path.to_str().unwrap();
+    fn test_env_override() {
+        use config::Environment;
 
         std::env::set_var("PI__HV507__DUTY_CYCLE", "123456.7");
+        std::env::set_var("PI__MCP4725", "");
 
-        use config::{Config, Environment, File};
-
-        let mut conf = Config::new();
-        conf.merge(File::with_name(path_str)).unwrap();
+        let mut conf = Settings::default_config();
         conf.merge(Environment::new().separator("__")).unwrap();
         let settings = Settings::from_config(&mut conf).unwrap();
 
         assert_eq!(settings.hv507.duty_cycle, 123_456.7);
+        if let Some(m) = settings.mcp4725 {
+            panic!("Should be None: {:#?}", m);
+        }
     }
 }

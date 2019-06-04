@@ -86,8 +86,7 @@ fn main() -> RunResult<()> {
     })?;
     println!("Using PI_CONFIG={}", conf_path);
 
-    let mut conf = config::Config::new();
-    conf.merge(config::File::with_name(&conf_path))?;
+    let mut conf = Settings::default_config();
     conf.merge(config::Environment::new().separator("__"))?;
     let settings = Settings::from_config(&mut conf)?;
     debug!("Settings made!");
