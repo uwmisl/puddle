@@ -30,7 +30,7 @@ class HistoryConsole(code.InteractiveConsole):
         readline.write_history_file(histfile)
 
 
-arch_path = project_path('tests/arches/purpledrop.json')
+arch_path = project_path('tests/arches/purpledrop.yaml')
 with mk_session(arch_path) as session:
 
     HistoryConsole(locals=session.prelude()).interact()

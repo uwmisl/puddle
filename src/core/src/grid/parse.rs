@@ -1,5 +1,4 @@
 use serde::{Deserialize, Serialize};
-use serde_aux::field_attributes::deserialize_number_from_string;
 
 use crate::grid::grid::*;
 use crate::grid::Location;
@@ -8,6 +7,7 @@ use crate::util::HashMap;
 #[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Mark {
     #[serde(rename = " ")]
+    #[serde(alias = "_")]
     Empty,
     #[serde(rename = "a")]
     Auto,
@@ -16,7 +16,6 @@ pub enum Mark {
 #[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum ParsedElectrode {
-    #[serde(deserialize_with = "deserialize_number_from_string")]
     Index(u32),
     Marked(Mark),
 }
@@ -119,8 +118,6 @@ pub mod tests {
     use glob::glob;
     use std::fs::File;
 
-    use serde_json as sj;
-
     use crate::grid::{droplet::SimpleBlob, Grid, Location};
     use crate::util::{HashMap, HashSet};
     use std::env;
@@ -207,7 +204,7 @@ pub mod tests {
 
     #[test]
     fn test_simple_parse() {
-        let _: ParsedGrid = sj::from_str(
+        let _: ParsedGrid = serde_yaml::from_str(
             r#"
             {
                 "board": [["a", "a", "a"],
@@ -218,16 +215,10 @@ pub mod tests {
         .expect("parse failed");
     }
 
-    #[test]
-    fn test_parse_number_or_string() {
-        let _: ParsedGrid =
-            sj::from_str(r#" { "board": [[1, "2", "3", " "]] } "#).expect("parse failed");
-    }
-
     fn check_round_trip(grid: Grid, desc: &str) {
         let pg: ParsedGrid = grid.clone().into();
-        let s = sj::to_string(&pg).expect("serialization failed");
-        let grid2: Grid = sj::from_str(&s).expect("deserialization failed");
+        let s = serde_yaml::to_string(&pg).expect("serialization failed");
+        let grid2: Grid = serde_yaml::from_str(&s).expect("deserialization failed");
         if grid != grid2 {
             error!("Failed on {}", desc);
             assert_eq!(grid, grid2);
@@ -247,17 +238,17 @@ pub mod tests {
             }
         }
 
-        debug!("{}", project_path("/tests/arches/*.json"));
-        for entry in glob(&project_path("/tests/arches/*.json")).unwrap() {
+        debug!("{}", project_path("/tests/arches/*.yaml"));
+        for entry in glob(&project_path("/tests/arches/*.yaml")).unwrap() {
             trace!("Testing {:?}", entry);
             let path = entry.expect("glob failed");
             let reader = File::open(path.clone()).expect("file not found");
-            let grid = sj::from_reader(reader).expect("parse failed");
+            let grid = serde_yaml::from_reader(reader).expect("parse failed");
             check_round_trip(grid, path.to_str().unwrap());
             successes += 1;
         }
         debug!("Tested {} parsing round trips", successes);
-        assert!(successes >= 3);
+        assert!(successes >= 4);
     }
 
     #[test]

@@ -10,7 +10,6 @@ rand = "0.6.5"
 rand_pcg = "0.1.2"
 
 serde = { version = "1", features = ["derive"] }
-serde-aux = "0.6.1"
 
 structopt = "0.2.15"
 derive_more = "0.14.0"
@@ -22,6 +21,6 @@ fxhash = "0.2.1"
 petgraph = "0.4.13"
 
 [dev-dependencies]
-serde_json = "1"
+serde_yaml = "0.8.9"
 glob = "0.3.0"
 matches = "0.1.8"

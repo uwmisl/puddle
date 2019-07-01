@@ -113,7 +113,7 @@ class VolConcDroplet(Droplet):
         return d1, d2
 
 
-arch_path = project_path('tests/arches/arch-big.json')
+arch_path = project_path('tests/arches/arch-big.yaml')
 with mk_session(arch_path) as session:
     # FIXME this needs arch big for now because place and route is bad
     # also, you just can't do that many iterations

@@ -4,9 +4,9 @@ use std::env;
 use matches::assert_matches;
 use puddle_core::*;
 
-fn manager_from_str(json_str: &str) -> Manager {
+fn manager_from_str(s: &str) -> Manager {
     let _ = env_logger::builder().is_test(true).try_init();
-    let grid = serde_yaml::from_reader(json_str.as_bytes()).unwrap();
+    let grid = serde_yaml::from_reader(s.as_bytes()).unwrap();
     // reduce the step delay for testing
     env::set_var("PUDDLE_STEP_DELAY_MS", "1");
 

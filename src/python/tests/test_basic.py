@@ -4,7 +4,7 @@ import unittest
 
 class TestPuddleStuff(unittest.TestCase):
     def setUp(self):
-        arch_path = puddle.project_path('tests/arches/arch01.json')
+        arch_path = puddle.project_path('tests/arches/arch01.yaml')
 
         session = puddle.mk_session(arch_path)
         self.session = session.__enter__()

@@ -22,7 +22,7 @@ def try_move(d, corner):
         print("python: ERROR")
 
 
-arch_path = puddle.project_path('tests/arches/purpledrop.json')
+arch_path = puddle.project_path('tests/arches/purpledrop.yaml')
 
 
 def endurance(session):

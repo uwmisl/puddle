@@ -18,7 +18,7 @@ def server(c):
 @invoke.task
 def boards(c):
     with c.cd(root):
-        c.run(f'{c.rsync} --relative tests/./arches/*.json {c.pi}:')
+        c.run(f'{c.rsync} --relative tests/./arches/*.yaml {c.pi}:')
 
 
 @invoke.task(default=True)

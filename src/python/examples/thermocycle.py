@@ -4,7 +4,7 @@ from puddle import mk_session, project_path
 
 # def thermocycle(droplet, temps_and_times):
 
-arch_path = project_path('tests/arches/purpledrop-thermocycle.json')
+arch_path = project_path('tests/arches/purpledrop-thermocycle.yaml')
 with mk_session(arch_path) as session:
 
     # a = session.input('water', volume=15.0, dimensions=(1,1))

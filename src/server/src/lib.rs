@@ -91,10 +91,10 @@ impl Server {
         debug!("address: {}", self.address);
 
         let grid: Grid = if self.grid_file == "-" {
-            serde_json::from_reader(std::io::stdin())?
+            serde_yaml::from_reader(std::io::stdin())?
         } else {
             let reader = File::open(&self.grid_file)?;
-            serde_json::from_reader(reader)?
+            serde_yaml::from_reader(reader)?
         };
 
         debug!("Grid parsed.");

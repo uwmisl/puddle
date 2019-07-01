@@ -1,6 +1,6 @@
 from puddle import mk_session, project_path
 
-arch_path = project_path('tests/arches/purpledrop.json')
+arch_path = project_path('tests/arches/purpledrop.yaml')
 with mk_session(arch_path) as session:
 
     a = session.create(location=(1, 1), volume=1.0, dimensions=None)

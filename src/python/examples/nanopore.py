@@ -2,7 +2,7 @@
 
 from puddle import mk_session, project_path
 
-arch_path = project_path('tests/arches/purpledrop-nanopore.json')
+arch_path = project_path('tests/arches/purpledrop-nanopore.yaml')
 with mk_session(arch_path) as session:
 
     dna = session.create(location=(1, 0), volume=10.0, dimensions=(1, 1))
