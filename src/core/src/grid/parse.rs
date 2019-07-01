@@ -1,7 +1,5 @@
 use serde::{Deserialize, Serialize};
 use serde_aux::field_attributes::deserialize_number_from_string;
-use serde_json;
-use std::io::Read;
 
 use crate::grid::grid::*;
 use crate::grid::Location;
@@ -31,12 +29,6 @@ pub struct ParsedGrid {
     pub board: Vec<Vec<ParsedElectrode>>,
     #[serde(default)]
     pub peripherals: HashMap<String, Peripheral>,
-}
-
-impl ParsedGrid {
-    pub fn from_reader<R: Read>(reader: R) -> Result<ParsedGrid, serde_json::Error> {
-        serde_json::from_reader(reader)
-    }
 }
 
 impl From<ParsedGrid> for Grid {

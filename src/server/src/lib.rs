@@ -90,11 +90,11 @@ impl Server {
         debug!("threads: {}", self.threads);
         debug!("address: {}", self.address);
 
-        let grid = if self.grid_file == "-" {
-            Grid::from_reader(std::io::stdin())?
+        let grid: Grid = if self.grid_file == "-" {
+            serde_json::from_reader(std::io::stdin())?
         } else {
             let reader = File::open(&self.grid_file)?;
-            Grid::from_reader(reader)?
+            serde_json::from_reader(reader)?
         };
 
         debug!("Grid parsed.");

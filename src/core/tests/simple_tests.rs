@@ -6,7 +6,7 @@ use puddle_core::*;
 
 fn manager_from_str(json_str: &str) -> Manager {
     let _ = env_logger::try_init();
-    let grid = Grid::from_reader(json_str.as_bytes()).unwrap();
+    let grid = serde_json::from_reader(json_str.as_bytes()).unwrap();
     // reduce the step delay for testing
     env::set_var("PUDDLE_STEP_DELAY_MS", "1");
 

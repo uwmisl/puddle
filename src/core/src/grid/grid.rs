@@ -1,7 +1,4 @@
 use serde::{Deserialize, Serialize};
-use serde_json;
-
-use std::io::Read;
 
 use super::Location;
 use crate::util::HashSet;
@@ -118,11 +115,6 @@ impl Grid {
             .map(|e| e.as_ref().map_or(0, |e| e.pin))
             .max()
             .unwrap_or(0)
-    }
-
-    pub fn from_reader<R: Read>(reader: R) -> Result<Grid, serde_json::Error> {
-        let parsed_grid: ParsedGrid = serde_json::from_reader(reader)?;
-        Ok(parsed_grid.into())
     }
 
     pub fn locations<'a>(&'a self) -> impl Iterator<Item = (Location, Electrode)> + 'a {
