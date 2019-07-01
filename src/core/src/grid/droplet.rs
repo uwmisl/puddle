@@ -199,8 +199,6 @@ impl Blob for SimpleBlob {
 pub mod tests {
     use super::{Droplet, DropletId, Location};
 
-    use env_logger;
-
     #[test]
     #[should_panic]
     fn test_invalid_dimensions() {
@@ -225,7 +223,7 @@ pub mod tests {
 
     #[test]
     fn test_collision_distance() {
-        let _ = env_logger::try_init();
+        let _ = env_logger::builder().is_test(true).try_init();
 
         let a = droplet_with_shape((0, 2), (1, 1));
         let b = droplet_with_shape((2, 0), (1, 1));

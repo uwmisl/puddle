@@ -237,7 +237,7 @@ pub mod tests {
     #[test]
     fn test_parse_files() {
         let mut successes = 0;
-        let _ = env_logger::try_init();
+        let _ = env_logger::builder().is_test(true).try_init();
 
         if let Ok(s) = env::var("RUNNING_IN_CROSS") {
             if s == "1" {

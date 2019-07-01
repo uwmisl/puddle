@@ -5,8 +5,8 @@ use matches::assert_matches;
 use puddle_core::*;
 
 fn manager_from_str(json_str: &str) -> Manager {
-    let _ = env_logger::try_init();
-    let grid = serde_json::from_reader(json_str.as_bytes()).unwrap();
+    let _ = env_logger::builder().is_test(true).try_init();
+    let grid = serde_yaml::from_reader(json_str.as_bytes()).unwrap();
     // reduce the step delay for testing
     env::set_var("PUDDLE_STEP_DELAY_MS", "1");
 
@@ -15,7 +15,7 @@ fn manager_from_str(json_str: &str) -> Manager {
 }
 
 fn manager_from_rect(rows: usize, cols: usize) -> Manager {
-    let _ = env_logger::try_init();
+    let _ = env_logger::builder().is_test(true).try_init();
     let grid = Grid::rectangle(rows, cols);
 
     // reduce the step delay for testing

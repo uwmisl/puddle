@@ -159,15 +159,14 @@ impl Planner {
 #[cfg(test)]
 mod tests {
     use crate::tests::project_path;
-    use env_logger;
     use std::fs::File;
 
     use super::*;
 
     fn mk_gv(path: &str) -> GridView {
-        let _ = env_logger::try_init();
+        let _ = env_logger::builder().is_test(true).try_init();
         let f = File::open(project_path(path)).unwrap();
-        GridView::new(serde_json::from_reader(f).unwrap())
+        GridView::new(serde_yaml::from_reader(f).unwrap())
     }
 
     // #[test]
