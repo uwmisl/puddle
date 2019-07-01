@@ -14,3 +14,6 @@ signal-hook = "0.1.9"
 
 config = "0.9"
 serde = "1"
+
+[build-dependencies]
+chrono = "0.4"

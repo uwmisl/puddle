@@ -33,6 +33,7 @@ type SleepFn = Fn(MyDuration) -> RunResult<()>;
 
 #[derive(Debug, StructOpt)]
 #[structopt(rename_all = "kebab-case")]
+#[structopt(raw(about = r#"env!("PI_TEST_ABOUT")"#))]
 enum SubCommand {
     SetPolarity(SetPolarity),
     SetPin(SetPin),
