@@ -27,7 +27,6 @@ use self::Mark::*;
 use self::ParsedElectrode::*;
 
 #[derive(Debug, Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
 pub struct ParsedGrid {
     pub board: Vec<Vec<ParsedElectrode>>,
     #[serde(default)]

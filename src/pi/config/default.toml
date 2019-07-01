@@ -1,12 +1,14 @@
 [pi.hv507]
 frequency = 500.0
 duty_cycle = 1.0
+default_polarity = "low" # one of "low" or "high"
 
-blank_pin = 17        # physical pin 11
-latch_enable_pin = 27 # physical pin 13
-clock_pin = 22        # physical pin 15
-data_pin = 23         # physical pin 16
-pwm_pin = 18
+[pi.hv507.pins]
+blank = 17        # physical pin 11
+latch_enable = 27 # physical pin 13
+clock = 22        # physical pin 15
+data = 23         # physical pin 16
+polarity_pwm_channel = 0
 
 [pi.mcp4725]
 bus = 1
