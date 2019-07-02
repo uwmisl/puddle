@@ -337,21 +337,19 @@ fn split_single_nonzero_dimensions() {
 
 #[test]
 fn heat_droplet() {
-    let board_str = r#"{
-        "board": [
-            [ "a", "a", "a", "a", "a" ],
-            [ "a", "a", "a", "a", "a" ],
-            [ " ", " ", "a", " ", " " ],
-            [ " ", " ", "a", " ", " " ]
-        ],
-        "peripherals": {
-            "(3, 2)": {
-                "type": "Heater",
-                "pwm_channel": 0,
-                "spi_channel": 0
-            }
-        }
-    }"#;
+    let board_str = r#"
+        board: [
+          [  0,  1,  2,  3,  4 ],
+          [  5,  6,  7,  8,  9 ],
+          [  _,  _, 10,  _,  _ ],
+          [  _,  _, 11,  _,  _ ],
+        ]
+        peripherals:
+          (3, 2):
+            type: Heater
+            pwm_channel: 0
+            spi_channel: 0
+    "#;
 
     let man = manager_from_str(board_str);
     let p = man.get_new_process("test");

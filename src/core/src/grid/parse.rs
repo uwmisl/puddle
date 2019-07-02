@@ -9,8 +9,6 @@ pub enum Mark {
     #[serde(rename = " ")]
     #[serde(alias = "_")]
     Empty,
-    #[serde(rename = "a")]
-    Auto,
 }
 
 #[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -32,28 +30,9 @@ pub struct ParsedGrid {
 
 impl From<ParsedGrid> for Grid {
     fn from(pg: ParsedGrid) -> Grid {
-        // find a pin that higher than anything listed
-        let mut next_auto_pin = pg
-            .board
-            .iter()
-            .flat_map(|row| row.iter())
-            .filter_map(|ci| match ci {
-                Index(n) => Some(n + 1),
-                _ => None,
-            })
-            .max()
-            .unwrap_or(0);
 
         let mut f = |pe: &ParsedElectrode| match pe {
             Marked(Empty) => None,
-            Marked(Auto) => {
-                let pin = next_auto_pin;
-                next_auto_pin += 1;
-                Some(Electrode {
-                    pin: pin,
-                    peripheral: None,
-                })
-            }
             Index(n) => Some(Electrode {
                 pin: *n,
                 peripheral: None,
@@ -205,12 +184,7 @@ pub mod tests {
     #[test]
     fn test_simple_parse() {
         let _: ParsedGrid = serde_yaml::from_str(
-            r#"
-            {
-                "board": [["a", "a", "a"],
-                          ["a", "a", "a"]]
-            }
-        "#,
+            r#"board: [[_, " ", 0], [2, 3, 4]]"#,
         )
         .expect("parse failed");
     }
