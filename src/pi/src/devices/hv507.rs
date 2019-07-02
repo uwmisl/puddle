@@ -43,16 +43,18 @@ impl Settings {
             gpio.get(pin).map(Pin::into_output)
         };
 
-        let polarity = Pwm::new(match self.pins.polarity_pwm_channel {
+        let chan = match self.pins.polarity_pwm_channel {
             0 => pwm::Channel::Pwm0,
             1 => pwm::Channel::Pwm1,
             n => return Err(Error::InvalidPwmChannel(n)),
-        })?;
-
-        polarity.set_polarity(match self.default_polarity {
+        };
+        let enabled = true;
+        let pol = match self.default_polarity {
             DefaultLevel::Low => pwm::Polarity::Normal,
             DefaultLevel::High => pwm::Polarity::Inverse,
-        })?;
+        };
+
+        let pwm = Pwm::with_frequency(chan, self.frequency, self.duty_cycle, pol, enabled)?;
 
         let mut hv = Hv507 {
             blank: mk_output(self.pins.blank)?,
@@ -60,7 +62,7 @@ impl Settings {
             clock: mk_output(self.pins.clock)?,
             data: mk_output(self.pins.data)?,
             pins: [Level::Low; N_PINS],
-            polarity,
+            polarity: pwm,
         };
 
         hv.init(self)?;
