@@ -10,7 +10,7 @@ let
   filter = builtins.filter (x: !isNull x);
 
   # using rust overlay
-  rustChannel = rustChannelOf { channel = "1.35.0"; };
+  rustChannel = rustChannelOf { channel = "1.36.0"; };
   rust = rustChannel.rust.override {
     extensions = filter [(not_ci "rust-src")];
     targets = filter [
