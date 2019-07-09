@@ -1,6 +1,7 @@
 use std::error::Error;
 use std::time::Instant;
 
+use config::{Config, Environment, File};
 use log::*;
 
 use puddle_core::{
@@ -88,8 +89,9 @@ fn main() -> RunResult<()> {
     })?;
     println!("Using PI_CONFIG={}", conf_path);
 
-    let mut conf = Settings::default_config();
-    conf.merge(config::Environment::new().separator("__"))?;
+    let mut conf = Config::new();
+    conf.merge(File::with_name(&conf_path))?;
+    conf.merge(Environment::new().separator("__"))?;
     let settings = Settings::from_config(&mut conf)?;
     debug!("Settings made!");
 

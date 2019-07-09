@@ -21,17 +21,7 @@ pub struct Settings {
 
 const TABLE_KEYS: &[&str] = &["pi.mcp4725", "pi.pca9685", "pi.max31865"];
 
-const DEFAULT_CONFIG: &str = include_str!("../config/default.toml");
-
 impl Settings {
-    pub fn default_config() -> config::Config {
-        use config::{Config, File, FileFormat};
-        let mut conf = Config::new();
-        let file = File::from_str(DEFAULT_CONFIG, FileFormat::Toml);
-        conf.merge(file).unwrap();
-        conf
-    }
-
     pub fn from_config(conf: &mut config::Config) -> Result<Self> {
         // For keys that _should_ represent tables, check if they are
         // the empty string, indicating that a use tried to override
@@ -258,21 +248,25 @@ impl RaspberryPi {
 mod tests {
     use super::*;
 
+    use config::{Config, Environment, File, FileFormat};
+
+    static YAML: &str = include_str!("../../../tests/arches/purpledrop.yaml");
+
     #[test]
-    fn make_default() {
-        let mut conf = Settings::default_config();
+    fn make_purpledrop() {
+        let mut conf = Config::new();
+        conf.merge(File::from_str(YAML, FileFormat::Yaml)).unwrap();
         Settings::from_config(&mut conf).unwrap();
     }
 
     #[test]
     #[allow(clippy::float_cmp)]
     fn test_env_override() {
-        use config::Environment;
-
         std::env::set_var("PI__HV507__DUTY_CYCLE", "123456.7");
         std::env::set_var("PI__MCP4725", "");
 
-        let mut conf = Settings::default_config();
+        let mut conf = Config::new();
+        conf.merge(File::from_str(YAML, FileFormat::Yaml)).unwrap();
         conf.merge(Environment::new().separator("__")).unwrap();
         let settings = Settings::from_config(&mut conf).unwrap();
 
