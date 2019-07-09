@@ -36,7 +36,7 @@ peripherals:
 pi:
   hv507:
     frequency: 500.0
-    duty_cycle: 1.0
+    duty_cycle: 0.5
     default_polarity: "low" # one of "low" or "high"
     pins:
       blank: 17        # physical pin 11
