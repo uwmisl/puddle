@@ -129,12 +129,15 @@ impl Hv507 {
     }
 
     pub fn shift_and_latch(&mut self) {
+        let start = std::time::Instant::now();
         for pin in self.pins.iter() {
             // write and cycle the clock
             self.data.write(*pin);
             self.clock.set_high();
             self.clock.set_low();
         }
+        let avg = start.elapsed() / self.pins.len() as u32;
+        debug!("Avg clock: {:?}", avg);
 
         // commit the latch
         self.latch_enable.set_high();

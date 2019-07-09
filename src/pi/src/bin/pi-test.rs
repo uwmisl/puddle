@@ -1,4 +1,5 @@
 use std::error::Error;
+use std::time::Instant;
 
 use log::*;
 
@@ -215,9 +216,12 @@ impl Circle {
                 x: self.location.x + xo,
             };
             gv.droplets.get_mut(&id).unwrap().location = loc;
+            let start = Instant::now();
             pi.output_pins(&gv);
-            println!("Droplet at {}", loc);
-            sleep(self.seconds)
+            print!("Droplet at {}...", loc);
+            let res = sleep(self.seconds);
+            println!("{:?}", start.elapsed());
+            res
         };
 
         for xo in 0..self.circle_size.x {
