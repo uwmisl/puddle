@@ -321,7 +321,7 @@ fn heat_droplet() {
           [  _,  _, 11,  _,  _ ],
         ]
         peripherals:
-          (3, 2):
+          - location: {y: 3, x: 2}
             type: Heater
             pwm_channel: 0
             spi_channel: 0

@@ -17,16 +17,18 @@
         [  60, " ", " ", " ", " ",  62, " ", " ", " ", " ",  64 ]
     ],
 
-    "peripherals": {
-        "2, 7": {
+    "peripherals": [
+        {
+            location: {y: 2, x: 7},
             "type": "Input",
             "pwm_channel": 8,
             "name": "buffer"
         },
-        "5, 0": {
+        {
+            location: {y: 5, x: 0},
             "type": "Output",
             "pwm_channel": 7,
             "name": "minion"
         }
-    }
+    ]
 }

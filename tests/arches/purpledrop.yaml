@@ -17,18 +17,15 @@ board: [
 ]
 
 peripherals:
-  "14, 0":
-    # location: {y: 14, x: 0}
+  - location: {y: 14, x: 0}
     type: Heater
     pwm_channel: 9
     spi_channel: 0
-  "2, 7":
-    # location: {y: 2, x: 7}
+  - location: {y: 2, x: 7}
     type: Input
     pwm_channel: 8
     name: input
-  "6, 7":
-    # location: {y: 6, x: 7}
+  - location: {y: 6, x: 7}
     type: Output
     pwm_channel: 7
     name: output

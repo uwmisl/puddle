@@ -2,7 +2,6 @@ use serde::{Deserialize, Serialize};
 
 use crate::grid::grid::*;
 use crate::grid::Location;
-use crate::util::HashMap;
 
 #[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Mark {
@@ -25,7 +24,14 @@ use self::ParsedElectrode::*;
 pub struct ParsedGrid {
     pub board: Vec<Vec<ParsedElectrode>>,
     #[serde(default)]
-    pub peripherals: HashMap<String, Peripheral>,
+    pub peripherals: Vec<LocatedPeripheral>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct LocatedPeripheral {
+    location: Location,
+    #[serde(flatten)]
+    peripheral: Peripheral
 }
 
 impl From<ParsedGrid> for Grid {
@@ -46,11 +52,10 @@ impl From<ParsedGrid> for Grid {
                 .collect(),
         };
 
-        for (location, periph) in pg.peripherals.iter() {
-            let loc = location.parse().unwrap();
-            let electrode = grid.get_cell_mut(loc).unwrap();
+        for loc_periph in pg.peripherals.iter() {
+            let electrode = grid.get_cell_mut(loc_periph.location).unwrap();
             assert_eq!(electrode.peripheral, None);
-            electrode.peripheral = Some(periph.clone());
+            electrode.peripheral = Some(loc_periph.peripheral.clone());
         }
 
         grid
@@ -59,7 +64,7 @@ impl From<ParsedGrid> for Grid {
 
 impl From<Grid> for ParsedGrid {
     fn from(grid: Grid) -> ParsedGrid {
-        let mut peripherals = HashMap::default();
+        let mut peripherals = Vec::default();
         let board = grid
             .vec
             .iter()
@@ -75,7 +80,11 @@ impl From<Grid> for ParsedGrid {
                                     y: i as i32,
                                     x: j as i32,
                                 };
-                                peripherals.insert(loc.to_string(), peripheral.clone());
+                                peripherals.push(
+                                    LocatedPeripheral {
+                                        location: loc,
+                                        peripheral: peripheral.clone()
+                                    });
                             }
                             ParsedElectrode::Index(e.pin)
                         }
@@ -211,7 +220,7 @@ pub mod tests {
 
         debug!("{}", project_path("/tests/arches/*.yaml"));
         for entry in glob(&project_path("/tests/arches/*.yaml")).unwrap() {
-            trace!("Testing {:?}", entry);
+            debug!("Testing {:?}", entry);
             let path = entry.expect("glob failed");
             let reader = File::open(path.clone()).expect("file not found");
             let grid = serde_yaml::from_reader(reader).expect("parse failed");
