@@ -7,6 +7,7 @@ use log::*;
 use puddle_core::{
     grid::droplet::{Blob, DropletId, SimpleBlob},
     grid::gridview::GridView,
+    grid::location::yx,
     grid::parse::ParsedGrid,
     grid::{Grid, Location},
     util::seconds_duration,
@@ -213,10 +214,7 @@ impl Circle {
         //     pi.output_pins(&grid, &snapshot);
 
         let mut set = |yo, xo| {
-            let loc = Location {
-                y: self.location.y + yo,
-                x: self.location.x + xo,
-            };
+            let loc = self.location + yx(yo, xo);
             gv.droplets.get_mut(&id).unwrap().location = loc;
             let start = Instant::now();
             pi.output_pins(&gv);
@@ -267,7 +265,7 @@ impl BackAndForth {
         let blobs: Vec<_> = (0..self.n_droplets)
             .map(|i| {
                 let y_offset = (self.dimensions.y + self.spacing as i32) * i as i32;
-                let location = self.starting_location + Location { y: y_offset, x: 0 };
+                let location = self.starting_location + yx(y_offset, 0);
                 SimpleBlob {
                     location,
                     dimensions: self.dimensions,

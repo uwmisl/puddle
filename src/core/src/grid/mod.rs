@@ -1,7 +1,7 @@
 pub mod droplet;
 pub mod grid;
 pub mod gridview;
-mod location;
+pub mod location;
 pub mod parse;
 
 pub use self::droplet::*;

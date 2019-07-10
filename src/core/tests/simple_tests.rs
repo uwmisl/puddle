@@ -2,7 +2,7 @@ use std::collections::{HashMap, HashSet};
 use std::env;
 
 use matches::assert_matches;
-use puddle_core::*;
+use puddle_core::{grid::location::yx, *};
 
 fn manager_from_str(s: &str) -> Manager {
     let _ = env_logger::builder().is_test(true).try_init();
@@ -39,7 +39,7 @@ fn create_some_droplets() {
     let man = manager_from_rect(1, 4);
     let p = man.get_new_process("test");
 
-    let loc = Location { y: 0, x: 0 };
+    let loc = yx(0, 0);
     let id = p.create(Some(loc), 1.0, None).unwrap();
 
     let should_work = p.create(None, 1.0, None);
@@ -63,8 +63,8 @@ fn move_droplet() {
     let man = manager_from_rect(1, 4);
     let p = man.get_new_process("test");
 
-    let loc1 = Location { y: 0, x: 0 };
-    let loc2 = Location { y: 0, x: 3 };
+    let loc1 = yx(0, 0);
+    let loc2 = yx(0, 3);
     let id1 = p.create(Some(loc1), 1.0, None).unwrap();
     let id2 = p.move_droplet(id1, loc2).unwrap();
 
@@ -80,7 +80,7 @@ fn mix2() {
     let man = manager_from_rect(20, 20);
     let p = man.get_new_process("test");
 
-    let loc = Location { y: 1, x: 1 };
+    let loc = yx(1, 1);
     let id1 = p.create(Some(loc), 1.0, None).unwrap();
     let id2 = p.create(None, 1.0, None).unwrap();
 
@@ -190,16 +190,8 @@ fn check_mix_dimensions(dim1: Location, dim2: Location, dim_result: Location) {
 
 #[test]
 fn mix_dimensions_size() {
-    check_mix_dimensions(
-        Location { y: 1, x: 1 },
-        Location { y: 2, x: 1 },
-        Location { y: 3, x: 1 },
-    );
-    check_mix_dimensions(
-        Location { y: 1, x: 2 },
-        Location { y: 2, x: 1 },
-        Location { y: 3, x: 2 },
-    );
+    check_mix_dimensions(yx(1, 1), yx(2, 1), yx(3, 1));
+    check_mix_dimensions(yx(1, 2), yx(2, 1), yx(3, 2));
 }
 
 #[test]
@@ -208,18 +200,10 @@ fn mix_dimensions_too_large_to_combine() {
     // recall, this is on 20x20 board
 
     // too tall to fit vertically
-    check_mix_dimensions(
-        Location { y: 11, x: 3 },
-        Location { y: 11, x: 3 },
-        Location { y: 11, x: 6 },
-    );
+    check_mix_dimensions(yx(11, 3), yx(11, 3), yx(11, 6));
 
     // too wide to fit horizontally
-    check_mix_dimensions(
-        Location { y: 3, x: 11 },
-        Location { y: 3, x: 11 },
-        Location { y: 6, x: 11 },
-    );
+    check_mix_dimensions(yx(3, 11), yx(3, 11), yx(6, 11));
 }
 
 #[test]
@@ -252,16 +236,8 @@ fn check_split_dimensions(dim: Location, dim1: Location, dim2: Location) {
 
 #[test]
 fn split_dimensions_size() {
-    check_split_dimensions(
-        Location { y: 1, x: 1 },
-        Location { y: 1, x: 1 },
-        Location { y: 1, x: 1 },
-    );
-    check_split_dimensions(
-        Location { y: 1, x: 3 },
-        Location { y: 1, x: 2 },
-        Location { y: 1, x: 2 },
-    );
+    check_split_dimensions(yx(1, 1), yx(1, 1), yx(1, 1));
+    check_split_dimensions(yx(1, 3), yx(1, 2), yx(1, 2));
 }
 
 #[test]
@@ -269,11 +245,11 @@ fn create_dimensions_failure_overlap() {
     let man = manager_from_rect(9, 9);
     let p = man.get_new_process("test");
 
-    let dim1 = Location { y: 1, x: 2 };
-    let dim2 = Location { y: 1, x: 1 };
+    let dim1 = yx(1, 2);
+    let dim2 = yx(1, 1);
 
-    let loc1 = Location { y: 0, x: 1 };
-    let loc2 = Location { y: 1, x: 3 };
+    let loc1 = yx(0, 1);
+    let loc2 = yx(1, 3);
 
     let id1 = p.create(Some(loc1), 1.0, Some(dim1)).unwrap();
     let _id2 = p.create(Some(loc2), 1.0, Some(dim2)).unwrap();
@@ -294,7 +270,7 @@ fn create_dimension() {
     let man = manager_from_rect(9, 9);
     let p = man.get_new_process("test");
 
-    let dim1 = Location { y: 3, x: 2 };
+    let dim1 = yx(3, 2);
 
     let id1 = p.create(None, 1.0, Some(dim1)).unwrap();
 
@@ -309,8 +285,8 @@ fn mix_larger_droplets() {
     let man = manager_from_rect(100, 100);
     let p = man.get_new_process("test");
 
-    let dim1 = Location { y: 4, x: 6 };
-    let dim2 = Location { y: 8, x: 4 };
+    let dim1 = yx(4, 6);
+    let dim2 = yx(8, 4);
 
     let id1 = p.create(None, 1.0, Some(dim1)).unwrap();
     let id2 = p.create(None, 1.0, Some(dim2)).unwrap();
@@ -323,7 +299,7 @@ fn split_single_nonzero_dimensions() {
     let man = manager_from_rect(9, 9);
     let p = man.get_new_process("test");
 
-    let dim = Location { y: 1, x: 1 };
+    let dim = yx(1, 1);
     let id0 = p.create(None, 1.0, Some(dim)).unwrap();
 
     let (id1, id2) = p.split(id0).unwrap();
@@ -354,7 +330,7 @@ fn heat_droplet() {
     let man = manager_from_str(board_str);
     let p = man.get_new_process("test");
 
-    let dim = Location { y: 1, x: 1 };
+    let dim = yx(1, 1);
     let id0 = p.create(None, 1.0, Some(dim)).unwrap();
     let temp = 60.0;
     let id1 = p.heat(id0, temp, 1.0).unwrap();
@@ -363,7 +339,7 @@ fn heat_droplet() {
 
     // we expect it to be just above the heater, since the runtime will move it
     // off the heater when placing the flush command
-    let expected_loc = Location { y: 2, x: 2 };
+    let expected_loc = yx(2, 2);
 
     assert_eq!(droplets.len(), 1);
     assert_eq!(droplets[&id1].location, expected_loc);
@@ -375,21 +351,21 @@ fn combine_into() {
     let man = manager_from_rect(10, 10);
     let p = man.get_new_process("test");
 
-    let loc_a = Location { y: 2, x: 0 };
+    let loc_a = yx(2, 0);
     let a = p.create(Some(loc_a), 1.0, None).unwrap();
-    let loc_b = Location { y: 2, x: 9 };
+    let loc_b = yx(2, 9);
     let b = p.create(Some(loc_b), 1.0, None).unwrap();
 
-    let loc_c = Location { y: 9, x: 0 };
+    let loc_c = yx(9, 0);
     let c = p.create(Some(loc_c), 1.0, None).unwrap();
-    let loc_d = Location { y: 9, x: 9 };
+    let loc_d = yx(9, 9);
     let d = p.create(Some(loc_d), 1.0, None).unwrap();
 
     let ab = p.combine_into(a, b).unwrap();
     let cd = p.combine_into(d, c).unwrap();
 
     let droplets = info_dict(&p);
-    let y1 = Location { y: 1, x: 0 };
+    let y1 = yx(1, 0);
     assert_eq!(droplets[&ab].location, loc_a - y1);
     assert_eq!(droplets[&cd].location, loc_d - y1);
 }

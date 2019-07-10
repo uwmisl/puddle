@@ -6,6 +6,7 @@ use crate::plan::PlanError;
 
 use crate::grid::{
     gridview::{GridSubView, GridView},
+    location::yx,
     Blob, Droplet, DropletId, DropletInfo, Grid, Location, Peripheral, SimpleBlob,
 };
 
@@ -80,7 +81,7 @@ impl Create {
             inputs: vec![],
             outputs: vec![out_id],
             location: loc,
-            dimensions: dim.unwrap_or(Location { y: 1, x: 1 }),
+            dimensions: dim.unwrap_or_else(|| yx(1, 1)),
             volume: vol,
         })
     }
@@ -110,7 +111,7 @@ impl Command for Create {
         gridview.insert(Droplet::new(
             self.outputs[0],
             self.volume,
-            Location { y: 0, x: 0 },
+            yx(0, 0),
             self.dimensions,
         ));
         RunStatus::Done
@@ -198,7 +199,7 @@ impl Command for Move {
         CommandRequest {
             name: format!("move({:?}, {:?})", self.inputs[0], self.outputs[0]),
             shape: Grid::rectangle(dim.y as usize, dim.x as usize),
-            input_locations: vec![Location { y: 0, x: 0 }],
+            input_locations: vec![yx(0, 0)],
             offset: Some(self.destination[0]),
         }
     }
@@ -254,11 +255,7 @@ impl Combine {
             assert!(d0.location.y > d1.dimensions.y);
         }
         SimpleBlob {
-            location: d0.location
-                - Location {
-                    y: d1.dimensions.y,
-                    x: 0,
-                },
+            location: d0.location - yx(d1.dimensions.y, 0),
             dimensions: Location {
                 y: (d0.dimensions.y + d1.dimensions.y),
                 x: d0.dimensions.x.max(d1.dimensions.x),
@@ -332,11 +329,8 @@ impl Command for Combine {
                 ),
                 input_locations: vec![
                     // we need the plus 1 to ensure a gap
-                    Location {
-                        y: d1.dimensions.y + 1,
-                        x: 0,
-                    },
-                    Location { y: 0, x: 0 },
+                    yx(d1.dimensions.y + 1, 0),
+                    yx(0, 0),
                 ],
                 offset: None,
             }
@@ -406,7 +400,7 @@ impl Command for Agitate {
                 droplet.dimensions.y as usize + AGITATE_PADDING,
                 droplet.dimensions.x as usize + AGITATE_PADDING,
             ),
-            input_locations: vec![Location { y: 0, x: 0 }],
+            input_locations: vec![yx(0, 0)],
             offset: None,
         }
     }
@@ -495,7 +489,7 @@ impl Command for Split {
         let y_dim = d0.dimensions.y as usize;
         let grid = Grid::rectangle(y_dim, x_dim);
 
-        let input_locations = vec![Location { y: 0, x: 2 }];
+        let input_locations = vec![yx(0, 2)];
 
         CommandRequest {
             name: format!("split({:?})", self.inputs[0]),
@@ -529,11 +523,8 @@ impl Command for Split {
                 x: (d.dimensions.x + 1) / 2,
             };
 
-            let loc0 = Location { y: 0, x: 1 };
-            let loc1 = Location {
-                y: 0,
-                x: x_dim as i32 - (dim.x + 1),
-            };
+            let loc0 = yx(0, 1);
+            let loc1 = yx(0, x_dim as i32 - (dim.x + 1));
 
             gridview.insert(Droplet::new(out0, vol, loc0, dim));
             gridview.insert(Droplet::new(out1, vol, loc1, dim));
@@ -595,10 +586,7 @@ impl Command for Heat {
 
         // the parameters of heater here don't matter, as it's just used to
         // match up with the "real" heater in the actual grid
-        let loc = Location {
-            y: y_dim as i32 - 1,
-            x: 0,
-        };
+        let loc = yx(y_dim as i32 - 1, 0);
         grid.get_cell_mut(loc).unwrap().peripheral = Some(Peripheral::Heater {
             pwm_channel: 0,
             spi_channel: 0,
@@ -725,10 +713,7 @@ impl Command for Output {
 
         // fake peripheral used to match up with the real one
         // FIXME: this is a total hack to assume that output is always on the left-hand side
-        let loc = Location {
-            y: d.dimensions.y / 2,
-            x: 0,
-        };
+        let loc = yx(d.dimensions.y / 2, 0);
         grid.get_cell_mut(loc).unwrap().peripheral = Some(Peripheral::Output {
             pwm_channel: 0,
             name: self.name.clone(),

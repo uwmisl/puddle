@@ -4,7 +4,7 @@ use log::*;
 use serde::Deserialize;
 
 use puddle_core::grid::gridview::GridView;
-use puddle_core::grid::{Location, Peripheral};
+use puddle_core::grid::{location::yx, Peripheral};
 
 pub mod devices;
 mod error;
@@ -172,10 +172,7 @@ impl RaspberryPi {
         for d in gv.droplets.values() {
             for i in 0..d.dimensions.y {
                 for j in 0..d.dimensions.x {
-                    let loc = Location {
-                        y: d.location.y + i,
-                        x: d.location.x + j,
-                    };
+                    let loc = yx(d.location.y + i, d.location.x + j);
                     let electrode = gv
                         .grid
                         .get_cell(loc)

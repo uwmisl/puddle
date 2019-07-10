@@ -197,8 +197,7 @@ impl<'a> GridSubView<'a> {
 #[cfg(test)]
 pub mod tests {
     use super::*;
-    use crate::grid::droplet::Blob;
-    use crate::grid::parse::tests::parse_strings;
+    use crate::grid::{droplet::Blob, location::yx, parse::tests::parse_strings};
 
     pub fn id2c(id: &DropletId) -> char {
         assert!(id.id < 255);
@@ -235,10 +234,8 @@ pub mod tests {
         gv
     }
 
-    fn placement_rect(offset: impl Into<Location>, size: impl Into<Location>) -> Placement {
+    fn placement_rect(offset: Location, size: Location) -> Placement {
         let mut mapping = HashMap::default();
-        let offset = offset.into();
-        let size = size.into();
         for y in 0..size.y {
             for x in 0..size.x {
                 let loc = Location {
@@ -260,7 +257,7 @@ pub mod tests {
             ".............",
         ]);
 
-        let placement = placement_rect((0, 2), (4, 7));
+        let placement = placement_rect(yx(0, 2), yx(4, 7));
         // let ids: Vec<_> = gv.droplets.keys().cloned().collect();
         let mut sub = gv.subview(&placement);
 
@@ -276,11 +273,11 @@ pub mod tests {
         let mut gv = parse_gridview(&["a...b...c"]);
 
         // placement only contains b
-        let placement = placement_rect((0, 4), (0, 2));
+        let placement = placement_rect(yx(0, 4), yx(0, 2));
         let mut sub = gv.subview(&placement);
 
         // try to move b to an invalid location outside the placement
-        sub.update(&c2id('b'), |b| b.location = (0, 2).into())
+        sub.update(&c2id('b'), |b| b.location = yx(0, 2))
     }
 
 }

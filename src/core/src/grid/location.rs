@@ -2,52 +2,46 @@ use std::fmt;
 use std::num::ParseIntError;
 use std::str::FromStr;
 
-use derive_more::{Add, Display, From, Sub};
+use derive_more::{Add, Display, Sub};
 use serde::{Deserialize, Serialize};
 
 #[derive(PartialEq, Eq, PartialOrd, Ord, Hash, Clone, Copy)] // std
 #[derive(Serialize, Deserialize)] // serde
-#[derive(From, Display, Add, Sub)] // derive
+#[derive(Display, Add, Sub)] // derive
 #[display(fmt = "({}, {})", y, x)]
 pub struct Location {
     pub y: i32,
     pub x: i32,
 }
 
+#[inline(always)]
+pub const fn yx(y: i32, x: i32) -> Location {
+    Location { y, x }
+}
+
 impl Location {
     pub fn distance_to(self, other: Self) -> u32 {
         (self - other).norm()
     }
+
     pub fn norm(self) -> u32 {
         (self.y.abs() + self.x.abs()) as u32
     }
 
     pub fn north(self) -> Location {
-        Location {
-            y: self.y - 1,
-            x: self.x,
-        }
+        self + yx(-1, 0)
     }
 
     pub fn west(self) -> Location {
-        Location {
-            y: self.y,
-            x: self.x - 1,
-        }
+        self + yx(0, -1)
     }
 
     pub fn south(self) -> Location {
-        Location {
-            y: self.y + 1,
-            x: self.x,
-        }
+        self + yx(1, 0)
     }
 
     pub fn east(self) -> Location {
-        Location {
-            y: self.y,
-            x: self.x + 1,
-        }
+        self + yx(0, 1)
     }
 }
 
@@ -75,7 +69,7 @@ impl FromStr for Location {
         let y = coords[0].parse()?;
         let x = coords[1].parse()?;
 
-        Ok(Location { y, x })
+        Ok(yx(y, x))
     }
 }
 
@@ -86,10 +80,10 @@ pub struct Rectangle {
 }
 
 impl Rectangle {
-    pub fn new(location: impl Into<Location>, dimensions: impl Into<Location>) -> Rectangle {
+    pub fn new(location: Location, dimensions: Location) -> Rectangle {
         Rectangle {
-            location: location.into(),
-            dimensions: dimensions.into(),
+            location,
+            dimensions,
         }
     }
 
@@ -134,7 +128,7 @@ impl Rectangle {
         ys.flat_map(move |y| {
             let xs = 0..(self.dimensions.x);
             let base = self.location;
-            xs.map(move |x| base + Location { y, x })
+            xs.map(move |x| base + yx(y, x))
         })
     }
 }
@@ -156,8 +150,8 @@ pub mod tests {
         // simple test
         // a.b
         check_dist(
-            Rectangle::new((0, 0), (1, 1)),
-            Rectangle::new((2, 0), (1, 1)),
+            Rectangle::new(yx(0, 0), yx(1, 1)),
+            Rectangle::new(yx(2, 0), yx(1, 1)),
             1,
         );
 
@@ -165,8 +159,8 @@ pub mod tests {
         // a.
         // .b
         check_dist(
-            Rectangle::new((0, 0), (1, 1)),
-            Rectangle::new((1, 1), (1, 1)),
+            Rectangle::new(yx(0, 0), yx(1, 1)),
+            Rectangle::new(yx(1, 1), yx(1, 1)),
             0,
         );
 
@@ -177,8 +171,8 @@ pub mod tests {
         // ..........
         // ...bbbb...
         check_dist(
-            Rectangle::new((0, 4), (2, 2)),
-            Rectangle::new((4, 3), (1, 4)),
+            Rectangle::new(yx(0, 4), yx(2, 2)),
+            Rectangle::new(yx(4, 3), yx(1, 4)),
             2,
         );
 
@@ -186,8 +180,8 @@ pub mod tests {
         // ....aa....
         // ....aXbb..
         check_dist(
-            Rectangle::new((0, 4), (2, 2)),
-            Rectangle::new((1, 5), (1, 3)),
+            Rectangle::new(yx(0, 4), yx(2, 2)),
+            Rectangle::new(yx(1, 5), yx(1, 3)),
             -1,
         );
     }

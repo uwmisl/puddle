@@ -30,7 +30,6 @@ pub struct ParsedGrid {
 
 impl From<ParsedGrid> for Grid {
     fn from(pg: ParsedGrid) -> Grid {
-
         let mut f = |pe: &ParsedElectrode| match pe {
             Marked(Empty) => None,
             Index(n) => Some(Electrode {
@@ -97,7 +96,7 @@ pub mod tests {
     use glob::glob;
     use std::fs::File;
 
-    use crate::grid::{droplet::SimpleBlob, Grid, Location};
+    use crate::grid::{droplet::SimpleBlob, location::yx, Grid, Location};
     use crate::util::{HashMap, HashSet};
     use std::env;
 
@@ -112,7 +111,7 @@ pub mod tests {
         for &loc in locs {
             for y in -1..=1 {
                 for x in -1..=1 {
-                    let other = loc + Location { y, x };
+                    let other = loc + yx(y, x);
                     if graph.contains_node(other) && loc != other {
                         graph.add_edge(loc, other, ());
                     }
@@ -183,10 +182,8 @@ pub mod tests {
 
     #[test]
     fn test_simple_parse() {
-        let _: ParsedGrid = serde_yaml::from_str(
-            r#"board: [[_, " ", 0], [2, 3, 4]]"#,
-        )
-        .expect("parse failed");
+        let _: ParsedGrid =
+            serde_yaml::from_str(r#"board: [[_, " ", 0], [2, 3, 4]]"#).expect("parse failed");
     }
 
     fn check_round_trip(grid: Grid, desc: &str) {
@@ -237,11 +234,11 @@ pub mod tests {
 
         let (grid, blobs) = parse_strings(&strs);
 
-        assert_eq!(blobs[&'a'].location, Location { y: 0, x: 5 });
-        assert_eq!(blobs[&'a'].dimensions, Location { y: 2, x: 2 });
+        assert_eq!(blobs[&'a'].location, yx(0, 5));
+        assert_eq!(blobs[&'a'].dimensions, yx(2, 2));
 
-        assert_eq!(blobs[&'b'].location, Location { y: 2, x: 1 });
-        assert_eq!(blobs[&'b'].dimensions, Location { y: 1, x: 2 });
+        assert_eq!(blobs[&'b'].location, yx(2, 1));
+        assert_eq!(blobs[&'b'].dimensions, yx(1, 2));
 
         assert_eq!(grid.max_height(), 4);
         assert_eq!(grid.max_width(), 12);

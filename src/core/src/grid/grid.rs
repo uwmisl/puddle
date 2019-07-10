@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use super::Location;
 use crate::util::HashSet;
 
-use crate::grid::parse::ParsedGrid;
+use crate::grid::{location::yx, parse::ParsedGrid};
 
 #[derive(Debug, PartialEq, Eq, Hash, Serialize, Deserialize, Clone)]
 pub struct Electrode {
@@ -46,33 +46,31 @@ pub struct Grid {
 
 #[rustfmt::skip]
 const NEIGHBORS_8: [Location; 8] = [
-    Location { y: -1, x: -1 },
-    Location { y:  0, x: -1 },
-    Location { y:  1, x: -1 },
-    Location { y: -1, x: 0 },
-    // Location {y:  0, x:  0},
-    Location { y:  1, x: 0 },
-    Location { y: -1, x: 1 },
-    Location { y:  0, x: 1 },
-    Location { y:  1, x: 1 }
+    yx(-1, -1),
+    yx( 0, -1),
+    yx( 1, -1),
+    yx(-1,  0),
+    yx( 1,  0),
+    yx(-1,  1),
+    yx( 0,  1),
+    yx( 1,  1)
 ];
 
 #[rustfmt::skip]
 pub const NEIGHBORS_5: [Location; 5] = [
-    Location { y:  0, x: -1 },
-    Location { y: -1, x:  0 },
-    Location { y:  0, x:  0 },
-    Location { y:  1, x:  0 },
-    Location { y:  0, x:  1 },
+    yx( 0, -1),
+    yx(-1,  0),
+    yx( 0,  0),
+    yx( 1,  0),
+    yx( 0,  1),
 ];
 
 #[rustfmt::skip]
 const NEIGHBORS_4: [Location; 4] = [
-    Location { y:  0, x: -1 },
-    Location { y: -1, x: 0 },
-    // Location {y:  0, x:  0},
-    Location { y:  1, x: 0 },
-    Location { y:  0, x: 1 },
+    yx( 0, -1),
+    yx(-1,  0),
+    yx( 1,  0),
+    yx( 0,  1),
 ];
 
 impl Grid {
