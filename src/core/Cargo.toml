@@ -12,7 +12,6 @@ rand_pcg = "0.1.2"
 serde = { version = "1", features = ["derive"] }
 
 structopt = "0.2.15"
-derive_more = "0.14.0"
 
 log = "0.4.6"
 env_logger = "0.6.1"

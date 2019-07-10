@@ -2,16 +2,33 @@ use std::fmt;
 use std::num::ParseIntError;
 use std::str::FromStr;
 
-use derive_more::{Add, Display, Sub};
 use serde::{Deserialize, Serialize};
 
 #[derive(PartialEq, Eq, PartialOrd, Ord, Hash, Clone, Copy)] // std
 #[derive(Serialize, Deserialize)] // serde
-#[derive(Display, Add, Sub)] // derive
-#[display(fmt = "({}, {})", y, x)]
 pub struct Location {
     pub y: i32,
     pub x: i32,
+}
+
+impl fmt::Display for Location {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "({}, {})", self.x, self.y)
+    }
+}
+
+impl std::ops::Add for Location {
+    type Output = Self;
+    fn add(self, other: Self) -> Self {
+        yx(self.y + other.y, self.x + other.x)
+    }
+}
+
+impl std::ops::Sub for Location {
+    type Output = Self;
+    fn sub(self, other: Self) -> Self {
+        yx(self.y - other.y, self.x - other.x)
+    }
 }
 
 #[inline(always)]
