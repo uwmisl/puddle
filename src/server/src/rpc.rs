@@ -5,7 +5,7 @@ use jsonrpc_derive::rpc;
 
 use log::*;
 
-use puddle_core::{DropletId, DropletInfo, Location, Manager, ProcessId, PuddleError};
+use puddle_core::prelude::*;
 
 pub struct RpcError(PuddleError);
 

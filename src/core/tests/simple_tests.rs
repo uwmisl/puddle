@@ -2,7 +2,7 @@ use std::collections::{HashMap, HashSet};
 use std::env;
 
 use matches::assert_matches;
-use puddle_core::{grid::location::yx, *};
+use puddle_core::{grid::location::yx, prelude::*, process::ProcessHandle};
 
 fn manager_from_str(s: &str) -> Manager {
     let _ = env_logger::builder().is_test(true).try_init();
@@ -169,7 +169,7 @@ fn create_does_not_fit() {
 
     assert_matches!(
         id2,
-        Err(PuddleError::PlanError(plan::PlanError::PlaceError(_)))
+        Err(PuddleError::PlanError(puddle_core::plan::PlanError::PlaceError(_)))
     );
 }
 

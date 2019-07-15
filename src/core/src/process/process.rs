@@ -20,8 +20,6 @@ pub enum PuddleError {
     NonExistentProcess(ProcessId),
 }
 
-use crate::PuddleError::*;
-
 pub type PuddleResult<T> = Result<T, PuddleError>;
 
 pub type ProcessId = usize;
@@ -72,7 +70,7 @@ impl Process {
 
         self.plan(Box::new(flush_cmd))?;
         self.system.lock().unwrap().flush(&[]).unwrap();
-        rx.recv().unwrap().map_err(PlanError)
+        rx.recv().unwrap().map_err(PuddleError::PlanError)
     }
 
     pub fn create(

@@ -12,19 +12,22 @@
 extern crate log;
 
 // these need to be pub until we have an api
-mod command;
-mod exec;
+pub mod command;
+pub mod exec;
 pub mod grid;
 pub mod plan;
-mod process;
+pub mod process;
 pub mod util;
 
 mod system;
 
-pub use exec::Executor;
-pub use grid::parse;
-pub use grid::{Blob, DropletId, DropletInfo, Grid, Location};
-pub use process::*;
+pub mod prelude {
+    pub use crate::{
+        exec::Executor,
+        grid::{Blob, DropletId, DropletInfo, Grid, Location},
+        process::{Manager, Process, ProcessId, PuddleError},
+    };
+}
 
 #[cfg(test)]
 mod tests {

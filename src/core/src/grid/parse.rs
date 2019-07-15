@@ -31,7 +31,7 @@ pub struct ParsedGrid {
 pub struct LocatedPeripheral {
     location: Location,
     #[serde(flatten)]
-    peripheral: Peripheral
+    peripheral: Peripheral,
 }
 
 impl From<ParsedGrid> for Grid {
@@ -80,11 +80,10 @@ impl From<Grid> for ParsedGrid {
                                     y: i as i32,
                                     x: j as i32,
                                 };
-                                peripherals.push(
-                                    LocatedPeripheral {
-                                        location: loc,
-                                        peripheral: peripheral.clone()
-                                    });
+                                peripherals.push(LocatedPeripheral {
+                                    location: loc,
+                                    peripheral: peripheral.clone(),
+                                });
                             }
                             ParsedElectrode::Index(e.pin)
                         }

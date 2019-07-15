@@ -8,7 +8,7 @@ use jsonrpc_http_server::{
     RequestMiddlewareAction, ServerBuilder,
 };
 
-use puddle_core::{Grid, Manager};
+use puddle_core::prelude::{Grid, Manager};
 
 use hyper_staticfile::Static;
 use structopt::StructOpt;

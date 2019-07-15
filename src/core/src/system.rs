@@ -1,7 +1,7 @@
 use crate::command::BoxedCommand;
 use crate::exec::Executor;
 use crate::grid::{DropletId, Grid, GridView};
-use crate::PuddleResult;
+use crate::process::PuddleResult;
 
 use crate::plan::graph::Graph;
 use crate::plan::{sched::SchedError, PlanError, Planner};
