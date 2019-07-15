@@ -1,3 +1,5 @@
+use std::time::{Duration, Instant};
+
 use log::*;
 use serde::Deserialize;
 
@@ -129,20 +131,30 @@ impl Hv507 {
     }
 
     pub fn shift_and_latch(&mut self) {
-        let start = std::time::Instant::now();
+        let spin_duration = Duration::from_micros(1);
+        let start = Instant::now();
         for pin in self.pins.iter() {
             // write and cycle the clock
             self.data.write(*pin);
+            spin(spin_duration);
             self.clock.set_high();
+            spin(spin_duration);
             self.clock.set_low();
+            spin(spin_duration);
         }
         let avg = start.elapsed() / self.pins.len() as u32;
         debug!("Avg clock: {:?}", avg);
 
         // commit the latch
         self.latch_enable.set_high();
+        spin(spin_duration);
         self.latch_enable.set_low();
     }
+}
+
+fn spin(duration: Duration) {
+    let start = Instant::now();
+    while start.elapsed() < duration {}
 }
 
 impl Drop for Hv507 {
