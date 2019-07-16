@@ -55,7 +55,7 @@ pub struct Agent {
 }
 
 impl Agent {
-    fn from_droplet(d: &Droplet, destination: Location) -> Agent {
+    pub fn from_droplet(d: &Droplet, destination: Location) -> Agent {
         Agent {
             id: d.id,
             source: d.location,

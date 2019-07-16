@@ -131,7 +131,7 @@ impl Scheduler {
         trace!("Graph validated!")
     }
 
-    fn set_node_schedule(&mut self, cmd_id: CmdIndex, sched: Schedule) {
+    pub fn set_node_schedule(&mut self, cmd_id: CmdIndex, sched: Schedule) {
         let was_there = self.node_sched.insert(cmd_id, sched);
         assert_eq!(was_there, None);
     }

@@ -6,7 +6,7 @@ pub mod sched;
 
 use self::graph::{CmdIndex, Graph};
 use self::place::{Placement, PlacementRequest, Placer};
-use self::route::{Router, RoutingRequest};
+use self::route::{Router, RoutingRequest, Agent};
 use self::sched::{SchedRequest, Scheduler};
 
 pub use self::route::Path;
@@ -98,12 +98,7 @@ impl Planner {
                 .droplets_to_store
                 .iter()
                 .zip(place_resp.stored_droplets)
-                .map(|(&id, loc)| self::route::Agent {
-                    id,
-                    source: self.gridview.droplets[&id].location,
-                    dimensions: self.gridview.droplets[&id].dimensions,
-                    destination: loc,
-                })
+                .map(|(id, loc)| Agent::from_droplet(&self.gridview.droplets[id], loc))
                 .collect();
 
             // TODO getting these input droplets is pretty painful
@@ -154,59 +149,4 @@ impl Planner {
             planned_commands,
         })
     }
-}
-
-#[cfg(test)]
-mod tests {
-    use crate::tests::project_path;
-    use std::fs::File;
-
-    use super::*;
-
-    fn mk_gv(path: &str) -> GridView {
-        let _ = env_logger::builder().is_test(true).try_init();
-        let f = File::open(project_path(path)).unwrap();
-        GridView::new(serde_yaml::from_reader(f).unwrap())
-    }
-
-    // #[test]
-    // fn plan_input() {
-    //     let mut gv = mk_gv("tests/arches/purpledrop.json");
-    //     let cmd = {
-    //         let substance = "input".into();
-    //         let volume = 1.0;
-    //         let dimensions = Location { y: 3, x: 3 };
-    //         let out_id = DropletId {
-    //             id: 0,
-    //             process_id: 0,
-    //         };
-    //         command::Input::new(substance, volume, dimensions, out_id).unwrap()
-    //     };
-    //     gv.plan(Box::new(cmd)).unwrap();
-    // }
-
-    // #[test]
-    // fn plan_output() {
-    //     let mut gv = mk_gv("tests/arches/purpledrop.json");
-
-    //     let id = DropletId {
-    //         id: 0,
-    //         process_id: 0,
-    //     };
-    //     let droplet = {
-    //         let volume = 1.0;
-    //         let location = Location { y: 7, x: 0 };
-    //         let dimensions = Location { y: 1, x: 1 };
-    //         Droplet::new(id, volume, location, dimensions)
-    //     };
-    //     gv.snapshot_mut().droplets.insert(id, droplet);
-
-    //     let cmd = {
-    //         let substance = "output".into();
-    //         command::Output::new(substance, id).unwrap()
-    //     };
-
-    //     gv.plan(Box::new(cmd)).unwrap();
-    // }
-
 }
