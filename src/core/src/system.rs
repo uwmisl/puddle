@@ -5,14 +5,12 @@ use crate::process::PuddleResult;
 
 use crate::plan::graph::Graph;
 use crate::plan::{sched::SchedError, PlanError, Planner};
-use std::sync::{Arc, Mutex};
 
 pub struct System {
     #[allow(dead_code)]
     grid: Grid,
     graph: Graph,
-    // TODO probably don't wanna have arc/mutex here
-    planner: Arc<Mutex<Planner>>,
+    planner: Planner,
     executor: Executor,
 }
 
@@ -26,7 +24,7 @@ impl System {
         System {
             grid: grid.clone(),
             graph: Graph::default(),
-            planner: Arc::new(Mutex::new(planner)),
+            planner,
             executor: Executor::new(grid.clone()),
         }
     }
@@ -42,23 +40,17 @@ impl System {
     pub fn flush(&mut self, droplets: &[DropletId]) -> PuddleResult<()> {
         info!("Flushing...");
         loop {
-            let phase = {
-                // scope the planner lock
-                let mut planner = self.planner.lock().unwrap();
-                // FIXME unwrap
-                match planner.plan(&self.graph, droplets) {
-                    Ok(phase) => phase,
-                    Err(PlanError::SchedError(SchedError::NothingToSchedule)) => break,
-                    Err(e) => panic!("{:?}", e),
-                }
+            let phase = match self.planner.plan(&self.graph, droplets) {
+                Ok(phase) => phase,
+                Err(PlanError::SchedError(SchedError::NothingToSchedule)) => break,
+                Err(e) => panic!("{:?}", e),
             };
 
             // TODO For now this is blocking
             self.executor.run(phase, &mut self.graph);
 
             // TODO this is a little hacky
-            let mut planner = self.planner.lock().unwrap();
-            planner.gridview = self.executor.gridview.clone();
+            self.planner.gridview = self.executor.gridview.clone();
         }
 
         info!("Flushed!");
