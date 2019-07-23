@@ -144,6 +144,10 @@ impl Process {
         self.plan(Box::new(heat_cmd))?;
         Ok(out)
     }
+
+    pub fn ticks(&self) -> usize {
+        self.system.lock().unwrap().ticks()
+    }
 }
 
 #[cfg(test)]

@@ -73,6 +73,7 @@ fn move_droplet() {
     assert_eq!(droplets.len(), 1);
     assert_eq!(droplets[&id2].location, loc2);
     assert!(float_epsilon_equal(droplets[&id2].volume, 1.0));
+    assert_eq!(p.ticks(), 6);
 }
 
 #[test]

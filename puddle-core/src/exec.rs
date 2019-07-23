@@ -9,6 +9,7 @@ use crate::util::HashMap;
 pub struct Executor {
     pub gridview: GridView,
     running_commands: HashMap<CmdIndex, PlannedCommand>,
+    ticks: usize,
 }
 
 pub enum ExecResponse {
@@ -21,6 +22,7 @@ impl Executor {
         Executor {
             gridview: GridView::new(grid),
             running_commands: HashMap::default(),
+            ticks: 0,
         }
     }
 
@@ -52,13 +54,17 @@ impl Executor {
             }
         }
 
+        self.commit();
+
         // clean up all the done ones
         for cmd_id in done {
             self.running_commands.remove(&cmd_id).unwrap();
         }
     }
 
-    fn commit(&mut self) {}
+    fn commit(&mut self) {
+        self.ticks += 1;
+    }
 
     fn take_routes(&mut self, paths: &HashMap<DropletId, Path>, graph: &mut Graph) {
         let max_len = paths.values().map(Vec::len).max().unwrap_or(0);
@@ -78,7 +84,6 @@ impl Executor {
                 }
             }
             self.run_all_commands(graph);
-            self.commit();
         }
     }
 
@@ -102,5 +107,9 @@ impl Executor {
         }
 
         ExecResponse::Ok
+    }
+
+    pub fn ticks(&self) -> usize {
+        self.ticks
     }
 }

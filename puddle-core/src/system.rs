@@ -57,4 +57,8 @@ impl System {
 
         Ok(())
     }
+
+    pub fn ticks(&self) -> usize {
+        self.executor.ticks()
+    }
 }

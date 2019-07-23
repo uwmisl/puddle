@@ -6,7 +6,7 @@ pub mod sched;
 
 use self::graph::{CmdIndex, Graph};
 use self::place::{Placement, PlacementRequest, Placer};
-use self::route::{Router, RoutingRequest, Agent};
+use self::route::{Agent, Router, RoutingRequest};
 use self::sched::{SchedRequest, Scheduler};
 
 pub use self::route::Path;
