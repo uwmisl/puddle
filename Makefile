@@ -26,17 +26,17 @@ test: test-rust test-python
 .PHONY: test-python
 test-python:
 	$i "Checking version..."
-	cd src/python; ./setup.py --version
+	cd puddle-python; ./setup.py --version
 	$i "Linting src..."
-	cd src/python; pyflakes puddle
+	cd puddle-python; pyflakes puddle
 	$i "Linting tests..."
-	cd src/python; pyflakes tests
+	cd puddle-python; pyflakes tests
 	$i "Linting examples..."
-	cd src/python; pyflakes examples
+	cd puddle-python; pyflakes examples
 	$i "Testing..."
-	cd src/python; time ./setup.py test
+	cd puddle-python; time ./setup.py test
 	$i "Checking formatting..."
-	cd src/python; yapf --recursive --diff .
+	cd puddle-python; yapf --recursive --diff .
 
 .PHONY: test-rust
 test-rust:
@@ -44,11 +44,11 @@ test-rust:
 	rustc --version
 	cargo --version
 	$i "Building..."
-	cd src; time cargo build
+	time cargo build
 	$i "Testing..."
-	cd src; time cargo test
+	time cargo test
 	$i "Linting..."
-	cd src; time cargo clippy --tests
+	time cargo clippy --tests
 
 .PHONY: sync
 sync: sync-boards sync-server sync-pi-test
@@ -59,10 +59,10 @@ sync-boards:
 
 .PHONY: sync-server
 sync-server:
-	cd src; cargo build ${PROFILE_FLAGS} --target ${TARGET} --bin puddle-server
-	${RSYNC} src/target/${TARGET}/${PROFILE}/puddle-server ${PI}:
+	cargo build ${PROFILE_FLAGS} --target ${TARGET} --bin puddle-server
+	${RSYNC} target/${TARGET}/${PROFILE}/puddle-server ${PI}:
 
 .PHONY: sync-pi-test
 sync-pi-test:
-	cd src; cargo build --target ${TARGET} --bin pi-test
-	${RSYNC} src/target/${TARGET}/debug/pi-test ${PI}:
+	cargo build --target ${TARGET} --bin pi-test
+	${RSYNC} target/${TARGET}/debug/pi-test ${PI}:

@@ -247,7 +247,7 @@ mod tests {
 
     use config::{Config, Environment, File, FileFormat};
 
-    static YAML: &str = include_str!("../../../tests/arches/purpledrop.yaml");
+    static YAML: &str = include_str!("../../tests/arches/purpledrop.yaml");
 
     #[test]
     fn make_purpledrop() {

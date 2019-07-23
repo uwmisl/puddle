@@ -6,7 +6,7 @@ edition = "2018"
 
 [dependencies]
 
-puddle-core = { path = "../core" }
+puddle-core = { path = "../puddle-core" }
 
 serde = "1"
 serde_yaml = "0.8.9"

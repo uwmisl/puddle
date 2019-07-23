@@ -1,9 +1,9 @@
 [workspace]
 
 members = [
-    "core",
-    "server",
-    "pi",
+    "puddle-core",
+    "puddle-server",
+    "puddle-pi",
 ]
 
 [profile.release]
