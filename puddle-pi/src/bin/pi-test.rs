@@ -34,6 +34,20 @@ use structopt::StructOpt;
 type RunResult<T> = Result<T, Box<dyn Error>>;
 type SleepFn = Fn(MyDuration) -> RunResult<()>;
 
+static CUSTOM_HELP: &str = r#"./pi-test custom < file.txt
+
+Feed a file that looks like the following into stdin:
+
+oo
+---
+oooo
+---
+o  o
+
+The only allow characters in a segment are ' ' and 'o'.
+A line beginning with '-' starts the next segement.
+"#;
+
 #[derive(Debug, StructOpt)]
 #[structopt(rename_all = "kebab-case")]
 #[structopt(raw(about = r#"env!("PI_TEST_ABOUT")"#))]
@@ -44,6 +58,9 @@ enum SubCommand {
     Circle(Circle),
     BackAndForth(BackAndForth),
     ToggleMask(ToggleMask),
+    Split(Split),
+    #[structopt(raw(usage = "CUSTOM_HELP"))]
+    Custom(Custom),
     // Dac,
     // Pwm,
     // Temp,
@@ -111,6 +128,8 @@ fn main() -> RunResult<()> {
         Circle(x) => x.run(&grid, &mut pi, &sleep),
         BackAndForth(x) => x.run(&grid, &mut pi, &sleep),
         ToggleMask(x) => x.run(&grid, &mut pi, &sleep),
+        Split(x) => x.run(&grid, &mut pi, &sleep),
+        Custom(x) => x.run(&grid, &mut pi, &sleep),
     }
 }
 
@@ -130,6 +149,14 @@ fn mk_gridview(grid: Grid, blobs: &[SimpleBlob]) -> GridView {
     }
 
     gv
+}
+
+fn blob(location: Location, dimensions: Location) -> SimpleBlob {
+    SimpleBlob {
+        location,
+        dimensions,
+        volume: 0.0,
+    }
 }
 
 #[derive(Debug, StructOpt)]
@@ -177,14 +204,7 @@ struct SetLoc {
 
 impl SetLoc {
     fn run(&self, grid: &Grid, pi: &mut RaspberryPi, sleep: &SleepFn) -> RunResult<()> {
-        let gv = mk_gridview(
-            grid.clone(),
-            &[SimpleBlob {
-                location: self.location,
-                dimensions: self.dimensions,
-                volume: 0.0,
-            }],
-        );
+        let gv = mk_gridview(grid.clone(), &[blob(self.location, self.dimensions)]);
         pi.output_pins(&gv);
         sleep(self.seconds)
     }
@@ -201,14 +221,7 @@ struct Circle {
 
 impl Circle {
     fn run(&self, grid: &Grid, pi: &mut RaspberryPi, sleep: &SleepFn) -> RunResult<()> {
-        let mut gv = mk_gridview(
-            grid.clone(),
-            &[SimpleBlob {
-                location: self.location,
-                dimensions: self.dimensions,
-                volume: 0.0,
-            }],
-        );
+        let mut gv = mk_gridview(grid.clone(), &[blob(self.location, self.dimensions)]);
         let id = mk_id(0);
 
         //     pi.output_pins(&grid, &snapshot);
@@ -266,11 +279,7 @@ impl BackAndForth {
             .map(|i| {
                 let y_offset = (self.dimensions.y + self.spacing as i32) * i as i32;
                 let location = self.starting_location + yx(y_offset, 0);
-                SimpleBlob {
-                    location,
-                    dimensions: self.dimensions,
-                    volume: 0.0,
-                }
+                blob(location, self.dimensions)
             })
             .collect();
 
@@ -338,6 +347,128 @@ impl ToggleMask {
             pi.hv507.shift_and_latch();
             sleep(self.delay)?;
         }
+        Ok(())
+    }
+}
+
+#[derive(Debug, StructOpt)]
+struct Split {
+    #[structopt(short, long, default_value = "1")]
+    delay: MyDuration,
+    location: Location,
+    dimensions: Location,
+    #[structopt(subcommand)]
+    kind: SplitKind,
+}
+
+#[derive(Debug, StructOpt)]
+#[structopt(rename_all = "kebab-case")]
+enum SplitKind {
+    Side,
+    Diag,
+}
+
+impl Split {
+    fn run(&self, grid: &Grid, pi: &mut RaspberryPi, sleep: &SleepFn) -> RunResult<()> {
+        let mut gv = mk_gridview(grid.clone(), &[]);
+
+        let loc0 = self.location;
+        let dim0 = self.dimensions;
+
+        let mut set = |blobs: &[SimpleBlob]| {
+            gv.droplets.clear();
+            for (i, blob) in blobs.iter().enumerate() {
+                let id = mk_id(i);
+                gv.droplets.insert(id, blob.to_droplet(id));
+            }
+            pi.output_pins(&gv);
+            let locs: Vec<_> = blobs.iter().map(|b| (b.location.y, b.location.x)).collect();
+            println!("Droplets at {:?}", locs);
+            sleep(self.delay)
+        };
+
+        let pair = (&self.kind, (self.dimensions.y, self.dimensions.x));
+        match pair {
+            (SplitKind::Side, (1, 1)) => {
+                let b = |x| blob(loc0 + yx(0, x), yx(1, 1));
+                set(&[b(0)])?;
+                set(&[b(0), b(1)])?;
+                set(&[b(-1), b(1)])?;
+                set(&[b(-2), b(2)])?;
+            }
+            (SplitKind::Diag, (1, 1)) => {
+                let b = |y, x| blob(loc0 + yx(y, x), yx(1, 1));
+                set(&[b(0, 0)])?;
+                set(&[b(0, 0), b(0, 1)])?;
+                set(&[b(-1, 0), b(1, 1)])?;
+            }
+            (SplitKind::Side, (1, 2)) => {
+                let b = |x| blob(loc0 + yx(0, x), yx(1, 1));
+                set(&[blob(loc0, dim0)])?;
+                set(&[blob(loc0 + yx(0, -1), yx(1, 4))])?;
+                set(&[b(-1), b(2)])?;
+            }
+            (SplitKind::Side, (2, 2)) => {
+                let b = |x| blob(loc0 + yx(0, x), yx(2, 1));
+                set(&[blob(loc0, dim0)])?;
+                set(&[blob(loc0 + yx(0, -1), yx(2, 4))])?;
+                set(&[b(-1), b(2)])?;
+            }
+            _ => panic!("Unsupported args: {:?}", pair),
+        }
+
+        Ok(())
+    }
+}
+
+#[derive(Debug, StructOpt)]
+struct Custom {
+    #[structopt(short, long, default_value = "1")]
+    delay: MyDuration,
+    #[structopt(short, long, default_value = "1,0")]
+    offset: Location,
+}
+
+impl Custom {
+    fn run(&self, grid: &Grid, pi: &mut RaspberryPi, sleep: &SleepFn) -> RunResult<()> {
+        let mut gv = mk_gridview(grid.clone(), &[]);
+        let mut y = 0;
+        let mut locations = Vec::new();
+
+        use std::io::{stdin, BufRead};
+        let stdin = stdin();
+
+        let mut go = |locations: &mut Vec<Location>| {
+            gv.droplets.clear();
+            for (i, loc) in locations.iter().enumerate() {
+                let id = mk_id(i);
+                let droplet = blob(*loc, yx(1, 1)).to_droplet(id);
+                gv.droplets.insert(id, droplet);
+            }
+            pi.output_pins(&gv);
+            let locs: Vec<_> = locations.iter().map(|l| (l.y, l.x)).collect();
+            println!("Droplets at {:?}", locs);
+            locations.clear();
+            sleep(self.delay)
+        };
+
+        for line in stdin.lock().lines() {
+            let line = line?;
+            if line.starts_with('-') {
+                y = 0;
+                go(&mut locations)?;
+            } else {
+                for (i, c) in line.char_indices() {
+                    match c {
+                        'o' => locations.push(yx(y, i as i32) + self.offset),
+                        ' ' => (),
+                        _ => Err(format!("Unsupported character: '{}'", c))?,
+                    }
+                }
+            }
+            y += 1;
+        }
+        go(&mut locations)?;
         Ok(())
     }
 }
