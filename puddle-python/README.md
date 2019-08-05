@@ -12,7 +12,7 @@ Once you have Python 3.6 and `pipenv`, do the following to setup the project:
 ```shell
 # clone and enter the repo
 git clone git@github.com:uwmisl/puddle.git
-cd puddle/src/python
+cd puddle-python
 
 # use pipenv to install requirements into a virtualenv
 # --dev gets the development dependencies too

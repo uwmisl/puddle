@@ -24,8 +24,8 @@ The frontends all have their own examples. Checkout the [Python frontend][py].
 Check out the [Code of Conduct][cc] and the [Contributing Guidelines][contrib].
 
 [cc]: CODE_OF_CONDUCT.md
-[core]: src/core/
-[py]: src/python/
+[core]: puddle-core/
+[py]: puddle-python/
 [contrib]: CONTRIBUTING.md
 [lfs]: https://git-lfs.github.com/
 [project page]: http://misl.cs.washington.edu/projects/puddle.html
