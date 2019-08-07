@@ -152,7 +152,9 @@ fn process_isolation() {
             let p = man.get_new_process(format!("test-{}", i));
             let _drop_id = p.create(None, 1.0, None).unwrap();
             p.flush().unwrap();
-        });
+        })
+        .join()
+        .unwrap();
     }
 }
 
@@ -218,6 +220,7 @@ fn mix_dimensions_place_must_overlap() {
     let id2 = p.create(None, 1.0, None).unwrap();
 
     let _ = p.mix(id1, id2).unwrap();
+    let _ = info_dict(&p);
 }
 
 fn check_split_dimensions(dim: Location, dim1: Location, dim2: Location) {
@@ -293,6 +296,7 @@ fn mix_larger_droplets() {
     let id2 = p.create(None, 1.0, Some(dim2)).unwrap();
 
     let _id12 = p.mix(id1, id2).unwrap();
+    let _ = info_dict(&p);
 }
 
 #[test]
