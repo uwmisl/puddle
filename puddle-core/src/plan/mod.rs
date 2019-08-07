@@ -88,7 +88,7 @@ impl Planner {
                 commands: command_requests.as_slice(),
                 stored_droplets: sched_resp.droplets_to_store.as_slice(),
             };
-            let resp = self.placer.place(&req).map_err(PlanError::PlaceError)?;
+            let resp = self.placer.place(req).map_err(PlanError::PlaceError)?;
             debug!("{:?}", resp);
             resp
         };
