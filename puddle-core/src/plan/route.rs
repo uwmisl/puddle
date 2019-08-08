@@ -341,6 +341,8 @@ impl Context<'_> {
         }
 
         loop {
+            const MAX_GROUP_SIZE: usize = 4;
+
             let collisions = self.find_collisions(&paths);
             if collisions.is_empty() {
                 break;
@@ -349,6 +351,9 @@ impl Context<'_> {
             // for now we only use the first collision
             let coll = &collisions[0];
             let new_group = self.merge_groups(&coll.id1, &coll.id2);
+            if new_group.agents.len() > MAX_GROUP_SIZE {
+                return None;
+            }
             let new_paths = self.route_group(&new_group, max_time)?;
             paths.extend(new_paths);
         }
