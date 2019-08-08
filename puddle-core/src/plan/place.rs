@@ -124,7 +124,6 @@ impl<'a> Context<'a> {
 
     fn place(mut self) -> PlacementResult {
         assert_eq!(self.req.fixed_commands.len(), 0);
-        assert_eq!(self.req.commands.len(), 1);
 
         for cmd_req in self.req.commands {
             let placement = self.place_cmd(cmd_req)?;

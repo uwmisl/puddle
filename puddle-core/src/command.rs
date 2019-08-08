@@ -1,5 +1,4 @@
 use std::fmt;
-use std::sync::mpsc::Sender;
 use std::time::Duration;
 
 use crate::plan::PlanError;
@@ -7,10 +6,10 @@ use crate::plan::PlanError;
 use crate::grid::{
     gridview::{GridSubView, GridView},
     location::yx,
-    Blob, Droplet, DropletId, DropletInfo, Grid, Location, Peripheral, SimpleBlob,
+    Blob, Droplet, DropletId, Grid, Location, Peripheral, SimpleBlob,
 };
 
-use crate::process::{ProcessId, PuddleResult};
+use crate::process::PuddleResult;
 
 #[derive(Debug)]
 pub struct CommandRequest {
@@ -115,51 +114,6 @@ impl Command for Create {
             self.dimensions,
         ));
         RunStatus::Done
-    }
-}
-
-//
-// Flush
-//
-
-pub type FlushResult = Result<Vec<DropletInfo>, PlanError>;
-
-#[derive(Debug)]
-pub struct Flush {
-    pid: ProcessId,
-    tx: Sender<FlushResult>,
-}
-
-impl Flush {
-    pub fn new(pid: ProcessId, tx: Sender<FlushResult>) -> Flush {
-        Flush { pid, tx }
-    }
-}
-
-impl Command for Flush {
-    fn request(&self, _gridview: &GridView) -> CommandRequest {
-        CommandRequest {
-            name: format!("flush(pid={})", self.pid),
-            shape: Grid::rectangle(0, 0),
-            input_locations: vec![],
-            offset: None,
-        }
-    }
-
-    fn run(&mut self, _gridview: &mut GridSubView) -> RunStatus {
-        RunStatus::Done
-    }
-
-    fn finalize(&mut self, gv: &GridSubView) {
-        // FIXME
-        let info = gv.droplet_info(Some(self.pid));
-        debug!("Flushing this info: {:?}", info);
-        self.tx.send(Ok(info)).unwrap();
-    }
-
-    fn abort(&mut self, err: PlanError) {
-        error!("Aborting command {:?} with {:#?}", self, err);
-        self.tx.send(Err(err)).unwrap();
     }
 }
 

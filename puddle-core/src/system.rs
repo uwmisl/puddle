@@ -1,7 +1,7 @@
 use crate::command::BoxedCommand;
 use crate::exec::Executor;
-use crate::grid::{DropletId, Grid, GridView};
-use crate::process::PuddleResult;
+use crate::grid::{droplet::DropletInfo, DropletId, Grid, GridView};
+use crate::process::{ProcessId, PuddleResult};
 
 use crate::plan::graph::Graph;
 use crate::plan::{sched::SchedError, PlanError, Planner};
@@ -34,6 +34,10 @@ impl System {
         info!("Adding command {:?}", cmd);
         let _cmd_id = self.graph.add_command(cmd).unwrap();
         Ok(())
+    }
+
+    pub fn info(&self, pid: Option<ProcessId>) -> Vec<DropletInfo> {
+        self.planner.gridview.droplet_info(pid)
     }
 
     // TODO switch to event loop here

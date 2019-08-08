@@ -73,7 +73,7 @@ fn move_droplet() {
     assert_eq!(droplets.len(), 1);
     assert_eq!(droplets[&id2].location, loc2);
     assert!(float_epsilon_equal(droplets[&id2].volume, 1.0));
-    assert_eq!(p.ticks(), 6);
+    assert_eq!(p.ticks(), 5);
 }
 
 #[test]
@@ -349,10 +349,7 @@ fn heat_droplet() {
 
     let droplets = info_dict(&p);
 
-    // we expect it to be just above the heater, since the runtime will move it
-    // off the heater when placing the flush command
-    let expected_loc = yx(2, 2);
-
+    let expected_loc = yx(3, 2);
     assert_eq!(droplets.len(), 1);
     assert_eq!(droplets[&id1].location, expected_loc);
 }

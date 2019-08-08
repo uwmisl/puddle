@@ -1,6 +1,5 @@
 use std::sync::atomic::AtomicUsize;
 use std::sync::atomic::Ordering::Relaxed;
-use std::sync::mpsc::channel;
 use std::sync::{Arc, Mutex};
 
 use crate::util::seconds_duration;
@@ -65,12 +64,9 @@ impl Process {
 
 impl Process {
     pub fn flush(&self) -> PuddleResult<Vec<DropletInfo>> {
-        let (tx, rx) = channel();
-        let flush_cmd = command::Flush::new(self.id, tx);
-
-        self.plan(Box::new(flush_cmd))?;
-        self.system.lock().unwrap().flush(&[]).unwrap();
-        rx.recv().unwrap().map_err(PuddleError::PlanError)
+        let mut sys = self.system.lock().unwrap();
+        sys.flush(&[]).unwrap();
+        Ok(sys.info(Some(self.id)))
     }
 
     pub fn create(
