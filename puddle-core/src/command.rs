@@ -604,20 +604,14 @@ impl Command for Input {
     }
 
     fn request(&self, _gridview: &GridView) -> CommandRequest {
-        let mut grid = Grid::rectangle(self.dimensions.y as usize, self.dimensions.x as usize + 1);
-
-        // fake peripheral used to match up with the real one
-        // FIXME: this is a total hack to assume that input is always on the right-hand side
-        let loc = Location {
-            y: self.dimensions.y / 2,
-            x: self.dimensions.x - 1 + 1,
-        };
-        grid.get_cell_mut(loc).unwrap().peripheral = Some(Peripheral::Input {
+        assert_eq!(self.outputs.len(), 1);
+        // FIXME limitation here
+        assert_eq!(self.dimensions, yx(1, 1));
+        let mut grid = Grid::rectangle(1, 1);
+        grid.get_cell_mut(yx(0, 0)).unwrap().peripheral = Some(Peripheral::Input {
             pwm_channel: 0,
             name: self.substance.clone(),
         });
-
-        debug!("Input location will be at {}", loc);
 
         CommandRequest {
             name: format!("input -> {:?}", self.outputs[0]),
@@ -627,7 +621,14 @@ impl Command for Input {
         }
     }
 
-    fn run(&mut self, _gridview: &mut GridSubView) -> RunStatus {
+    fn run(&mut self, gridview: &mut GridSubView) -> RunStatus {
+        assert_eq!(self.outputs.len(), 1);
+        gridview.insert(Droplet::new(
+            self.outputs[0],
+            self.volume,
+            yx(0, 0),
+            self.dimensions,
+        ));
         RunStatus::Done
     }
 }
@@ -661,29 +662,28 @@ impl Command for Output {
     }
 
     fn request(&self, gridview: &GridView) -> CommandRequest {
+        assert_eq!(self.inputs.len(), 1);
         let d = &gridview.droplets[&self.inputs[0]];
 
-        let mut grid = Grid::rectangle(d.dimensions.y as usize, d.dimensions.x as usize);
-
-        // fake peripheral used to match up with the real one
-        // FIXME: this is a total hack to assume that output is always on the left-hand side
-        let loc = yx(d.dimensions.y / 2, 0);
-        grid.get_cell_mut(loc).unwrap().peripheral = Some(Peripheral::Output {
+        // FIXME limitation here
+        assert_eq!(d.dimensions, yx(1, 1));
+        let mut grid = Grid::rectangle(1, 1);
+        grid.get_cell_mut(yx(0, 0)).unwrap().peripheral = Some(Peripheral::Output {
             pwm_channel: 0,
             name: self.name.clone(),
         });
 
-        debug!("Output location will be at {}", loc);
-
         CommandRequest {
             name: format!("output({:?})", d.id),
             shape: grid,
-            input_locations: vec![loc],
+            input_locations: vec![yx(0, 0)],
             offset: None,
         }
     }
 
-    fn run(&mut self, _gridview: &mut GridSubView) -> RunStatus {
+    fn run(&mut self, gridview: &mut GridSubView) -> RunStatus {
+        assert_eq!(self.inputs.len(), 1);
+        gridview.remove(&self.inputs[0]);
         RunStatus::Done
     }
 }

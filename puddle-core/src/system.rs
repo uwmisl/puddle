@@ -55,6 +55,7 @@ impl System {
 
             // TODO this is a little hacky
             self.planner.gridview = self.executor.gridview.clone();
+            debug!("Updated planner droplets: {:#?}", self.planner.gridview.droplets);
         }
 
         info!("Flushed!");
