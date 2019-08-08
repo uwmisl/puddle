@@ -113,6 +113,55 @@ fn mix3() {
 }
 
 #[test]
+fn parallel_create() {
+    let man = manager_from_rect(20, 20);
+    let p = man.get_new_process("test");
+
+    let n = 5;
+    for _ in 0..n {
+        p.create(None, 1.0, None).unwrap();
+    }
+    let _ = info_dict(&p);
+
+    assert_eq!(p.ticks(), 1);
+}
+
+#[test]
+fn parallel_mix() {
+    let ticks1 = {
+        let man = manager_from_rect(20, 20);
+        let p = man.get_new_process("test");
+
+        let id1 = p.create(None, 1.0, None).unwrap();
+        let id2 = p.create(None, 1.0, None).unwrap();
+
+        let _ = p.mix(id1, id2).unwrap();
+        let _ = info_dict(&p);
+        p.ticks()
+    };
+
+    let ticks2 = {
+        let man = manager_from_rect(20, 20);
+        let p = man.get_new_process("test");
+
+        let id1 = p.create(None, 1.0, None).unwrap();
+        let id2 = p.create(None, 1.0, None).unwrap();
+        let id3 = p.create(None, 1.0, None).unwrap();
+        let id4 = p.create(None, 1.0, None).unwrap();
+
+        let _ = p.mix(id1, id2).unwrap();
+        let _ = p.mix(id3, id4).unwrap();
+        let _ = info_dict(&p);
+        p.ticks()
+    };
+
+    // placement isn't quite good enough to make them even, but they
+    // definitely run in parallel
+    assert_eq!(ticks1, 10);
+    assert_eq!(ticks2, 13);
+}
+
+#[test]
 fn mix_split() {
     let man = manager_from_rect(9, 9);
     let p = man.get_new_process("test");
@@ -136,8 +185,9 @@ fn mix_split() {
     assert!(float_epsilon_equal(droplets[&id5].volume, 0.5));
 }
 
-fn process_isolation(num_processes: usize) {
-    // FIXME if the param is > 9, it chokes the router due to bad placement
+#[test]
+fn process_isolation() {
+    let num_processes = 10;
     let manager = manager_from_rect(9, 9);
 
     let ps: Vec<_> = (0..num_processes)
@@ -151,18 +201,6 @@ fn process_isolation(num_processes: usize) {
     for p in ps {
         p.flush().unwrap();
     }
-}
-
-#[test]
-fn process_isolation_works() {
-    process_isolation(6)
-}
-
-#[test]
-#[should_panic(expected = "RouteError")]
-fn process_isolation_fails() {
-    // expected failure, should be fixed with a better placer
-    process_isolation(10)
 }
 
 #[test]
@@ -252,6 +290,7 @@ fn split_dimensions_size() {
 }
 
 #[test]
+#[should_panic(expected = "PlaceError")]
 fn create_dimensions_failure_overlap() {
     let man = manager_from_rect(9, 9);
     let p = man.get_new_process("test");
@@ -262,18 +301,9 @@ fn create_dimensions_failure_overlap() {
     let loc1 = yx(0, 1);
     let loc2 = yx(1, 3);
 
-    let id1 = p.create(Some(loc1), 1.0, Some(dim1)).unwrap();
-    let _id2 = p.create(Some(loc2), 1.0, Some(dim2)).unwrap();
-
-    // FIXME not only does create not check, but planning upon flush
-    // will actually move one of the placements (the previously placed
-    // droplets?). Placement should respect pinned locations in the
-    // current flush, right?
-
-    let droplets = dbg!(info_dict(&p));
-    assert_eq!(droplets[&id1].location, loc1);
-    // FIXME this fails for now
-    // assert_eq!(droplets[&id2].location, loc2);
+    let _ = p.create(Some(loc1), 1.0, Some(dim1)).unwrap();
+    let _ = p.create(Some(loc2), 1.0, Some(dim2)).unwrap();
+    let _ = info_dict(&p);
 }
 
 #[test]

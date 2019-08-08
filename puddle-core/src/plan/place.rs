@@ -56,6 +56,14 @@ impl<'a> Context<'a> {
                 .map(|(loc, _cell)| (loc, loc + offset))
                 .collect();
 
+            // check to make sure this forced placement is valid
+            for loc in mapping.values() {
+                let nbrs = self.req.gridview.grid.neighbors9(*loc);
+                if nbrs.iter().any(|n| self.bad_locs.contains(n)) {
+                    return Err(PlacementError::Bad)
+                }
+            }
+
             let placement = Placement { mapping };
             debug!("Placed at {:?}", placement);
             return Ok(placement);

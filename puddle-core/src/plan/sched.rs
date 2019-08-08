@@ -145,21 +145,23 @@ impl Scheduler {
 
     pub fn schedule(&mut self, req: &SchedRequest) -> Result<SchedResponse> {
         let criticality = critical_paths(&req.graph);
-        let (&most_critical_todo, _max_criticality) = criticality
+        let mut todos: Vec<_> = criticality
             .iter()
             // only consider nodes that we have not yet scheduled
             .filter(|&(node, _crit)| !self.node_sched.contains_key(&node))
             // ignore nodes the "unbound" nodes
-            .filter(|&(node, _crit)| req.graph.graph[*node].is_some())
-            .max_by_key(|&(_node, crit)| crit)
-            .ok_or(SchedError::NothingToSchedule)?;
+            .filter(|&(&node, _crit)| req.graph.graph[node].is_some() && self.is_ready(req, node))
+            .collect();
 
-        // the most critical node must be ready, otherwise something above it
-        // (more critical) would also be `todo`
-        assert!(self.is_ready(req, most_critical_todo));
+        // sort by descending criticality
+        todos.sort_by_key(|&(_node, crit)| -(*crit as isize));
+
+        if todos.is_empty() {
+            return Err(SchedError::NothingToSchedule)
+        }
 
         let mut resp = SchedResponse {
-            commands_to_run: vec![most_critical_todo],
+            commands_to_run: todos.iter().map(|(n,_)| **n).collect(),
             droplets_to_store: vec![],
         };
         self.add_droplets_to_response(&req, &mut resp);
