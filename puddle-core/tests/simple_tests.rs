@@ -136,26 +136,33 @@ fn mix_split() {
     assert!(float_epsilon_equal(droplets[&id5].volume, 0.5));
 }
 
-#[test]
-fn process_isolation() {
-    // Spawn 6 processes
-    let num_processes = 6;
+fn process_isolation(num_processes: usize) {
+    // FIXME if the param is > 9, it chokes the router due to bad placement
+    let manager = manager_from_rect(9, 9);
 
-    use std::sync::Arc;
-
-    let manager = Arc::new(manager_from_rect(9, 9));
-
-    // for p in ps {
-    for i in 0..num_processes {
-        let man = Arc::clone(&manager);
-        std::thread::spawn(move || {
-            let p = man.get_new_process(format!("test-{}", i));
+    let ps: Vec<_> = (0..num_processes)
+        .map(|i| {
+            let p = manager.get_new_process(format!("test-{}", i));
             let _drop_id = p.create(None, 1.0, None).unwrap();
-            p.flush().unwrap();
+            p
         })
-        .join()
-        .unwrap();
+        .collect();
+
+    for p in ps {
+        p.flush().unwrap();
     }
+}
+
+#[test]
+fn process_isolation_works() {
+    process_isolation(6)
+}
+
+#[test]
+#[should_panic(expected = "RouteError")]
+fn process_isolation_fails() {
+    // expected failure, should be fixed with a better placer
+    process_isolation(10)
 }
 
 #[test]
