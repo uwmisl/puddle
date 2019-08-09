@@ -11,9 +11,15 @@ pub struct Location {
     pub x: i32,
 }
 
+impl fmt::Debug for Location {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", self)
+    }
+}
+
 impl fmt::Display for Location {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "({}, {})", self.x, self.y)
+        write!(f, "({}, {})", self.y, self.x)
     }
 }
 
@@ -59,12 +65,6 @@ impl Location {
 
     pub fn east(self) -> Location {
         self + yx(0, 1)
-    }
-}
-
-impl fmt::Debug for Location {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", self)
     }
 }
 
