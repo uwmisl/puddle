@@ -60,7 +60,7 @@ impl<'a> Context<'a> {
             for loc in mapping.values() {
                 let nbrs = self.req.gridview.grid.neighbors9(*loc);
                 if nbrs.iter().any(|n| self.bad_locs.contains(n)) {
-                    return Err(PlacementError::Bad)
+                    return Err(PlacementError::Bad);
                 }
             }
 

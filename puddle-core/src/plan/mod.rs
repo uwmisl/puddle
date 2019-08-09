@@ -54,43 +54,65 @@ impl Planner {
         debug!("Planning GV: {:#?}", self.gridview.droplets);
         self.gridview.check_no_collision();
 
-        let sched_resp = {
-            let req = SchedRequest { graph };
-            debug!("Schedule request");
-            let resp = self
-                .scheduler
-                .schedule(&req)
-                .map_err(PlanError::SchedError)?;
-            debug!("{:?}", resp);
-            for cmd_id in &resp.commands_to_run {
-                debug!("Gonna schedule {:?}: {:?}", cmd_id, graph.graph[*cmd_id])
-            }
-            resp
-        };
+        let mut sched_limit = None;
+        let (sched_resp, command_requests, place_resp) = loop {
+            let sched_resp = {
+                let req = SchedRequest {
+                    graph,
+                    limit: sched_limit,
+                };
+                debug!("Schedule request");
+                let resp = self
+                    .scheduler
+                    .schedule(&req)
+                    .map_err(PlanError::SchedError)?;
+                debug!("{:?}", resp);
+                for cmd_id in &resp.commands_to_run {
+                    debug!("Gonna schedule {:?}: {:?}", cmd_id, graph.graph[*cmd_id])
+                }
+                resp
+            };
 
-        let command_requests: Vec<_> = sched_resp
-            .commands_to_run
-            .iter()
-            .map(|cmd_id: &CmdIndex| {
-                let cmd = graph.graph[*cmd_id].as_ref().expect("Command was unbound!");
-                cmd.request(&self.gridview)
-                // TODO update the outputs
-                // for out in cmd_req.outputs {
-                //     self.droplets.insert(out.id, out);
-                // }
-            })
-            .collect();
+            let command_requests: Vec<_> = sched_resp
+                .commands_to_run
+                .iter()
+                .map(|cmd_id: &CmdIndex| {
+                    let cmd = graph.graph[*cmd_id].as_ref().expect("Command was unbound!");
+                    cmd.request(&self.gridview)
+                    // TODO update the outputs
+                    // for out in cmd_req.outputs {
+                    //     self.droplets.insert(out.id, out);
+                    // }
+                })
+                .collect();
 
-        let place_resp = {
+            debug!(
+                "Command requests: {:#?}",
+                command_requests.iter().map(|r| &r.name).collect::<Vec<_>>()
+            );
+
             let req = PlacementRequest {
                 gridview: &self.gridview,
                 fixed_commands: vec![],
                 commands: command_requests.as_slice(),
                 stored_droplets: sched_resp.droplets_to_store.as_slice(),
             };
-            let resp = self.placer.place(req).map_err(PlanError::PlaceError)?;
-            debug!("{:?}", resp);
-            resp
+            let place = self.placer.place(req);
+            debug!("Placement result: {:#?}", place);
+            match place {
+                Ok(resp) => break (sched_resp, command_requests, resp),
+                Err(e) => {
+                    if command_requests.len() <= 1 {
+                        error!("Actually failing to place for real");
+                        return Err(PlanError::PlaceError(e));
+                    } else {
+                        let n_cmds = sched_resp.commands_to_run.len();
+                        assert!(n_cmds > 1);
+                        error!("ROLLING BACK to {}", n_cmds - 1);
+                        sched_limit = Some(n_cmds - 1)
+                    }
+                }
+            }
         };
 
         let route_resp = {

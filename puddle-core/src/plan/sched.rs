@@ -23,6 +23,7 @@ pub enum SchedError {
 
 pub struct SchedRequest<'a> {
     pub graph: &'a Graph,
+    pub limit: Option<usize>,
 }
 
 #[derive(Debug)]
@@ -143,7 +144,7 @@ impl Scheduler {
             .all(|c| self.node_sched.contains_key(&c))
     }
 
-    pub fn schedule(&mut self, req: &SchedRequest) -> Result<SchedResponse> {
+    pub fn schedule(&self, req: &SchedRequest) -> Result<SchedResponse> {
         let criticality = critical_paths(&req.graph);
         let mut todos: Vec<_> = criticality
             .iter()
@@ -153,15 +154,25 @@ impl Scheduler {
             .filter(|&(&node, _crit)| req.graph.graph[node].is_some() && self.is_ready(req, node))
             .collect();
 
-        // sort by descending criticality
-        todos.sort_by_key(|&(_node, crit)| -(*crit as isize));
+        // we want to do the nodes first the reduce the number of droplets
+        todos.sort_by_key(|&(&node, crit)| {
+            let neg_crit = -(*crit as isize);
+            let graph = &req.graph.graph;
+            let in_degree = graph.edges_directed(node, Incoming).count() as i32;
+            let out_degree = graph.edges_directed(node, Outgoing).count() as i32;
+            (out_degree - in_degree, neg_crit)
+        });
 
         if todos.is_empty() {
-            return Err(SchedError::NothingToSchedule)
+            return Err(SchedError::NothingToSchedule);
+        }
+
+        if let Some(limit) = req.limit {
+            todos.truncate(limit);
         }
 
         let mut resp = SchedResponse {
-            commands_to_run: todos.iter().map(|(n,_)| **n).collect(),
+            commands_to_run: todos.iter().map(|(n, _)| **n).collect(),
             droplets_to_store: vec![],
         };
         self.add_droplets_to_response(&req, &mut resp);
@@ -226,7 +237,10 @@ mod tests {
     #[should_panic(expected = "Bad transition")]
     fn test_validate_bad_transitions() {
         let (graph, in0, _, mix) = simple_graph();
-        let req = SchedRequest { graph: &graph };
+        let req = SchedRequest {
+            graph: &graph,
+            limit: None,
+        };
 
         let mut sched = Scheduler::default();
         sched.current_sched = 100;
@@ -240,7 +254,10 @@ mod tests {
     #[test]
     fn test_validate_okay_transitions() {
         let (graph, in0, _, _) = simple_graph();
-        let req = SchedRequest { graph: &graph };
+        let req = SchedRequest {
+            graph: &graph,
+            limit: None,
+        };
 
         let mut sched = Scheduler::default();
         sched.current_sched = 100;
@@ -300,7 +317,10 @@ mod tests {
         sched.set_node_schedule(map["short"], 2);
         sched.set_node_schedule(map["pass1"], 2);
 
-        let req = SchedRequest { graph: &graph };
+        let req = SchedRequest {
+            graph: &graph,
+            limit: None,
+        };
         let mut resp = SchedResponse {
             commands_to_run: vec![map["pass2"]],
             droplets_to_store: vec![],

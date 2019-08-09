@@ -162,6 +162,35 @@ fn parallel_mix() {
 }
 
 #[test]
+fn scheduling_stress() {
+    let board_str = r#"
+        board: [
+          [  0,  1,  2,  3,  4 ],
+        ]
+        peripherals:
+          - location: {y: 0, x: 0}
+            type: Input
+            name: water
+            pwm_channel: 0
+          - location: {y: 0, x: 4}
+            type: Output
+            name: trash
+            pwm_channel: 0
+    "#;
+
+    let man = manager_from_str(board_str);
+    let p = man.get_new_process("test");
+
+    for _ in 0..10 {
+        let d = p.input("water", 1.0, yx(1, 1)).unwrap();
+        p.output("trash", d).unwrap();
+    }
+
+    let droplets = info_dict(&p);
+    assert_eq!(droplets, HashMap::default());
+}
+
+#[test]
 fn mix_split() {
     let man = manager_from_rect(9, 9);
     let p = man.get_new_process("test");
@@ -290,7 +319,6 @@ fn split_dimensions_size() {
 }
 
 #[test]
-#[should_panic(expected = "PlaceError")]
 fn create_dimensions_failure_overlap() {
     let man = manager_from_rect(9, 9);
     let p = man.get_new_process("test");
@@ -301,9 +329,16 @@ fn create_dimensions_failure_overlap() {
     let loc1 = yx(0, 1);
     let loc2 = yx(1, 3);
 
-    let _ = p.create(Some(loc1), 1.0, Some(dim1)).unwrap();
-    let _ = p.create(Some(loc2), 1.0, Some(dim2)).unwrap();
-    let _ = info_dict(&p);
+    let id1 = p.create(Some(loc1), 1.0, Some(dim1)).unwrap();
+    let id2 = p.create(Some(loc2), 1.0, Some(dim2)).unwrap();
+    let droplets = info_dict(&p);
+
+    // TODO what is the correct behavior here? Right now, one of them
+    // gets moved because the scheduler decides to sequence
+    // them. Should we handle "forced" conflicts differently?
+    assert_eq!(droplets.len(), 2);
+    assert_ne!(droplets[&id1].location, loc1); // got moved
+    assert_eq!(droplets[&id2].location, loc2);
 }
 
 #[test]
