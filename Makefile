@@ -49,6 +49,8 @@ test-rust:
 	time cargo test
 	$i "Linting..."
 	time cargo clippy --tests
+	$i "Formatting..."
+	cargo fmt -- --check
 
 .PHONY: sync
 sync: sync-boards sync-server sync-pi-test
