@@ -295,6 +295,34 @@ impl Context<'_> {
         collisions
     }
 
+    fn find_collisions_with(
+        &self,
+        paths: &PathMap,
+        group: &Group,
+        node: &Node,
+    ) -> Option<DropletId> {
+        for (id, path) in paths {
+            let location = path_nth(path, node.time as usize);
+            let dimensions = self.agents[id].dimensions;
+            let path_rect = Rectangle {
+                location,
+                dimensions,
+            };
+            for (a, &location) in group.agents.iter().zip(node.locations.iter()) {
+                assert_ne!(*id, a.id);
+                let dimensions = a.dimensions;
+                let rect = Rectangle {
+                    location,
+                    dimensions,
+                };
+                if rect.collision_distance(&path_rect) <= 0 {
+                    return Some(*id);
+                }
+            }
+        }
+        None
+    }
+
     fn merge_groups(&mut self, id1: &DropletId, id2: &DropletId) -> Rc<Group> {
         let group1 = &self.groups[id1];
         let group2 = &self.groups[id2];
@@ -314,7 +342,7 @@ impl Context<'_> {
         }
 
         for group in self.groups.values() {
-            let group_paths = self.route_group(group)?;
+            let group_paths = self.route_group(group, &paths)?;
             for (id, path) in group_paths {
                 let was_there = paths.insert(id, path);
                 assert_eq!(was_there, None);
@@ -331,18 +359,26 @@ impl Context<'_> {
 
             // for now we only use the first collision
             let coll = &collisions[0];
+            debug!("Collision, merging groups: {:?}", coll);
             let new_group = self.merge_groups(&coll.id1, &coll.id2);
             if new_group.agents.len() > MAX_GROUP_SIZE {
                 return None;
             }
-            let new_paths = self.route_group(&new_group)?;
+            for a in &new_group.agents {
+                paths.remove(&a.id);
+            }
+            let new_paths = self.route_group(&new_group, &paths)?;
             paths.extend(new_paths);
         }
 
         Some(paths)
     }
 
-    fn route_group(&self, group: &Group) -> Option<PathMap> {
+    fn route_group(&self, group: &Group, paths: &PathMap) -> Option<PathMap> {
+        debug!(
+            "Routing ids: {:?}",
+            group.agents.iter().map(|a| a.id).collect::<Vec<_>>()
+        );
         let start_time = Instant::now();
         let start = group.start();
 
@@ -352,13 +388,21 @@ impl Context<'_> {
             buf.into_iter().map(|(c, n)| (n, c))
         };
 
-        let heuristic = |n: &Node| n.heuristic(group);
+        const COLLISION_SLACK: u32 = 10;
 
-        const NODE_LIMIT: usize = 100_000;
+        let heuristic = |n: &Node| {
+            let mut h = n.heuristic(group);
+            if self.find_collisions_with(paths, group, n).is_some() {
+                h += COLLISION_SLACK;
+            }
+            h
+        };
+
+        let limit = 20_000 * group.agents.len();
         let mut seen = 0;
         let success = |n: &Node| {
             seen += 1;
-            seen == NODE_LIMIT || n.is_done(group)
+            seen == limit || n.is_done(group)
         };
 
         let result = pathfinding::directed::astar::astar(&start, successors, heuristic, success);
@@ -370,18 +414,19 @@ impl Context<'_> {
             duration.as_secs(),
             duration.subsec_micros(),
             seen,
-            status = if seen < NODE_LIMIT && result.is_some() {
+            status = if seen < limit && result.is_some() {
                 "passed"
             } else {
                 "failed"
             },
         );
 
-        if seen == NODE_LIMIT {
+        if seen == limit {
             return None;
         }
 
-        result.map(|(path, _cost)| {
+        result.map(|(path, cost)| {
+            debug!("Solution has cost {}.", cost);
             let mut map: HashMap<DropletId, Path> = group
                 .agents
                 .iter()
@@ -553,6 +598,38 @@ mod tests {
         let req = &mk_route_request(&gv0, &gv1);
         let mut ctx = Context::from_request(req);
         assert_eq!(ctx.route(), None)
+    }
+
+    #[test]
+    fn test_slack_cooperative_route() {
+        #[rustfmt::skip]
+        let gv0 = parse_gridview(&[
+            "  b  ",
+            "  .  ",
+            "a....",
+            "  .  ",
+            "  .  ",
+        ]);
+        #[rustfmt::skip]
+        let gv1 = parse_gridview(&[
+            "  .  ",
+            "  .  ",
+            "....a",
+            "  .  ",
+            "  b  ",
+        ]);
+
+        let req = &mk_route_request(&gv0, &gv1);
+        let mut ctx = Context::from_request(req);
+        let paths = ctx.route().unwrap();
+
+        println!("{:#?}", paths);
+        println!("{:#?}", ctx.groups);
+
+        // This shouldn't require grouped routing, because the slack
+        // system should avoid the collision
+
+        check_groups(&ctx, &["a", "b"]);
     }
 
     #[test]
