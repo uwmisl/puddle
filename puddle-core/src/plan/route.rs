@@ -1,9 +1,8 @@
-use std::collections::hash_map::Entry;
 use std::rc::Rc;
 use std::time::Instant;
 
 use crate::grid::{grid::NEIGHBORS_5, Droplet, DropletId, Grid, GridView, Location, Rectangle};
-use crate::util::{minheap::MinHeap, HashMap, HashSet};
+use crate::util::HashMap;
 
 pub type Path = Vec<Location>;
 
@@ -31,8 +30,7 @@ impl Router {
         debug!("Routing agents: {:#?}", req.agents);
 
         let mut ctx = Context::from_request(req);
-        let max_time = 100;
-        match ctx.route(max_time) {
+        match ctx.route() {
             Some(paths) => Ok(RoutingResponse {
                 routes: paths.into_iter().collect(),
             }),
@@ -95,15 +93,6 @@ impl Group {
     }
 }
 
-// TODO use conflict count as second param
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
-struct Cost {
-    // total cost (f) = so far cost (g) + "to go" cost (h)
-    total_estimated_cost: u32,
-    cost_to_go: u32,
-    cost_so_far: u32,
-}
-
 type EdgeCost = u32;
 const STAY_COST: EdgeCost = 1;
 const MOVE_COST: EdgeCost = 2;
@@ -124,15 +113,6 @@ struct Node {
 }
 
 impl Node {
-    fn new_cost(&self, group: &Group, cost_so_far: u32) -> Cost {
-        let h = self.heuristic(group);
-        Cost {
-            total_estimated_cost: cost_so_far + h,
-            cost_to_go: h,
-            cost_so_far,
-        }
-    }
-
     fn with_group<'a>(
         &'a self,
         group: &'a Group,
@@ -267,6 +247,7 @@ type PathMap = HashMap<DropletId, Vec<Location>>;
 impl Context<'_> {
     fn from_request<'a>(req: &'a RoutingRequest<'a>) -> Context<'a> {
         let agents = || req.agents.iter().cloned();
+
         Context {
             grid: &req.gridview.grid,
             // TODO we can make agents ourselves instead of the request doing it
@@ -324,7 +305,7 @@ impl Context<'_> {
         new_group
     }
 
-    fn route(&mut self, max_time: u32) -> Option<PathMap> {
+    fn route(&mut self) -> Option<PathMap> {
         // route everyone independently
         let mut paths = PathMap::default();
         // we assume that groups, agents are non-empty, so just return if there's nothing to plan
@@ -333,7 +314,7 @@ impl Context<'_> {
         }
 
         for group in self.groups.values() {
-            let group_paths = self.route_group(group, max_time)?;
+            let group_paths = self.route_group(group)?;
             for (id, path) in group_paths {
                 let was_there = paths.insert(id, path);
                 assert_eq!(was_there, None);
@@ -354,138 +335,67 @@ impl Context<'_> {
             if new_group.agents.len() > MAX_GROUP_SIZE {
                 return None;
             }
-            let new_paths = self.route_group(&new_group, max_time)?;
+            let new_paths = self.route_group(&new_group)?;
             paths.extend(new_paths);
         }
 
         Some(paths)
     }
 
-    fn route_group(&self, group: &Group, max_time: u32) -> Option<PathMap> {
+    fn route_group(&self, group: &Group) -> Option<PathMap> {
         let start_time = Instant::now();
+        let start = group.start();
 
-        let mut todo: MinHeap<Cost, Node> = MinHeap::default();
-        let mut best_so_far: HashMap<Node, u32> = HashMap::default();
-        let mut came_from: HashMap<Node, Node> = HashMap::default();
-        // TODO remove done in favor of came_from
-        let mut done: HashSet<Node> = HashSet::default();
-
-        let mut n_explored = 0;
-        let mut next_nodes = Vec::new();
-
-        let initial = group.start();
-        todo.push(initial.new_cost(group, 0), initial.clone());
-        best_so_far.insert(initial.clone(), 0);
-
-        let result = loop {
-            let (popped_cost, node) = match todo.pop() {
-                Some(cn) => cn,
-                _ => break None,
-            };
-
-            // node must be in best_so_far because it was inserted when we put
-            // it in the minheap
-            let node_cost_so_far: u32 = best_so_far[&node];
-
-            trace!(
-                "Popped: time={} best_cost_so_far={} h={} cost={:?} agents:{}",
-                node.time,
-                node_cost_so_far,
-                node.heuristic(group),
-                popped_cost,
-                {
-                    // print each agent on a new line
-                    let mut s = String::new();
-                    for loc in &node.locations {
-                        s.extend(format!("\n  {:?}", loc).chars())
-                    }
-                    s
-                }
-            );
-
-            n_explored += 1;
-
-            if node.is_done(group) {
-                let path = build_path(group, came_from, node.clone());
-                break Some(path);
-            }
-
-            // insert returns false if value was already there
-            if !done.insert(node.clone()) || node.time >= max_time {
-                continue;
-            }
-
-            assert_eq!(next_nodes.len(), 0);
-            node.open(self, group, &mut next_nodes);
-
-            for (edge_cost, next) in next_nodes.drain(..) {
-                debug_assert!(next.is_valid(self, group));
-
-                if done.contains(&next) {
-                    continue;
-                }
-
-                trace!(
-                    "  Pushed: time={} edge_cost={} h={}",
-                    next.time,
-                    edge_cost,
-                    next.heuristic(group),
-                );
-
-                let mut next_cost = node_cost_so_far + edge_cost;
-
-                match best_so_far.entry(next.clone()) {
-                    Entry::Occupied(entry) => {
-                        let old_cost = *entry.get();
-                        if next_cost < old_cost {
-                            *entry.into_mut() = next_cost;
-                            came_from.insert(next.clone(), node.clone());
-                        } else {
-                            next_cost = old_cost;
-                        }
-                    }
-                    Entry::Vacant(entry) => {
-                        entry.insert(next_cost);
-                        came_from.insert(next.clone(), node.clone());
-                    }
-                };
-
-                let new_cost = next.new_cost(group, next_cost);
-                todo.push(new_cost, next)
-            }
+        let successors = |n: &Node| {
+            let mut buf = Vec::new();
+            n.open(self, group, &mut buf);
+            buf.into_iter().map(|(c, n)| (n, c))
         };
+
+        let heuristic = |n: &Node| n.heuristic(group);
+
+        const NODE_LIMIT: usize = 100_000;
+        let mut seen = 0;
+        let success = |n: &Node| {
+            seen += 1;
+            seen == NODE_LIMIT || n.is_done(group)
+        };
+
+        let result = pathfinding::directed::astar::astar(&start, successors, heuristic, success);
 
         let duration = start_time.elapsed();
         debug!(
-            "Routing took {}.{:06} sec. Nodes: {} + {} = {} (explored + unseen = total)",
+            "Routing g={} {status} {}.{:06} sec. Saw {:7} nodes.",
+            group.agents.len(),
             duration.as_secs(),
             duration.subsec_micros(),
-            n_explored,
-            todo.len(),
-            todo.timestamp(),
+            seen,
+            status = if seen < NODE_LIMIT && result.is_some() {
+                "passed"
+            } else {
+                "failed"
+            },
         );
 
-        result
-    }
-}
-
-fn build_path(group: &Group, mut came_from: HashMap<Node, Node>, end_node: Node) -> PathMap {
-    let mut paths: Vec<Path> = vec![vec![]; end_node.locations.len()];
-    let mut current = end_node;
-
-    while let Some(prev) = came_from.remove(&current) {
-        for (p, loc) in paths.iter_mut().zip(current.locations) {
-            p.push(loc)
+        if seen == NODE_LIMIT {
+            return None;
         }
-        current = prev;
-    }
 
-    for (p, loc) in paths.iter_mut().zip(current.locations) {
-        p.push(loc);
-        p.reverse();
+        result.map(|(path, _cost)| {
+            let mut map: HashMap<DropletId, Path> = group
+                .agents
+                .iter()
+                .map(|a| a.id)
+                .zip(std::iter::repeat_with(Vec::new))
+                .collect();
+            for step in path {
+                for (a, loc) in group.agents.iter().zip(step.locations) {
+                    map.get_mut(&a.id).unwrap().push(loc)
+                }
+            }
+            map
+        })
     }
-
-    group.agents.iter().map(|a| a.id).zip(paths).collect()
 }
 
 #[cfg(test)]
@@ -493,6 +403,7 @@ mod tests {
 
     use super::*;
     use crate::grid::gridview::tests::{c2id, id2c, parse_gridview};
+    use crate::util::HashSet;
 
     fn draw_path(path: &[Location], ch: char, gridview: &GridView) -> Vec<String> {
         let strs = gridview.grid.to_strs();
@@ -611,10 +522,9 @@ mod tests {
             "aaa",
         ]);
 
-        let expected_time = 4;
         let req = &mk_route_request(&gv0, &gv1);
         let mut ctx = Context::from_request(req);
-        let paths = ctx.route(expected_time).unwrap();
+        let paths = ctx.route().unwrap();
 
         check_paths(&gv0, &paths, &expected);
     }
@@ -626,7 +536,7 @@ mod tests {
 
         let req = &mk_route_request(&gv0, &gv1);
         let mut ctx = Context::from_request(req);
-        assert_eq!(ctx.route(100), None)
+        assert_eq!(ctx.route(), None)
     }
 
     #[test]
@@ -642,7 +552,7 @@ mod tests {
 
         let req = &mk_route_request(&gv0, &gv1);
         let mut ctx = Context::from_request(req);
-        assert_eq!(ctx.route(100), None)
+        assert_eq!(ctx.route(), None)
     }
 
     #[test]
@@ -660,11 +570,9 @@ mod tests {
             "  .  ",
         ]);
 
-        let expected_time = 10;
-
         let req = &mk_route_request(&gv0, &gv1);
         let mut ctx = Context::from_request(req);
-        let paths = ctx.route(expected_time).unwrap();
+        let paths = ctx.route().unwrap();
 
         // let node0 = Node::singleton(req.agents[0].clone());
         // let node1 = Node::singleton(req.agents[1].clone());
@@ -695,11 +603,9 @@ mod tests {
             "  .     .  ",
         ]);
 
-        let expected_time = 10;
-
         let req = &mk_route_request(&gv0, &gv1);
         let mut ctx = Context::from_request(req);
-        let paths = ctx.route(expected_time).unwrap();
+        let paths = ctx.route().unwrap();
 
         println!("{:#?}", paths);
         println!("{:#?}", ctx.groups);
@@ -723,11 +629,9 @@ mod tests {
             "b.....a"]
         );
 
-        let expected_time = 21;
-
         let req = &mk_route_request(&gv0, &gv1);
         let mut ctx = Context::from_request(req);
-        let paths = ctx.route(expected_time).unwrap();
+        let paths = ctx.route().unwrap();
 
         println!("{:#?}", paths);
         println!("{:#?}", ctx.groups);
