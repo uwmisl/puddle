@@ -94,8 +94,9 @@ impl Group {
 }
 
 type EdgeCost = u32;
-const STAY_COST: EdgeCost = 1;
-const MOVE_COST: EdgeCost = 2;
+const STAY_COST: EdgeCost = 9;
+const MOVE_COST: EdgeCost = 10;
+const COLLISION_COST: EdgeCost = 50;
 
 fn step_cost(loc: Location) -> EdgeCost {
     let sit_still = Location { y: 0, x: 0 };
@@ -388,12 +389,10 @@ impl Context<'_> {
             buf.into_iter().map(|(c, n)| (n, c))
         };
 
-        const COLLISION_SLACK: u32 = 10;
-
         let heuristic = |n: &Node| {
             let mut h = n.heuristic(group);
             if self.find_collisions_with(paths, group, n).is_some() {
-                h += COLLISION_SLACK;
+                h += COLLISION_COST;
             }
             h
         };
