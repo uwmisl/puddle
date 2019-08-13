@@ -455,7 +455,7 @@ impl Custom {
         for line in stdin.lock().lines() {
             let line = line?;
             if line.starts_with('-') {
-                y = 0;
+                y = -1;
                 go(&mut locations)?;
             } else {
                 for (i, c) in line.char_indices() {
