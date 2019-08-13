@@ -176,10 +176,14 @@ fn is_compatible(
 ) -> bool {
     smaller.locations().all(|(small_loc, small_cell)| {
         let big_loc = small_loc + offset;
-        let nbrs = bigger.neighbors9(big_loc);
-        if nbrs.iter().any(|n| bad_locs.contains(n)) {
+
+        let padding = 2;
+        let bad = bad_locs
+            .iter()
+            .any(|bad| (bad.x - big_loc.x).abs() < padding && (bad.y - big_loc.y).abs() < padding);
+        if bad {
             return false;
-        }
+        };
 
         // return the compatibility
         bigger
