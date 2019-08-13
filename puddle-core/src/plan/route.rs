@@ -94,8 +94,8 @@ impl Group {
 }
 
 type EdgeCost = u32;
-const STAY_COST: EdgeCost = 9;
-const MOVE_COST: EdgeCost = 10;
+const STAY_COST: EdgeCost = 4;
+const MOVE_COST: EdgeCost = 5;
 const COLLISION_COST: EdgeCost = 50;
 
 fn step_cost(loc: Location) -> EdgeCost {
@@ -342,8 +342,10 @@ impl Context<'_> {
             return Some(paths);
         }
 
+        let mut group_costs = Vec::new();
         for group in self.groups.values() {
-            let group_paths = self.route_group(group, &paths)?;
+            let (group_paths, cost) = self.route_group(group, &paths)?;
+            group_costs.push((Rc::clone(&group), cost));
             for (id, path) in group_paths {
                 let was_there = paths.insert(id, path);
                 assert_eq!(was_there, None);
@@ -353,29 +355,61 @@ impl Context<'_> {
         loop {
             const MAX_GROUP_SIZE: usize = 4;
 
+            // if we there are no collisions, we're good!
             let collisions = self.find_collisions(&paths);
             if collisions.is_empty() {
+                break;
+            }
+
+            // After a routing failure, before trying to merge groups, sort the
+            // agents by cost of the (failed) routes. The logic here is that the most
+            // expensive routes probably included some collisions (due to the
+            // penalty), and we can probably avoid having to merge by
+            // routing those problematic routes first and then letting
+            // the "simpler" ones route around it
+            debug!("Collision, trying sorted...");
+            group_costs.sort_by_key(|&(_, c)| -(c as isize));
+            paths.clear();
+            for (g, c) in &mut group_costs {
+                let (new_paths, cost) = self.route_group(g, &paths)?;
+                paths.extend(new_paths);
+                *c = cost
+            }
+
+            // check again!
+            let collisions = self.find_collisions(&paths);
+            if collisions.is_empty() {
+                debug!("Routing worked after sorting");
                 break;
             }
 
             // for now we only use the first collision
             let coll = &collisions[0];
             debug!("Collision, merging groups: {:?}", coll);
+            let old_group1 = Rc::clone(&self.groups[&coll.id1]);
+            let old_group2 = Rc::clone(&self.groups[&coll.id2]);
             let new_group = self.merge_groups(&coll.id1, &coll.id2);
             if new_group.agents.len() > MAX_GROUP_SIZE {
                 return None;
             }
+
+            let old_len = group_costs.len();
+            group_costs
+                .retain(|(g, _)| !(Rc::ptr_eq(g, &old_group1) || Rc::ptr_eq(g, &old_group2)));
+            assert_eq!(old_len, group_costs.len() + 2);
+
             for a in &new_group.agents {
                 paths.remove(&a.id);
             }
-            let new_paths = self.route_group(&new_group, &paths)?;
+            let (new_paths, cost) = self.route_group(&new_group, &paths)?;
+            group_costs.push((new_group, cost));
             paths.extend(new_paths);
         }
 
         Some(paths)
     }
 
-    fn route_group(&self, group: &Group, paths: &PathMap) -> Option<PathMap> {
+    fn route_group(&self, group: &Group, paths: &PathMap) -> Option<(PathMap, EdgeCost)> {
         debug!(
             "Routing ids: {:?}",
             group.agents.iter().map(|a| a.id).collect::<Vec<_>>()
@@ -397,11 +431,15 @@ impl Context<'_> {
             h
         };
 
+        let max_length = paths.values().map(Vec::len).max().unwrap_or(0) as u32;
         let limit = 20_000 * group.agents.len();
         let mut seen = 0;
         let success = |n: &Node| {
             seen += 1;
-            seen == limit || n.is_done(group)
+            // if we've hit the limit, we're done
+            // otherwise, make sure we route until max_length, so
+            // collision avoidance actually works
+            seen == limit || (n.time >= max_length && n.is_done(group))
         };
 
         let result = pathfinding::directed::astar::astar(&start, successors, heuristic, success);
@@ -426,7 +464,7 @@ impl Context<'_> {
 
         result.map(|(path, cost)| {
             debug!("Solution has cost {}.", cost);
-            let mut map: IndexMap<DropletId, Path> = group
+            let mut map: PathMap = group
                 .agents
                 .iter()
                 .map(|a| a.id)
@@ -437,7 +475,7 @@ impl Context<'_> {
                     map.get_mut(&a.id).unwrap().push(loc)
                 }
             }
-            map
+            (map, cost)
         })
     }
 }
@@ -713,5 +751,40 @@ mod tests {
         println!("{:#?}", ctx.groups);
 
         check_groups(&ctx, &["abcd"]);
+    }
+
+    #[test]
+    fn test_grid_cooperative_route() {
+        #[rustfmt::skip]
+        let gv0 = parse_gridview(&[
+            "a.b.c...",
+            "........",
+            "d.e.f...",
+            "........",
+            "........",
+        ]);
+        #[rustfmt::skip]
+        let gv1 = parse_gridview(&[
+            "..b.c.a.",
+            "........",
+            "d.e.f...",
+            "........",
+            "........",
+        ]);
+
+        let req = &mk_route_request(&gv0, &gv1);
+        let mut ctx = Context::from_request(req);
+        let paths = ctx.route().unwrap();
+
+        println!("{:#?}", paths);
+        println!("{:#?}", ctx.groups);
+
+        // This shouldn't require grouped routing, because the slack
+        // system should avoid the collision
+
+        // cooperative routing is needed so that b can get out of the
+        // way in time, but the rest should work because of the cost
+        // sorting
+        check_groups(&ctx, &["ab", "c", "d", "e", "f"]);
     }
 }
