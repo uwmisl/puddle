@@ -105,7 +105,7 @@ pub mod tests {
     use std::fs::File;
 
     use crate::grid::{droplet::SimpleBlob, location::yx, Grid, Location};
-    use crate::util::{HashMap, HashSet};
+    use indexmap::{IndexMap, IndexSet};
     use std::env;
 
     /// Returns the number of connected components where diagonal
@@ -130,9 +130,9 @@ pub mod tests {
         petgraph::algo::connected_components(&graph)
     }
 
-    pub fn parse_strings(rows: &[&str]) -> (Grid, HashMap<char, SimpleBlob>) {
-        let mut droplet_map = HashMap::default();
-        let mut cell_locs = HashSet::default();
+    pub fn parse_strings(rows: &[&str]) -> (Grid, IndexMap<char, SimpleBlob>) {
+        let mut droplet_map = IndexMap::new();
+        let mut cell_locs = IndexSet::new();
 
         for (i, row) in rows.iter().enumerate() {
             for (j, ch) in row.chars().enumerate() {
@@ -158,7 +158,7 @@ pub mod tests {
             }
         }
 
-        let blob_map: HashMap<_, _> = droplet_map
+        let blob_map: IndexMap<_, _> = droplet_map
             .iter()
             .map(|(&ch, locs)| {
                 // make sure it only has one connected component

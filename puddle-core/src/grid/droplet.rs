@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 
 use super::{Location, Rectangle};
 use crate::process::ProcessId;
-use crate::util::HashSet;
+use indexmap::IndexSet;
 
 static NEXT_COLLISION_GROUP: AtomicUsize = AtomicUsize::new(0);
 
@@ -155,8 +155,8 @@ impl SimpleBlob {
         };
         let dimensions = far_corner - location;
 
-        let set1: HashSet<Location> = locs.iter().cloned().collect();
-        let mut set2 = HashSet::default();
+        let set1: IndexSet<Location> = locs.iter().cloned().collect();
+        let mut set2 = IndexSet::new();
 
         // build set2 with all the locations the rectangle should have
         for i in 0..dimensions.y {

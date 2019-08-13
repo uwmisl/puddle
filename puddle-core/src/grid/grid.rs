@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 
 use super::Location;
-use crate::util::HashSet;
+use indexmap::IndexSet;
 
 use crate::grid::{location::yx, parse::ParsedGrid};
 
@@ -204,7 +204,7 @@ impl Grid {
     /// Returns a Vec representing the neighbors of the location combined with
     /// the dimensions of the droplet.
     pub fn neighbors_dimensions(&self, loc: Location, dimensions: Location) -> Vec<Location> {
-        let mut dimensions_nbrhd: HashSet<Location> = HashSet::default();
+        let mut dimensions_nbrhd: IndexSet<Location> = IndexSet::default();
         for y in 0..dimensions.y {
             for x in 0..dimensions.x {
                 let new_loc = loc + Location { y, x };
@@ -311,8 +311,8 @@ impl Grid {
 //         let bad_edges = &Set::default();
 //         let map = grid.place(&grid, snapshot, bad_edges).unwrap();
 
-//         let identity_locs: HashMap<Location, Location> =
-//             HashMap::from_iter(grid.locations().map(|(loc, _)| (loc, loc)));
+//         let identity_locs: IndexMap<Location, Location> =
+//             IndexMap::from_iter(grid.locations().map(|(loc, _)| (loc, loc)));
 //         assert_eq!(&identity_locs, &map);
 //     }
 // }

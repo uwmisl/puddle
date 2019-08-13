@@ -12,7 +12,7 @@ use self::sched::{SchedRequest, Scheduler};
 pub use self::route::Path;
 
 use crate::grid::{droplet::DropletId, GridView};
-use crate::util::HashMap;
+use indexmap::IndexMap;
 
 #[derive(Debug)]
 pub enum PlanError {
@@ -27,7 +27,7 @@ pub struct PlannedCommand {
 }
 
 pub struct PlanPhase {
-    pub routes: HashMap<DropletId, Path>,
+    pub routes: IndexMap<DropletId, Path>,
     pub planned_commands: Vec<PlannedCommand>,
 }
 

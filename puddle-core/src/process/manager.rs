@@ -5,7 +5,7 @@ use crate::grid::{DropletInfo, Grid};
 use crate::process::{Process, ProcessId, PuddleError, PuddleResult};
 use crate::system::System;
 
-use crate::util::HashMap;
+use indexmap::IndexMap;
 
 pub struct ProcessHandle<'a> {
     process: Option<Process>,
@@ -42,7 +42,7 @@ impl<'a> DerefMut for ProcessHandle<'a> {
 #[allow(dead_code)]
 pub struct Manager {
     system: Arc<Mutex<System>>,
-    processes: Mutex<HashMap<ProcessId, Process>>,
+    processes: Mutex<IndexMap<ProcessId, Process>>,
     blocking: bool,
 }
 
@@ -53,7 +53,7 @@ impl Manager {
         Manager {
             system,
             blocking,
-            processes: Mutex::new(HashMap::default()),
+            processes: Mutex::new(IndexMap::default()),
         }
     }
 

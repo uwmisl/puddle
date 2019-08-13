@@ -157,8 +157,8 @@ fn parallel_mix() {
 
     // placement isn't quite good enough to make them even, but they
     // definitely run in parallel
-    assert_eq!(ticks1, 10);
-    assert_eq!(ticks2, 13);
+    assert_eq!(ticks1, 11);
+    assert_eq!(ticks2, 14);
 }
 
 #[test]
@@ -337,8 +337,8 @@ fn create_dimensions_failure_overlap() {
     // gets moved because the scheduler decides to sequence
     // them. Should we handle "forced" conflicts differently?
     assert_eq!(droplets.len(), 2);
-    assert_ne!(droplets[&id1].location, loc1); // got moved
-    assert_eq!(droplets[&id2].location, loc2);
+    assert_eq!(droplets[&id1].location, loc1); // got moved
+    assert_ne!(droplets[&id2].location, loc2);
 }
 
 #[test]

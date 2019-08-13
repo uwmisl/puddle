@@ -1,11 +1,11 @@
 use crate::command::CommandRequest;
 use crate::grid::{DropletId, Grid, GridView, Location, Rectangle};
-use crate::util::{HashMap, HashSet};
+use indexmap::{IndexMap, IndexSet};
 
 #[derive(Debug, Clone)]
 pub struct Placement {
     // TODO idk if this should be pub
-    pub mapping: HashMap<Location, Location>,
+    pub mapping: IndexMap<Location, Location>,
 }
 
 #[derive(Debug)]
@@ -31,7 +31,7 @@ type PlacementResult = Result<PlacementResponse, PlacementError>;
 
 struct Context<'a> {
     req: PlacementRequest<'a>,
-    bad_locs: HashSet<Location>,
+    bad_locs: IndexSet<Location>,
     resp: PlacementResponse,
 }
 
@@ -39,7 +39,7 @@ impl<'a> Context<'a> {
     fn new(req: PlacementRequest<'a>) -> Self {
         Context {
             req,
-            bad_locs: HashSet::default(),
+            bad_locs: IndexSet::default(),
             resp: PlacementResponse {
                 commands: Vec::new(),
                 stored_droplets: Vec::new(),
@@ -50,7 +50,7 @@ impl<'a> Context<'a> {
     fn place_cmd(&self, cmd_req: &CommandRequest) -> Result<Placement, PlacementError> {
         debug!("Placing {:?}", cmd_req);
         if let Some(offset) = cmd_req.offset {
-            let mapping: HashMap<_, _> = cmd_req
+            let mapping: IndexMap<_, _> = cmd_req
                 .shape
                 .locations()
                 .map(|(loc, _cell)| (loc, loc + offset))
@@ -147,7 +147,7 @@ impl<'a> Context<'a> {
             self.bad_locs.extend(
                 Rectangle {
                     location: offset,
-                    dimensions: self.req.gridview.droplets[&id].dimensions,
+                    dimensions: self.req.gridview.droplets[id].dimensions,
                 }
                 .locations(),
             );
@@ -172,7 +172,7 @@ fn is_compatible(
     bigger: &Grid,
     smaller: &Grid,
     offset: Location,
-    bad_locs: &HashSet<Location>,
+    bad_locs: &IndexSet<Location>,
 ) -> bool {
     smaller.locations().all(|(small_loc, small_cell)| {
         let big_loc = small_loc + offset;
@@ -198,7 +198,7 @@ mod tests {
         let grid = Grid::rectangle(5, 4);
         let shape = Grid::rectangle(5, 4);
         let offset = Location { y: 0, x: 0 };
-        let bad_locs = HashSet::default();
+        let bad_locs = IndexSet::default();
 
         assert!(is_compatible(&grid, &shape, offset, &bad_locs))
     }
@@ -213,7 +213,7 @@ mod tests {
     //     let end_tick = Some(5);
     //     let placement = plan.place(&shape, start_tick, end_tick).unwrap();
 
-    //     let identity_mapping: HashMap<_, _> = grid.locations().map(|(loc, _)| (loc, loc)).collect();
+    //     let identity_mapping: IndexMap<_, _> = grid.locations().map(|(loc, _)| (loc, loc)).collect();
     //     assert_eq!(identity_mapping, placement.mapping)
     // }
 

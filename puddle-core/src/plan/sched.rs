@@ -6,13 +6,13 @@ use petgraph::{
 
 use crate::grid::DropletId;
 use crate::plan::graph::{CmdIndex, Graph};
-use crate::util::HashMap;
+use indexmap::IndexMap;
 
 type Schedule = usize;
 
 pub struct Scheduler {
     debug: bool,
-    node_sched: HashMap<CmdIndex, Schedule>,
+    node_sched: IndexMap<CmdIndex, Schedule>,
     current_sched: usize,
 }
 
@@ -38,7 +38,7 @@ impl Default for Scheduler {
     fn default() -> Scheduler {
         Scheduler {
             debug: cfg!(test),
-            node_sched: HashMap::default(),
+            node_sched: IndexMap::default(),
             current_sched: 0,
         }
     }
@@ -149,7 +149,7 @@ impl Scheduler {
         let mut todos: Vec<_> = criticality
             .iter()
             // only consider nodes that we have not yet scheduled
-            .filter(|&(node, _crit)| !self.node_sched.contains_key(&node))
+            .filter(|&(node, _crit)| !self.node_sched.contains_key(node))
             // ignore nodes the "unbound" nodes
             .filter(|&(&node, _crit)| req.graph.graph[node].is_some() && self.is_ready(req, node))
             .collect();
@@ -188,8 +188,8 @@ impl Scheduler {
     }
 }
 
-fn critical_paths(graph: &Graph) -> HashMap<CmdIndex, usize> {
-    let mut distances = HashMap::<CmdIndex, usize>::default();
+fn critical_paths(graph: &Graph) -> IndexMap<CmdIndex, usize> {
+    let mut distances = IndexMap::<CmdIndex, usize>::default();
 
     // do a reverse toposort so we can count the critical path lengths
     let working_space = None;
@@ -266,7 +266,7 @@ mod tests {
         sched.validate(&req);
     }
 
-    fn long_graph() -> (Graph, HashMap<&'static str, CmdIndex>) {
+    fn long_graph() -> (Graph, IndexMap<&'static str, CmdIndex>) {
         //
         //                 /-----------(2)---------> short ----------(20)--------\
         // input -(0)-> split                                                    mix --(3)-->
@@ -277,7 +277,7 @@ mod tests {
         let split = |x, y1, y2| Dummy::new(&[x], &[y1, y2]).boxed();
 
         let mut graph = Graph::default();
-        let mut map = HashMap::default();
+        let mut map = IndexMap::default();
 
         map.insert("input", graph.add_command(input(0)).unwrap());
         map.insert("split", graph.add_command(split(0, 1, 2)).unwrap());

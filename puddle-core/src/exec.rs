@@ -4,11 +4,11 @@ use crate::plan::{
     graph::{CmdIndex, Graph},
     Path, PlanPhase, PlannedCommand,
 };
-use crate::util::HashMap;
+use indexmap::IndexMap;
 
 pub struct Executor {
     pub gridview: GridView,
-    running_commands: HashMap<CmdIndex, PlannedCommand>,
+    running_commands: IndexMap<CmdIndex, PlannedCommand>,
     ticks: usize,
 }
 
@@ -21,7 +21,7 @@ impl Executor {
         info!("Creating an Executor");
         Executor {
             gridview: GridView::new(grid),
-            running_commands: HashMap::default(),
+            running_commands: IndexMap::default(),
             ticks: 0,
         }
     }
@@ -66,12 +66,12 @@ impl Executor {
         self.ticks += 1;
     }
 
-    fn take_routes(&mut self, paths: &HashMap<DropletId, Path>, graph: &mut Graph) {
+    fn take_routes(&mut self, paths: &IndexMap<DropletId, Path>, graph: &mut Graph) {
         let max_len = paths.values().map(Vec::len).max().unwrap_or(0);
 
         // make sure that all droplets start where they are at this time step
         for (id, path) in paths.iter() {
-            let droplet = &self.gridview.droplets[&id];
+            let droplet = &self.gridview.droplets[id];
             assert_eq!(droplet.location, path[0]);
         }
 

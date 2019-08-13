@@ -16,9 +16,11 @@ structopt = "0.2.15"
 log = "0.4.6"
 env_logger = "0.6.1"
 
-fxhash = "0.2.1"
 petgraph = "0.4.13"
 pathfinding = "1.1.12"
+
+# I need clone-able iterators, so > 1.0.2
+indexmap = { git = "https://github.com/bluss/indexmap", rev = "0a06966af88c0f48f2d69d20dacfc89cebfbbf3f" }
 
 [dev-dependencies]
 serde_yaml = "0.8.9"

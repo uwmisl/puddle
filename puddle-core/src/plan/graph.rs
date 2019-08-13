@@ -4,7 +4,7 @@ use crate::util::find_duplicate;
 
 use crate::command::BoxedCommand;
 use crate::grid::DropletId;
-use crate::util::HashMap;
+use indexmap::IndexMap;
 
 type NodeData = Option<BoxedCommand>;
 type EdgeData = DropletId;
@@ -15,7 +15,7 @@ pub type CmdIndex = pg::NodeIndex<Ix>;
 #[derive(Default)]
 pub struct Graph {
     pub graph: pg::StableDiGraph<NodeData, EdgeData, Ix>,
-    pub droplet_idx: HashMap<DropletId, pg::EdgeIndex<Ix>>,
+    pub droplet_idx: IndexMap<DropletId, pg::EdgeIndex<Ix>>,
 }
 
 #[derive(Debug)]
@@ -40,7 +40,7 @@ impl Graph {
             // make sure that the droplet id points to an edge
             let e_idx = self
                 .droplet_idx
-                .get(&id)
+                .get(id)
                 .ok_or_else(|| GraphError::DoesNotExist(*id))?;
 
             // make sure that the edge exists

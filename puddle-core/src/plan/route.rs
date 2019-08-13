@@ -2,7 +2,7 @@ use std::rc::Rc;
 use std::time::Instant;
 
 use crate::grid::{grid::NEIGHBORS_5, Droplet, DropletId, Grid, GridView, Location, Rectangle};
-use crate::util::HashMap;
+use indexmap::IndexMap;
 
 pub type Path = Vec<Location>;
 
@@ -14,7 +14,7 @@ pub struct RoutingRequest<'a> {
 
 #[derive(Debug, Clone)]
 pub struct RoutingResponse {
-    pub routes: HashMap<DropletId, Path>,
+    pub routes: IndexMap<DropletId, Path>,
 }
 
 #[derive(Debug)]
@@ -239,11 +239,11 @@ struct Collision {
 // borrows from request
 struct Context<'req> {
     grid: &'req Grid,
-    agents: HashMap<DropletId, Agent>,
-    groups: HashMap<DropletId, Rc<Group>>,
+    agents: IndexMap<DropletId, Agent>,
+    groups: IndexMap<DropletId, Rc<Group>>,
 }
 
-type PathMap = HashMap<DropletId, Vec<Location>>;
+type PathMap = IndexMap<DropletId, Vec<Location>>;
 
 impl Context<'_> {
     fn from_request<'a>(req: &'a RoutingRequest<'a>) -> Context<'a> {
@@ -426,7 +426,7 @@ impl Context<'_> {
 
         result.map(|(path, cost)| {
             debug!("Solution has cost {}.", cost);
-            let mut map: HashMap<DropletId, Path> = group
+            let mut map: IndexMap<DropletId, Path> = group
                 .agents
                 .iter()
                 .map(|a| a.id)
@@ -447,7 +447,7 @@ mod tests {
 
     use super::*;
     use crate::grid::gridview::tests::{c2id, id2c, parse_gridview};
-    use crate::util::HashSet;
+    use indexmap::IndexSet;
 
     fn draw_path(path: &[Location], ch: char, gridview: &GridView) -> Vec<String> {
         let strs = gridview.grid.to_strs();
@@ -476,15 +476,15 @@ mod tests {
     }
 
     fn mk_route_request<'a>(gv_start: &'a GridView, gv_end: &GridView) -> RoutingRequest<'a> {
-        let ids_start: HashSet<_> = gv_start.droplets.keys().collect();
-        let ids_end: HashSet<_> = gv_end.droplets.keys().collect();
+        let ids_start: IndexSet<_> = gv_start.droplets.keys().collect();
+        let ids_end: IndexSet<_> = gv_end.droplets.keys().collect();
 
         assert_eq!(gv_start.grid, gv_end.grid);
         assert_eq!(ids_start, ids_end);
 
         let agents = ids_start
             .iter()
-            .map(|id| {
+            .map(|&id| {
                 let d0 = &gv_start.droplets[id];
                 let d1 = &gv_end.droplets[id];
                 Agent::from_droplet(d0, d1.location)
@@ -501,7 +501,7 @@ mod tests {
         }
     }
 
-    type ExpectedPaths = HashMap<char, &'static [&'static str]>;
+    type ExpectedPaths = IndexMap<char, &'static [&'static str]>;
 
     fn check_paths(gv: &GridView, paths: &PathMap, expected_paths: &ExpectedPaths) {
         for (&ch, &expected) in expected_paths.iter() {

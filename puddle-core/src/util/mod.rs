@@ -6,9 +6,6 @@ use std::time::{Duration, Instant};
 use rand::{Rng, SeedableRng};
 use rand_pcg::Pcg32;
 
-pub type HashMap<K, V> = fxhash::FxHashMap<K, V>;
-pub type HashSet<K> = fxhash::FxHashSet<K>;
-
 pub fn mk_rng() -> impl Rng {
     Pcg32::seed_from_u64(
         env::var("PUDDLE_SEED")
