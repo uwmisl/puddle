@@ -157,8 +157,7 @@ fn parallel_mix() {
 
     // placement isn't quite good enough to make them even, but they
     // definitely run in parallel
-    assert_eq!(ticks1, 11);
-    assert_eq!(ticks2, 14);
+    assert_eq!((ticks1, ticks2), (11, 14));
 }
 
 #[test]
