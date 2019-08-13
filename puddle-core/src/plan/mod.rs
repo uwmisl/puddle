@@ -108,7 +108,10 @@ impl Planner {
                     } else {
                         let n_cmds = sched_resp.commands_to_run.len();
                         assert!(n_cmds > 1);
-                        error!("ROLLING BACK to {}", n_cmds - 1);
+                        info!(
+                            "Failed to place, rolling back to {} parallel commands",
+                            n_cmds - 1
+                        );
                         sched_limit = Some(n_cmds - 1)
                     }
                 }
