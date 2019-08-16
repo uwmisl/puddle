@@ -1,15 +1,39 @@
+use std::fs::File;
+use std::path::PathBuf;
+
 use crate::command::RunStatus;
-use crate::grid::{DropletId, Grid, GridView};
+use crate::grid::{DropletId, DropletInfo, Grid, GridView, Location};
 use crate::plan::{
     graph::{CmdIndex, Graph},
     Path, PlanPhase, PlannedCommand,
 };
+
 use indexmap::IndexMap;
+use serde::Serialize;
 
 pub struct Executor {
     pub gridview: GridView,
-    running_commands: IndexMap<CmdIndex, PlannedCommand>,
+    pub running_commands: IndexMap<CmdIndex, PlannedCommand>,
     ticks: usize,
+    log: Option<Logger>,
+}
+
+#[derive(Serialize)]
+struct ModuleInfo {
+    name: String,
+    location: Location,
+    dimensions: Location,
+}
+
+#[derive(Serialize)]
+struct StepInfo {
+    droplets: Vec<DropletInfo>,
+    modules: Vec<ModuleInfo>,
+}
+
+struct Logger {
+    path: PathBuf,
+    steps: Vec<StepInfo>,
 }
 
 pub enum ExecResponse {
@@ -23,7 +47,37 @@ impl Executor {
             gridview: GridView::new(grid),
             running_commands: IndexMap::default(),
             ticks: 0,
+            log: std::env::var("PUDDLE_EXEC_LOG").ok().map(|p| Logger {
+                path: PathBuf::from(p)
+                    .canonicalize()
+                    .expect("failed to canonicalize log path"),
+                steps: vec![],
+            }),
         }
+    }
+
+    fn add_to_log(&mut self) {
+        assert!(self.log.is_some());
+
+        let modules: Vec<_> = self
+            .running_commands
+            .values()
+            .map(|planned| ModuleInfo {
+                name: planned.request.name.clone(),
+                location: *planned.placement.mapping.values().min().unwrap(),
+                dimensions: Location {
+                    y: planned.request.shape.max_height() as i32,
+                    x: planned.request.shape.max_width() as i32,
+                },
+            })
+            .collect();
+
+        let droplets = self.gridview.droplet_info(None);
+        self.log
+            .as_mut()
+            .unwrap()
+            .steps
+            .push(StepInfo { modules, droplets })
     }
 
     fn run_all_commands(&mut self, graph: &mut Graph) {
@@ -64,6 +118,9 @@ impl Executor {
 
     fn commit(&mut self) {
         self.ticks += 1;
+        if self.log.is_some() {
+            self.add_to_log();
+        }
     }
 
     fn take_routes(&mut self, paths: &IndexMap<DropletId, Path>, graph: &mut Graph) {
@@ -111,5 +168,29 @@ impl Executor {
 
     pub fn ticks(&self) -> usize {
         self.ticks
+    }
+}
+
+impl Logger {
+    fn log_out_to_file(&self) -> Result<(), Box<std::error::Error>> {
+        let file = File::create(&self.path)?;
+        serde_json::to_writer_pretty(file, &self.steps)?;
+        Ok(())
+    }
+}
+
+impl Drop for Logger {
+    fn drop(&mut self) {
+        match self.log_out_to_file() {
+            Ok(()) => {
+                let s = self.path.to_string_lossy();
+                println!("Logged to file {}", s);
+                info!("Logged to file {}", s);
+            }
+            Err(err) => {
+                let s = self.path.to_string_lossy();
+                error!("Failed to log to file {}, {}", s, err);
+            }
+        }
     }
 }

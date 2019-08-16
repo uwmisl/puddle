@@ -24,6 +24,7 @@ pub enum PlanError {
 pub struct PlannedCommand {
     pub cmd_id: CmdIndex,
     pub placement: Placement,
+    pub request: crate::command::CommandRequest,
 }
 
 pub struct PlanPhase {
@@ -130,18 +131,18 @@ impl Planner {
             let placed = sched_resp
                 .commands_to_run
                 .iter()
-                .zip(command_requests)
+                .zip(&command_requests)
                 .zip(&place_resp.commands);
             for ((cmd_id, req), placement) in placed {
                 let cmd = graph.graph[*cmd_id].as_ref().expect("Command was unbound!");
                 let in_ids = cmd.input_droplets();
-                let ins = in_ids.iter().zip(req.input_locations);
+                let ins = in_ids.iter().zip(&req.input_locations);
                 for (&droplet_id, location) in ins {
                     agents.push(self::route::Agent {
                         id: droplet_id,
                         source: self.gridview.droplets[&droplet_id].location,
                         dimensions: self.gridview.droplets[&droplet_id].dimensions,
-                        destination: placement.mapping[&location],
+                        destination: placement.mapping[location],
                     });
                 }
             }
@@ -163,7 +164,12 @@ impl Planner {
             .commands_to_run
             .iter()
             .zip(place_resp.commands)
-            .map(|(&cmd_id, placement)| PlannedCommand { cmd_id, placement })
+            .zip(command_requests)
+            .map(|((&cmd_id, placement), request)| PlannedCommand {
+                cmd_id,
+                placement,
+                request,
+            })
             .collect();
 
         // now commit to the schedule
