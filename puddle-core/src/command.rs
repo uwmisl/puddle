@@ -438,12 +438,12 @@ impl Command for Split {
 
     fn request(&self, gridview: &GridView) -> CommandRequest {
         let d0 = &gridview.droplets[&self.inputs[0]];
-        // we only split in the x right now, so we don't need y padding
-        let x_dim = (d0.dimensions.x as usize) + SPLIT_PADDING;
-        let y_dim = d0.dimensions.y as usize;
+        // we only split in the y right now, so we don't need x padding
+        let x_dim = d0.dimensions.x as usize;
+        let y_dim = (d0.dimensions.y as usize) + SPLIT_PADDING;
         let grid = Grid::rectangle(y_dim, x_dim);
 
-        let input_locations = vec![yx(0, 2)];
+        let input_locations = vec![yx(2, 0)];
 
         CommandRequest {
             name: format!("split({:?})", self.inputs[0]),
@@ -461,10 +461,10 @@ impl Command for Split {
         if self.state == 0 {
             self.state += 1;
 
-            let x_dim = {
+            let y_dim = {
                 // limit the scope of d0 borrow
                 let d0 = gridview.get(&self.inputs[0]);
-                (d0.dimensions.x as usize) + SPLIT_PADDING
+                (d0.dimensions.y as usize) + SPLIT_PADDING
             };
 
             let d = gridview.remove(&inp);
@@ -473,20 +473,21 @@ impl Command for Split {
             // TODO: this should be related to volume in some fashion
             // currently, take the ceiling of the division of the split by two
             let dim = Location {
-                y: d.dimensions.y,
-                x: (d.dimensions.x + 1) / 2,
+                x: d.dimensions.x,
+                y: (d.dimensions.y + 1) / 2,
             };
 
-            let loc0 = yx(0, 1);
-            let loc1 = yx(0, x_dim as i32 - (dim.x + 1));
+            let loc0 = yx(1, 0);
+            let loc1 = yx(y_dim as i32 - (dim.y + 1), 0);
 
             gridview.insert(Droplet::new(out0, vol, loc0, dim));
             gridview.insert(Droplet::new(out1, vol, loc1, dim));
 
             RunStatus::KeepGoing
         } else {
-            gridview.move_west(out0);
-            gridview.move_east(out1);
+            // FIXME not sure what this was for
+            // gridview.move_south(out0);
+            // gridview.move_north(out1);
             RunStatus::Done
         }
     }
@@ -665,9 +666,9 @@ impl Command for Output {
         assert_eq!(self.inputs.len(), 1);
         let d = &gridview.droplets[&self.inputs[0]];
 
-        // FIXME limitation here
-        assert_eq!(d.dimensions, yx(1, 1));
-        let mut grid = Grid::rectangle(1, 1);
+        // FIXME do we have a limitation here?
+        // assert_eq!(d.dimensions, yx(1, 1));
+        let mut grid = Grid::rectangle(d.dimensions.y as usize, d.dimensions.x as usize);
         grid.get_cell_mut(yx(0, 0)).unwrap().peripheral = Some(Peripheral::Output {
             pwm_channel: 0,
             name: self.name.clone(),

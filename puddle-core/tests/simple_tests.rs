@@ -314,7 +314,7 @@ fn check_split_dimensions(dim: Location, dim1: Location, dim2: Location) {
 #[test]
 fn split_dimensions_size() {
     check_split_dimensions(yx(1, 1), yx(1, 1), yx(1, 1));
-    check_split_dimensions(yx(1, 3), yx(1, 2), yx(1, 2));
+    check_split_dimensions(yx(3, 1), yx(2, 1), yx(2, 1));
 }
 
 #[test]
