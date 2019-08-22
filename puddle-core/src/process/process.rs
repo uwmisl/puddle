@@ -1,3 +1,4 @@
+use std::fmt;
 use std::sync::atomic::AtomicUsize;
 use std::sync::atomic::Ordering::Relaxed;
 use std::sync::{Arc, Mutex};
@@ -18,6 +19,19 @@ pub enum PuddleError {
     NonExistentDropletId(usize),
     NonExistentProcess(ProcessId),
 }
+
+impl fmt::Display for PuddleError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        use PuddleError::*;
+        match self {
+            PlanError(err) => write!(f, "Plan error {:#?}", err),
+            NonExistentProcess(pid) => write!(f, "Process {} does not exist", pid),
+            NonExistentDropletId(id) => write!(f, "Droplet {} does not exist", id),
+        }
+    }
+}
+
+impl std::error::Error for PuddleError {}
 
 pub type PuddleResult<T> = Result<T, PuddleError>;
 

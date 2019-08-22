@@ -1,5 +1,5 @@
 use crate::command::BoxedCommand;
-use crate::exec::Executor;
+use crate::exec::{Executor, StepInfo};
 use crate::grid::{droplet::DropletInfo, DropletId, Grid, GridView};
 use crate::process::{ProcessId, PuddleResult};
 
@@ -38,6 +38,10 @@ impl System {
 
     pub fn info(&self, pid: Option<ProcessId>) -> Vec<DropletInfo> {
         self.planner.gridview.droplet_info(pid)
+    }
+
+    pub fn get_logs(&self) -> &[StepInfo] {
+        self.executor.get_logs()
     }
 
     // TODO switch to event loop here

@@ -1,5 +1,4 @@
 use std::fs::File;
-use std::path::PathBuf;
 
 use crate::command::RunStatus;
 use crate::grid::{DropletId, DropletInfo, Grid, GridView, Location};
@@ -15,24 +14,23 @@ pub struct Executor {
     pub gridview: GridView,
     pub running_commands: IndexMap<CmdIndex, PlannedCommand>,
     ticks: usize,
-    log: Option<Logger>,
+    log: Logger,
 }
 
-#[derive(Serialize)]
-struct ModuleInfo {
+#[derive(Serialize, Clone)]
+pub struct ModuleInfo {
     name: String,
     location: Location,
     dimensions: Location,
 }
 
-#[derive(Serialize)]
-struct StepInfo {
+#[derive(Serialize, Clone)]
+pub struct StepInfo {
     droplets: Vec<DropletInfo>,
     modules: Vec<ModuleInfo>,
 }
 
 struct Logger {
-    path: PathBuf,
     steps: Vec<StepInfo>,
 }
 
@@ -47,18 +45,15 @@ impl Executor {
             gridview: GridView::new(grid),
             running_commands: IndexMap::default(),
             ticks: 0,
-            log: std::env::var("PUDDLE_EXEC_LOG").ok().map(|p| Logger {
-                path: PathBuf::from(p)
-                    .canonicalize()
-                    .expect("failed to canonicalize log path"),
-                steps: vec![],
-            }),
+            log: Logger { steps: vec![] },
         }
     }
 
-    fn add_to_log(&mut self) {
-        assert!(self.log.is_some());
+    pub fn get_logs(&self) -> &[StepInfo] {
+        &self.log.steps
+    }
 
+    fn add_to_log(&mut self) {
         let modules: Vec<_> = self
             .running_commands
             .values()
@@ -73,11 +68,7 @@ impl Executor {
             .collect();
 
         let droplets = self.gridview.droplet_info(None);
-        self.log
-            .as_mut()
-            .unwrap()
-            .steps
-            .push(StepInfo { modules, droplets })
+        self.log.steps.push(StepInfo { modules, droplets })
     }
 
     fn run_all_commands(&mut self, graph: &mut Graph) {
@@ -118,9 +109,7 @@ impl Executor {
 
     fn commit(&mut self) {
         self.ticks += 1;
-        if self.log.is_some() {
-            self.add_to_log();
-        }
+        self.add_to_log();
     }
 
     fn take_routes(&mut self, paths: &IndexMap<DropletId, Path>, graph: &mut Graph) {
@@ -173,8 +162,18 @@ impl Executor {
 
 impl Logger {
     fn log_out_to_file(&self) -> Result<(), Box<std::error::Error>> {
-        let file = File::create(&self.path)?;
+        use std::env::{var, VarError};
+
+        let path = match var("PUDDLE_EXEC_LOG") {
+            Ok(path) => path,
+            Err(VarError::NotPresent) => return Ok(()),
+            err @ Err(_) => err?,
+        };
+        let file = File::create(&path)?;
         serde_json::to_writer_pretty(file, &self.steps)?;
+
+        println!("Logged to file {}", path);
+        info!("Logged to file {}", path);
         Ok(())
     }
 }
@@ -182,15 +181,8 @@ impl Logger {
 impl Drop for Logger {
     fn drop(&mut self) {
         match self.log_out_to_file() {
-            Ok(()) => {
-                let s = self.path.to_string_lossy();
-                println!("Logged to file {}", s);
-                info!("Logged to file {}", s);
-            }
-            Err(err) => {
-                let s = self.path.to_string_lossy();
-                error!("Failed to log to file {}, {}", s, err);
-            }
+            Ok(_) => (),
+            Err(err) => error!("Failed to log to file. {}", err),
         }
     }
 }

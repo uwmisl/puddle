@@ -57,6 +57,10 @@ impl Manager {
         }
     }
 
+    pub fn get_logs(&self) -> Vec<crate::exec::StepInfo> {
+        self.system.lock().unwrap().get_logs().to_vec()
+    }
+
     // pub fn gridview(&self) -> MutexGuard<GridView> {
     //     self.gridview.lock().unwrap()
     // }
