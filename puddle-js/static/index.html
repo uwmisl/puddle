@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Puddle JS thing</title>
+    <script defer src="index.js"></script>
+    <style>
+      /* #editor { */
+      /*     width: 500px; */
+      /*     height: 500px; */
+      /* } */
+      body {
+      }
+
+      .droplet, .module {
+          position: absolute;
+          border-radius: 10px;
+      }
+
+      .droplet {
+          background: gray;
+          transition: top .15s, left .15s;
+      }
+
+      .module {
+          z-index: 1;
+          border: solid 2px black;
+      }
+
+      .grid {
+          width: 300px;
+          height: 300px;
+          border: solid 1px black;
+          position: relative;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="editor"></div>
+  </body>
+</html>

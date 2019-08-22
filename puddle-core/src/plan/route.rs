@@ -1,5 +1,4 @@
 use std::rc::Rc;
-use std::time::Instant;
 
 use crate::grid::{grid::NEIGHBORS_5, Droplet, DropletId, Grid, GridView, Location, Rectangle};
 use indexmap::IndexMap;
@@ -414,7 +413,9 @@ impl Context<'_> {
             "Routing ids: {:?}",
             group.agents.iter().map(|a| a.id).collect::<Vec<_>>()
         );
-        let start_time = Instant::now();
+
+        #[cfg(not(target_arch = "wasm32"))]
+        let start_time = std::time::Instant::now();
         let start = group.start();
 
         let successors = |n: &Node| {
@@ -444,19 +445,22 @@ impl Context<'_> {
 
         let result = pathfinding::directed::astar::astar(&start, successors, heuristic, success);
 
-        let duration = start_time.elapsed();
-        debug!(
-            "Routing g={} {status} {}.{:06} sec. Saw {:7} nodes.",
-            group.agents.len(),
-            duration.as_secs(),
-            duration.subsec_micros(),
-            seen,
-            status = if seen < limit && result.is_some() {
-                "passed"
-            } else {
-                "failed"
-            },
-        );
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            let duration = start_time.elapsed();
+            debug!(
+                "Routing g={} {status} {}.{:06} sec. Saw {:7} nodes.",
+                group.agents.len(),
+                duration.as_secs(),
+                duration.subsec_micros(),
+                seen,
+                status = if seen < limit && result.is_some() {
+                    "passed"
+                } else {
+                    "failed"
+                },
+            );
+        }
 
         if seen == limit {
             return None;

@@ -8,7 +8,7 @@ else
   $(error Invalid profile: ${PROFILE})
 endif
 
-RSYNC ?= rsync -iP --compress-level=9
+RSYNC ?= rsync -riP --compress-level=9
 TARGET ?= armv7-unknown-linux-musleabihf
 PI ?= blueberry-pie.zt
 
@@ -52,6 +52,13 @@ test-rust:
 	$i "Formatting..."
 	cargo fmt -- --check
 
+.PHONY: test-js
+test-js:
+	$i "Checking version..."
+	npm --version
+	$i "Building..."
+	cd puddle-js; npm run build -- --mode development
+
 .PHONY: sync
 sync: sync-boards sync-server sync-pi-test
 
@@ -68,3 +75,8 @@ sync-server:
 sync-pi-test:
 	cargo build --target ${TARGET} --bin pi-test
 	${RSYNC} target/${TARGET}/debug/pi-test ${PI}:
+
+.PHONY: sync-web-demo
+sync-web-demo:
+	cd puddle-js; npm run build
+	${RSYNC} puddle-js/dist/ mwillsey.com:/var/www/stuff/puddle-demo/

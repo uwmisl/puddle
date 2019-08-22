@@ -4,6 +4,7 @@ members = [
     "puddle-core",
     "puddle-server",
     "puddle-pi",
+    "puddle-js",
 ]
 
 [profile.release]
