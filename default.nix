@@ -35,6 +35,11 @@ stdenv.mkDerivation {
     python37Packages.pyflakes
     python37Packages.yapf
     python37Packages.requests
+
+    # shell utilities that are called during testing
+    git
+    killall
+    time
   ];
   RUST_SRC_PATH = "${rust}/lib/rustlib/src/rust/src";
 }
