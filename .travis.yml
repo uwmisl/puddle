@@ -1,7 +1,7 @@
 language: nix
 script: nix-shell --pure --run 'make test'
 env:
-  - NIX_PATH=nixpkgs=channel:nixos-19.03
+  - NIX_PATH=nixpkgs=channel:nixos-19.03:nixpkgs-unstable=channel:nixpkgs-unstable
 
 notifications:
   slack:
